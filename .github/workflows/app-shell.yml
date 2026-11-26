@@ -38,6 +38,9 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      # Caches Gradle's downloads between runs. The first run on 26 Nov failed on HTTP 429
+      # (Too Many Requests) from Maven Central, which rate-limits shared runner addresses.
+      - uses: gradle/actions/setup-gradle@v4
       - run: npm ci
       - run: npm run build
       - run: npx cap sync android

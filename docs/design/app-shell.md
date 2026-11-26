@@ -42,7 +42,7 @@ and by hand (Actions, App shell, Run workflow).
 - **android** (ubuntu): build the game, `cap sync android`, `./gradlew assembleDebug`. The debug
   APK is kept as the run's `horders-debug-apk` artifact for 14 days. It is signed with the
   Android debug key, so it installs straight on an Android phone with "install unknown apps" on.
-- **ios** (macos-26): prints `xcodebuild -version`, then builds an unsigned Debug app for the iOS
+- **ios** (macos-26, Xcode 26.6 build 17F113 on 26 Nov 2026): prints `xcodebuild -version`, then builds an unsigned Debug app for the iOS
   simulator. A real iPhone needs a signed build, which needs the paid Apple account (M10).
 
 Nothing is signed for release and nothing is uploaded to a store.
