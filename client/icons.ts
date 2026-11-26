@@ -144,26 +144,26 @@ export const ALT_GLYPH: Record<AltId, string> = {
   glowPool: 'M3.5 17.5c0 2.6 17 2.6 17 0s-17-2.6-17 0Z M12 4v8 M8 8h8 M6 12.5v.01 M18 12.5v.01',
   // Cinder Sump: a molten pit with bubbles breaking.
   cinderSump: 'M3 16.5c0 2.8 18 2.8 18 0s-18-2.8-18 0Z M8.5 9a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4Z M15 4a2.3 2.3 0 1 1 0 4.6a2.3 2.3 0 1 1 0-4.6Z M14 12.5v.01',
-  // Wide Cut: two blade arcs sweeping all the way round a centre point.
-  wideCut: 'M12 10.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3Z M4 12a8 8 0 0 1 13.7-5.6 M20 12a8 8 0 0 1-13.7 5.6 M17.7 2.8v3.6h-3.6 M6.3 21.2v-3.6h3.6',
+  // Wide Cut: two blade crescents sweeping round the hero (26 Nov: the arrowed version read as a reload button).
+  wideCut: 'M3.5 11.5A8.5 8.5 0 0 1 18.5 6A10.5 10.5 0 0 0 3.5 11.5Z M20.5 12.5A8.5 8.5 0 0 1 5.5 18A10.5 10.5 0 0 0 20.5 12.5Z M12 10.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3Z',
   // Quicken: a blade with speed lines trailing behind it.
   quicken: 'M20.5 3.5 10 14 M10 14l-1.5 3.5L12 16 M7.5 12.5l4 4 M2.5 9.5h5 M3.5 13.5h3 M5.5 5.5h6',
   // Clout: a mace head coming down, with an impact burst under it.
   clout: 'M14 3.5l6.5 6.5 M15.5 8.5 7 17 M12.5 4.5l7 7-2.5 2.5-7-7Z M3.5 20.5l2-2 M2.5 16.5h3 M7.5 21.5v-3',
   // Gather: arrows from every side drawn in to a shield at the centre.
   gather: 'M12 8.5l3 1.2v2.3c0 2-1.3 3.3-3 4c-1.7-.7-3-2-3-4V9.7Z M2.5 12h4 M4.5 10l2 2-2 2 M21.5 12h-4 M19.5 10l-2 2 2 2 M12 2.5v3 M10.5 4l1.5 1.5L13.5 4 M12 21.5v-2.5',
-  // Sunlance: a long spear of light with a star at its tip.
-  sunlance: 'M3.5 20.5 16 8 M16 8l1.5-4.5L20 6l-4.5 1.5 M19 2.5v2 M21.5 5h-2 M6.5 14.5l3 3',
+  // Sunlance: a long spear of light with a four-point star at its tip.
+  sunlance: 'M3.5 20.5l10.6-10.6 M5.6 15.6l2.8 2.8 M17.5 2.5l1.1 2.9 2.9 1.1-2.9 1.1-1.1 2.9-1.1-2.9-2.9-1.1 2.9-1.1Z',
   // Canopy: a dome of light over the ground, with rays above it.
   canopy: 'M3.5 18.5a8.5 8.5 0 0 1 17 0Z M2.5 18.5h19 M12 3.5v3 M5.6 6.1l1.8 1.8 M18.4 6.1l-1.8 1.8',
-  // Slag Spray: a cannon mouth throwing a fan of slag drops.
-  slagSpray: 'M3 10h6v4H3Z M9 9.5l2 1v3l-2 1 M14 7.5a1.2 1.2 0 1 1 0 .1 M17 11.5a1.2 1.2 0 1 1 0 .1 M14 16.5a1.2 1.2 0 1 1 0 .1 M20 8a1 1 0 1 1 0 .1 M20 15.5a1 1 0 1 1 0 .1',
+  // Slag Spray: a cannon mouth throwing a fan of slag, a drop at the end of each streak.
+  slagSpray: 'M2.5 10h5v4h-5Z M7.5 9h2.5v6H7.5 M12.5 12h6 M12.5 10.2l5.5-3.4 M12.5 13.8l5.5 3.4 M21.5 12h.01 M20.5 5.5h.01 M20.5 18.5h.01',
   // Slag Mortar: a shell arcing down onto a burst.
   slagMortar: 'M3.5 19c3-11 10-14 14-11 M17.5 8l-2.5-.5 M17.5 8l.2 2.5 M12 20.5h9 M16.5 20.5l-2-3 M16.5 20.5l2-3 M16.5 20.5v-4',
   // Ember Dart: a slim dart in flight with a flame trailing off its tail.
   emberDart: 'M20.5 3.5 11 13 M20.5 3.5l-5.5 1.2 M20.5 3.5l-1.2 5.5 M11 13c-2.5-.5-4.5.5-5.5 2.5 1.5-.3 2.5.2 3 1-1.5.8-2.5 2.2-2.8 4.5 2.3-.3 3.7-1.3 4.5-2.8.8.5 1.3 1.5 1 3 2-1 3-3 2.5-5.5Z',
-  // White Heat: a white-hot core bursting outward in every direction.
-  whiteHeat: 'M12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z M12 2.5v3.5 M12 18v3.5 M2.5 12H6 M18 12h3.5 M5.3 5.3l2.5 2.5 M16.2 16.2l2.5 2.5 M18.7 5.3l-2.5 2.5 M7.8 16.2l-2.5 2.5',
+  // White Heat: a flame inside a jagged burst (26 Nov: the rayed sun read as a brightness setting).
+  whiteHeat: 'M12.0 2.0 14.4 6.3 19.1 4.9 17.7 9.6 22.0 12.0 17.7 14.4 19.1 19.1 14.4 17.7 12.0 22.0 9.6 17.7 4.9 19.1 6.3 14.4 2.0 12.0 6.3 9.6 4.9 4.9 9.6 6.3Z M12.3 8c.3 1.7 2.4 2.6 2.4 5a2.7 2.7 0 0 1-5.4 0c0-1.2.6-2.1 1.3-2.7.1 1 .5 1.5 1.1 1.7-.3-1.5-.1-2.8.6-4Z',
 };
 
 export const ABILITY_GLYPH: Record<ClassId, string[]> = {

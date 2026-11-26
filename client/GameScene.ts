@@ -169,7 +169,11 @@ const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
 /** Short-lived vector effects drawn with Graphics (ability shapes, beams). */
 interface Shape {
-  kind: 'cone' | 'line' | 'pillar' | 'ring' | 'tracer';
+  /**
+   * The ability-option casts (26 Nov) add spin, chevrons, slam, gather, star, wave, blobs and lob. Every shape is drawn
+   * on the floor graphics, so the floor bridge carries it into the 3D view too (the effects layer never reaches 3D).
+   */
+  kind: 'cone' | 'line' | 'pillar' | 'ring' | 'tracer' | 'spin' | 'chevrons' | 'slam' | 'gather' | 'star' | 'wave' | 'blobs' | 'lob';
   /** Cone width in radians (default 110 degrees). */
   arc?: number;
   x: number;
@@ -1187,7 +1191,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'ability':
           if (ev.alt) {
-            this.altCast(ev.x, ev.y, ev.r, ev.slot, ev.angle);
+            this.altCast(ev.x, ev.y, ev.r, ev.slot, ev.angle, ev.hero);
           } else if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
             if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, w.abilities[2].name, '#ffe9a8', 18);
@@ -2606,6 +2610,13 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(lp.canopy ? 0xcfe8ff : 0xffe9a8, lp.canopy ? 0.12 : 0.08).fillCircle(lp.sanctX, lp.sanctY, w.sanctuaryRadius);
       g.lineStyle(2, lp.canopy ? 0xa8d0ff : 0xffd27a, 0.6);
       this.dashedCircle(g, lp.sanctX, lp.sanctY, w.sanctuaryRadius, now);
+      if (lp.canopy) {
+        // Canopy's ribs: six spokes and an inner ring, a dome seen from above, so it never reads as Sanctuary.
+        const R = w.sanctuaryRadius;
+        g.lineStyle(2, 0xa8d0ff, 0.35);
+        for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2 + now / 4000; g.lineBetween(lp.sanctX + Math.cos(a) * R * 0.2, lp.sanctY + Math.sin(a) * R * 0.2, lp.sanctX + Math.cos(a) * R, lp.sanctY + Math.sin(a) * R); }
+        g.strokeCircle(lp.sanctX, lp.sanctY, R * 0.55);
+      }
     }
     if (lp.poolT > 0) g.fillStyle(0xb8ffd0, 0.12).fillCircle(lp.poolX, lp.poolY, 70);
     for (const l of w.lances) {
@@ -2735,6 +2746,8 @@ export class GameScene extends Phaser.Scene {
       } else if (s.kind === 'pillar') {
         g.fillStyle(s.color, 0.35 * f).fillRect(s.x - s.r / 2, s.y - 220, s.r, 230);
         g.fillStyle(0xffffff, 0.5 * f).fillRect(s.x - s.r / 6, s.y - 220, s.r / 3, 230);
+      } else {
+        this.optionShape(g, s, f);
       }
     }
 
@@ -5428,6 +5441,16 @@ export class GameScene extends Phaser.Scene {
         o.lineStyle(2, SLAG_COOL, (0.55 + 0.15 * Math.sin(now / 200)) * fade).beginPath().arc(x, y + 6, 32, Math.PI * 1.02, Math.PI * 1.98).strokePath();
         o.lineStyle(1.5, 0xffffff, 0.35 * fade).beginPath().arc(x - 4, y - 2, 22, Math.PI * 1.2, Math.PI * 1.45).strokePath();
       }
+      if ((q.quickUntil ?? -1) > w.time) {
+        // Quicken: gold speed streaks trail behind the hero while the haste lasts (on the floor, so 3D shows them).
+        const fade = Math.min(1, ((q.quickUntil ?? 0) - w.time) / 0.6);
+        const a = (q.facing ?? 0) + Math.PI, ca = Math.cos(a), sa = Math.sin(a);
+        for (let k = -1; k <= 1; k++) {
+          const off = k * 11, len = 30 + 10 * Math.sin(now / 90 + k * 2);
+          const x0 = x + ca * 14 - sa * off, y0 = y + 10 + sa * 14 + ca * off;
+          g.lineStyle(4, 0xffc861, 0.7 * fade).lineBetween(x0, y0, x0 + ca * len, y0 + sa * len);
+        }
+      }
       // Ember Mantle (plateBy -1) shares the plating pool but has its own look, in altDraw.
       if ((q.plateUntil ?? -1) > w.time && (q.plate ?? 0) > 0 && q.plateBy !== -1) {
         const frac = Math.max(0.08, Math.min(1, (q.plate ?? 0) / Math.max(1, q.plateAmt ?? q.plate ?? 1)));
@@ -5469,69 +5492,195 @@ export class GameScene extends Phaser.Scene {
 
   /** Hearthkeeper Warmth at the hero's feet: a glow that grows with each stack, and at full (the cut) a ring with five embers circling it. */
   /**
+   * The ability options' floor shapes (f runs 1 -> 0 over the shape's life). Friendly casts keep off danger red:
+   * Duskblade violet-white, Bulwark and Lumen gold, Emberwright and Slagbinder fire orange.
+   */
+  private optionShape(g: Phaser.GameObjects.Graphics, s: Shape, f: number): void {
+    const e = 1 - f;
+    if (s.kind === 'spin') {
+      // Wide Cut: a blade crescent sweeps one full turn round the hero, leaving a pale wake behind it.
+      const head = s.angle + e * Math.PI * 2.2;
+      const tail = head - Math.min(Math.PI * 1.4, e * Math.PI * 2.2);
+      g.fillStyle(s.color, 0.18 * f + 0.06).slice(s.x, s.y, s.r, tail, head, false).fillPath();
+      g.fillStyle(0xffffff, 0.22 * f).slice(s.x, s.y, s.r, head - 0.45, head, false).fillPath();
+      g.lineStyle(9 * f + 3, s.color, 0.85 * f + 0.15).beginPath().arc(s.x, s.y, s.r * 0.92, tail + (head - tail) * 0.4, head, false).strokePath();
+      g.lineStyle(3 * f + 1.5, 0xffffff, f).beginPath().arc(s.x, s.y, s.r * 0.92, head - 0.6, head, false).strokePath();
+      g.lineStyle(3, 0xffffff, 0.9 * f).lineBetween(s.x, s.y, s.x + Math.cos(head) * s.r, s.y + Math.sin(head) * s.r);
+    } else if (s.kind === 'chevrons') {
+      // Quicken: three chevrons race out ahead of the hero.
+      const ca = Math.cos(s.angle), sa = Math.sin(s.angle);
+      for (let k = 0; k < 3; k++) {
+        const d = 20 + e * s.r + k * 22;
+        const a = Math.max(0, Math.min(1, f * 1.6 - k * 0.15));
+        if (a <= 0) continue;
+        const cx = s.x + ca * d, cy = s.y + sa * d;
+        const tip = (q: number, w: number) => [cx + ca * q - sa * w, cy + sa * q + ca * w] as const;
+        const [ax, ay] = tip(-10, -14), [bx, by] = tip(4, 0), [dx, dy] = tip(-10, 14);
+        g.lineStyle(9, 0x2a1d10, 0.55 * a).beginPath().moveTo(ax, ay).lineTo(bx, by).lineTo(dx, dy).strokePath();
+        g.lineStyle(5, s.color, a).beginPath().moveTo(ax, ay).lineTo(bx, by).lineTo(dx, dy).strokePath();
+      }
+    } else if (s.kind === 'slam') {
+      // Clout and Slag Mortar: cracks split the floor out from the blow, under a ring out to the splash.
+      const n = 7;
+      for (let k = 0; k < n; k++) {
+        const a = s.angle + (k / n) * Math.PI * 2 + (k % 2) * 0.2;
+        const len = s.r * (0.7 + 0.3 * ((k * 37) % 5) / 4) * Math.min(1, e * 6 + 0.3);
+        const bend = ((k * 53) % 7) / 7 - 0.5;
+        const mx = s.x + Math.cos(a + bend * 0.5) * len * 0.5, my = s.y + Math.sin(a + bend * 0.5) * len * 0.5;
+        const ex = s.x + Math.cos(a) * len, ey = s.y + Math.sin(a) * len;
+        g.lineStyle(6, 0x1a120c, 0.7 * f).beginPath().moveTo(s.x, s.y).lineTo(mx, my).lineTo(ex, ey).strokePath();
+        g.lineStyle(2.5, s.color, f).beginPath().moveTo(s.x, s.y).lineTo(mx, my).lineTo(ex, ey).strokePath();
+      }
+      g.fillStyle(s.color, 0.3 * f).fillCircle(s.x, s.y, s.r * 0.35);
+      g.fillStyle(0xffffff, 0.6 * f).fillCircle(s.x, s.y, s.r * 0.15);
+      g.lineStyle(5 * f + 1, s.color, 0.8 * f).strokeCircle(s.x, s.y, s.r * (0.6 + 0.45 * e));
+    } else if (s.kind === 'gather') {
+      // Gather: a gold ring closes in from the reach onto the Bulwark, its chevrons pointing inward.
+      const rr = 30 + (s.r - 30) * f;
+      g.fillStyle(s.color, 0.08 * f).fillCircle(s.x, s.y, rr);
+      g.lineStyle(5, s.color, 0.85 * f + 0.15).strokeCircle(s.x, s.y, rr);
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2 + 0.2;
+        const ca = Math.cos(a), sa = Math.sin(a);
+        const o = rr + 16;
+        const p0 = [s.x + ca * o - sa * 12, s.y + sa * o + ca * 12], p1 = [s.x + ca * (rr - 2), s.y + sa * (rr - 2)], p2 = [s.x + ca * o + sa * 12, s.y + sa * o - ca * 12];
+        g.lineStyle(8, 0x2a1d10, 0.5 * f).beginPath().moveTo(p0[0], p0[1]).lineTo(p1[0], p1[1]).lineTo(p2[0], p2[1]).strokePath();
+        g.lineStyle(4, 0xfff2b0, f).beginPath().moveTo(p0[0], p0[1]).lineTo(p1[0], p1[1]).lineTo(p2[0], p2[1]).strokePath();
+      }
+    } else if (s.kind === 'star') {
+      // Sunlance and Ember Dart: a four-point flash where the lance or dart lands.
+      const r = s.r * (0.7 + 0.5 * e);
+      const pts: number[] = [];
+      for (let k = 0; k < 8; k++) {
+        const a = s.angle + (k / 8) * Math.PI * 2;
+        const q = k % 2 ? r * 0.28 : r;
+        pts.push(s.x + Math.cos(a) * q, s.y + Math.sin(a) * q);
+      }
+      g.fillStyle(s.color, 0.85 * f).beginPath().moveTo(pts[0], pts[1]);
+      for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]);
+      g.closePath().fillPath();
+      g.fillStyle(0xffffff, f).fillCircle(s.x, s.y, r * 0.22);
+      g.lineStyle(2.5, s.color, 0.6 * f).strokeCircle(s.x, s.y, r * 0.75);
+    } else if (s.kind === 'wave') {
+      // White Heat: a white-hot band bursts out to the reach, jagged flame tongues on its front.
+      const rr = s.r * (0.25 + 0.75 * Math.min(1, e * 1.8));
+      g.fillStyle(s.color, 0.16 * f).fillCircle(s.x, s.y, rr);
+      g.lineStyle(16 * f + 4, s.color, 0.55 * f + 0.1).strokeCircle(s.x, s.y, rr * 0.94);
+      g.lineStyle(5 * f + 1.5, 0xfff6e8, f).strokeCircle(s.x, s.y, rr);
+      g.fillStyle(0xfff0d8, 0.9 * f);
+      for (let k = 0; k < 14; k++) {
+        const a = (k / 14) * Math.PI * 2 + s.angle;
+        const w = 0.13;
+        const out = rr + 14 + 10 * (k % 3) / 2;
+        g.fillTriangle(s.x + Math.cos(a - w) * rr, s.y + Math.sin(a - w) * rr, s.x + Math.cos(a) * out, s.y + Math.sin(a) * out, s.x + Math.cos(a + w) * rr, s.y + Math.sin(a + w) * rr);
+      }
+    } else if (s.kind === 'blobs') {
+      // Slag Spray: gobbets of slag thrown out through the cone, a dark crust round a hot core.
+      const half = (s.arc ?? 1.2) / 2;
+      for (let k = 0; k < 11; k++) {
+        const a = s.angle + (((k * 7) % 11) / 10 - 0.5) * 2 * half * 0.9;
+        const d = s.r * (0.25 + 0.75 * Math.min(1, e * 1.5)) * (0.55 + 0.45 * (((k * 5) % 11) / 10));
+        const x = s.x + Math.cos(a) * d, y = s.y + Math.sin(a) * d;
+        const rad = 6 + (k % 3) * 2;
+        g.fillStyle(0x2a1d18, 0.85 * f + 0.1).fillCircle(x, y, rad);
+        g.fillStyle(s.color, f).fillCircle(x, y, rad * 0.6);
+      }
+    } else if (s.kind === 'lob') {
+      // Slag Mortar: the shell's smoke arc from the gunner (x2, y2) up and over onto where it landed.
+      const lift = Math.min(160, Math.hypot(s.x - s.x2, s.y - s.y2) * 0.45);
+      const at = (t: number) => [s.x2 + (s.x - s.x2) * t, s.y2 + (s.y - s.y2) * t - lift * 4 * t * (1 - t)] as const;
+      for (let k = 0; k < 12; k++) {
+        const t = k / 12;
+        const [x, y] = at(t);
+        g.fillStyle(0x3a2c26, 0.45 * f).fillCircle(x, y, 5 + t * 4);
+        g.fillStyle(s.color, 0.7 * f).fillCircle(x, y, 2 + t * 2);
+      }
+    }
+  }
+
+  /**
    * An ability option's cast (ALT_ABILITIES). The event carries no class, so like the other casts
    * it is drawn as this screen's class.
    */
-  private altCast(x: number, y: number, r: number, slot: number, angle = 0): void {
+  private altCast(x: number, y: number, r: number, slot: number, angle = 0, hero?: number): void {
     const w = this.world;
-    const opt = ALT_OPTIONS[w.cls].find((o) => o.slot === slot) ?? ALT_ABILITIES[w.cls];
+    // The caster (the event names them since 26 Nov), so a bot's option is drawn as its own class, from where it stands.
+    const hi = hero !== undefined && hero < w.heroes.length ? hero : w.acting;
+    const cls = w.heroes[hi]?.cls ?? w.cls;
+    const q = w.heroData(hi).player;
+    const opt = ALT_OPTIONS[cls].find((o) => o.slot === slot && q.alts?.includes(o.id)) ?? ALT_OPTIONS[cls].find((o) => o.slot === slot) ?? ALT_ABILITIES[cls];
     const name = opt.def.name;
+    // The floor shapes carry each cast into 3D (via the floor bridge); the sparks, rings and flashes are 2D extras.
+    const shape = (kind: Shape['kind'], life: number, color: number, o: Partial<Shape> = {}) => this.addShape({ kind, x, y, x2: q.x, y2: q.y, r, angle: 0, color, life, ...o });
     if (opt.id === 'wideCut') {
-      // Wide Cut: a full spin of blade light out to its reach, with blood flung outward.
-      this.ring(x, y, r, 0xe0465a, 0.4);
-      this.addShape({ kind: 'ring', x, y, x2: 0, y2: 0, r, angle: 0, color: 0xffd0d8, life: 0.3 });
+      // Wide Cut: a blade crescent sweeps one full turn out to its reach, blood flung outward.
+      shape('spin', 0.32, 0xd9c8ff, { angle: q.facing ?? 0 });
+      shape('ring', 0.3, 0xf1e6ff);
       for (let k = 0; k < 10; k++) {
         const a = (k / 10) * Math.PI * 2;
         this.emit(this.fx, 'spark', undefined, x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6, 0.4, { tint: 0xe0465a, vx: Math.cos(a) * 140, vy: Math.sin(a) * 140, drag: 0.9, sx0: 1.6, sx1: 0.5 });
       }
       this.shakeBy(0.08);
-      this.floatText(x, y - 40, name, '#ffb0bc', 18);
+      this.floatText(x, y - 40, name, '#e6d8ff', 18);
+      return;
+    }
+    if (opt.id === 'quicken') {
+      // Quicken: gold chevrons race out ahead (the Quickened buff's colour); the trail while it lasts is drawn per frame.
+      shape('chevrons', 0.45, 0xffc861, { angle: q.facing ?? 0, r: 70 });
+      this.ring(x, y, 46, 0xffc861, 0.35);
+      this.floatText(x, y - 40, name, '#ffe2a0', 18);
       return;
     }
     if (opt.id === 'clout') {
-      // Clout: a heavy gold blow landing on the foe.
+      // Clout: a heavy gold blow cracks the floor under the foe, out to the splash.
+      shape('slam', 0.5, 0xffd27a, { r: ALT_KIT.cloutSplashR, angle: angle });
       this.impact(x, y, 1.6);
-      this.ring(x, y, 36, 0xffd27a, 0.3);
-      this.shakeBy(0.06);
+      this.shakeBy(0.08);
       this.floatText(x, y - 40, name, '#ffe2a8', 18);
       return;
     }
     if (opt.id === 'gather') {
-      // Gather: a ring that closes in from its reach onto the Bulwark.
-      this.emit(this.fx, 'ring', undefined, x, y, 0.4, { tint: 0xffd27a, sx0: (r * 2) / 128, sx1: 0.15 });
+      // Gather: a gold ring closes in from its reach onto the Bulwark, chevrons pointing in.
+      shape('gather', 0.45, 0xffd27a);
       this.ring(x, y, 50, 0xfff2b0, 0.35);
       this.floatText(x, y - 40, name, '#ffe2a8', 18);
       return;
     }
     if (opt.id === 'sunlance') {
-      // Sunlance: the lance itself is drawn from w.lances; a bright flash where it lands.
+      // Sunlance: a pale gold lance from the Lumen to the foe and a star where it lands.
+      shape('tracer', 0.28, 0xffe9a0, { x: q.x, y: q.y, x2: x, y2: y });
+      shape('star', 0.35, 0xfff0b0, { r: 34, angle: Math.PI / 4 });
       this.impact(x, y, 1.2);
-      this.ring(x, y, 28, 0xfff0c0, 0.3);
       this.floatText(x, y - 40, name, '#fff0b0', 18);
       return;
     }
     if (opt.id === 'emberDart') {
-      // Ember Dart: the dart itself is drawn from w.lances; a small fiery burst where it lands.
+      // Ember Dart: an orange dart streaks to the foe and bursts in a small fiery star.
+      shape('tracer', 0.22, 0xff8a3a, { x: q.x, y: q.y, x2: x, y2: y });
+      shape('star', 0.3, 0xffa04a, { r: 26, angle: 0 });
       this.impact(x, y, 1);
-      this.ring(x, y, 24, 0xff8a3a, 0.3);
       this.floatText(x, y - 40, name, '#ffb070', 18);
       return;
     }
     if (opt.id === 'whiteHeat') {
-      // White Heat: a white-hot ring bursting out to its reach.
+      // White Heat: a white-hot band bursts out to its reach with flame tongues on its front.
+      shape('wave', 0.45, 0xffb347);
       this.emit(this.fx, 'ring', undefined, x, y, 0.4, { tint: 0xfff0d8, sx0: 0.15, sx1: (r * 2) / 128 });
-      this.ring(x, y, r, 0xffc890, 0.4);
+      this.shakeBy(0.08);
       this.floatText(x, y - 40, name, '#fff0d8', 18);
       return;
     }
     if (opt.id === 'slagSpray') {
-      // Slag Spray: an orange-hot cone of slag thrown ahead.
-      this.addShape({ kind: 'cone', x, y, x2: 0, y2: 0, r, angle, arc: (70 * Math.PI) / 180, color: 0xff7a2a, life: 0.3 });
+      // Slag Spray: an orange-hot cone with gobbets of slag thrown through it.
+      shape('cone', 0.3, 0xff7a2a, { angle, arc: (70 * Math.PI) / 180 });
+      shape('blobs', 0.4, 0xff9a3a, { angle, arc: (70 * Math.PI) / 180 });
       this.floatText(x, y - 40, name, '#ffb070', 18);
       return;
     }
     if (opt.id === 'slagMortar') {
-      // Slag Mortar: a heavy shell bursts where it lands.
+      // Slag Mortar: a smoke arc from the gunner over onto the burst, cracks out to the blast.
+      shape('lob', 0.5, 0xff9a4a);
+      shape('slam', 0.5, 0xff9a4a, { angle: 0.3 });
       this.impact(x, y, 1.6);
       this.emit(this.fx, 'ring', undefined, x, y, 0.35, { tint: 0xff9a4a, sx0: 0.15, sx1: (r * 2) / 128 });
       this.shakeBy(0.08);
@@ -5539,19 +5688,14 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (opt.id === 'canopy') {
-      // Canopy: a pale blue-gold dome rises over the ground (drawn each frame like Sanctuary, in its own colour).
-      this.addShape({ kind: 'pillar', x, y, x2: 0, y2: 0, r: 30, angle: 0, color: 0xcfe8ff, life: 0.6 });
+      // Canopy: a pale blue ring rises out to the dome's edge; the dome itself (with its ribs) is drawn each frame.
+      shape('ring', 0.5, 0xcfe8ff);
+      shape('star', 0.4, 0xe8f4ff, { r: 40, angle: 0 });
       this.ring(x, y, r, 0xcfe8ff, 0.5);
       this.floatText(x, y - 40, name, '#e0f0ff', 18);
       return;
     }
-    if (opt.id === 'quicken') {
-      // Quicken: a quick violet flare around the hero.
-      this.ring(x, y, 46, 0xb89cff, 0.35);
-      this.floatText(x, y - 40, name, '#d0b8ff', 18);
-      return;
-    }
-    switch (w.cls) {
+    switch (cls) {
       case 'emberwright': {
         // Ember Mantle: fire closes in around the hero and flames leap up.
         this.emit(this.fx, 'ring', undefined, x, y + 4, 0.35, { tint: WARD_FIRE, sx0: 1.1, sx1: 0.45 });

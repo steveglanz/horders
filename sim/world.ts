@@ -694,7 +694,7 @@ export type SimEvent =
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
-  | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number; /** The hero's ability option (ALT_ABILITIES), not the class's own. */ alt?: boolean }
+  | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number; /** The hero's ability option (ALT_ABILITIES), not the class's own. */ alt?: boolean; /** Who cast the option (World.acting), so a screen draws it as that hero's class and from that hero. */ hero?: number }
   | { type: 'blink'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'dash'; x1: number; y1: number; x2: number; y2: number; dodge: boolean }
   | { type: 'swing'; x: number; y: number; angle: number; r: number; arc: number; spin: boolean }
@@ -4451,12 +4451,12 @@ export class World {
           e.burnBy = this.acting;
         }
       });
-      this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot, x: p.x, y: p.y, angle: 0, r });
       return;
     }
     if (id === 'quicken') {
       p.quickUntil = this.time + ALT_KIT.quickenTime;
-      this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r: 40 });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot, x: p.x, y: p.y, angle: 0, r: 40 });
       return;
     }
     if (id === 'sunlance') {
@@ -4471,7 +4471,7 @@ export class World {
       const ally = this.woundedAlly(this.lumenRange);
       if (ally >= 0) this.healAllies(this.heroes[ally].player.x, this.heroes[ally].player.y, 1, ALT_KIT.sunlanceHeal, ally);
       else this.healPlayer(ALT_KIT.sunlanceHeal);
-      this.events.push({ type: 'ability', alt: true, slot, x: e.x, y: e.y, angle: p.facing, r: 30 });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot, x: e.x, y: e.y, angle: p.facing, r: 30 });
       return;
     }
     if (id === 'canopy') {
@@ -4492,7 +4492,7 @@ export class World {
         e.burnT = Math.max(e.burnT, ALT_KIT.emberDartBurnTime);
         e.burnBy = this.acting;
       }
-      this.events.push({ type: 'ability', alt: true, slot, x: e.x, y: e.y, angle: p.facing, r: 30 });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot, x: e.x, y: e.y, angle: p.facing, r: 30 });
       return;
     }
     if (id === 'whiteHeat') {
@@ -4528,7 +4528,7 @@ export class World {
         if (lance) Object.assign(lance, { alive: true, x1: p.x, y1: p.y, x2: e.x, y2: e.y, life: 0.2 });
         this.whiteHeatHit(big, dmg);
       }
-      this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot, x: p.x, y: p.y, angle: 0, r });
       return;
     }
     if (id === 'slagSpray') {
@@ -4556,7 +4556,7 @@ export class World {
         }
       });
       this.plate(this.acting, this.plateAmount * ALT_KIT.sprayPlate);
-      this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: ang, r });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot, x: p.x, y: p.y, angle: ang, r });
       return;
     }
     if (id === 'slagMortar') {
@@ -4583,7 +4583,7 @@ export class World {
         this.makeBrittle(i);
         if (e.def.rank === 'normal' && !e.def.stationary) e.stunT = Math.max(e.stunT, ALT_KIT.mortarStun);
       });
-      this.events.push({ type: 'ability', alt: true, slot, x, y, angle: 0, r });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot, x, y, angle: 0, r });
       return;
     }
     if (id === 'clout') {
@@ -4615,7 +4615,7 @@ export class World {
         e.y += (dy / d) * push;
         this.clampArena(e, e.def.radius);
       }
-      this.events.push({ type: 'ability', alt: true, slot, x: e.x, y: e.y, angle: p.facing, r: 40 });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot, x: e.x, y: e.y, angle: p.facing, r: 40 });
       return;
     }
     if (id === 'gather') {
@@ -4640,7 +4640,7 @@ export class World {
       });
       // Like Charge, it builds Resolve for Anvil Skin.
       this.addHeat(ALT_KIT.gatherResolve);
-      this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot, x: p.x, y: p.y, angle: 0, r });
       return;
     }
     if (this.cls === 'emberwright') {
@@ -4649,7 +4649,7 @@ export class World {
       p.plateAmt = p.plate;
       p.plateUntil = this.time + ALT_KIT.emberWardTime;
       p.plateBy = -1;
-      this.events.push({ type: 'ability', alt: true, slot: 1, x: p.x, y: p.y, angle: 0, r: 40 });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot: 1, x: p.x, y: p.y, angle: 0, r: 40 });
     } else if (this.cls === 'duskblade') {
       let t = this.bladeTarget(this.swingReach + 40);
       if (t < 0) t = this.nearestEnemies(p.x, p.y, 1, 220)[0] ?? -1;
@@ -4668,7 +4668,7 @@ export class World {
         if (i !== t && dist2(e.x, e.y, o.x, o.y) > (r + o.def.radius) ** 2) return;
         this.slow(i, ALT_KIT.slowNormal, ALT_KIT.hamstringTime);
       });
-      this.events.push({ type: 'ability', alt: true, slot: 0, x: e.x, y: e.y, angle: 0, r });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot: 0, x: e.x, y: e.y, angle: 0, r });
     } else if (this.cls === 'bulwark') {
       p.cryUntil = this.time + ALT_KIT.cryTime;
       for (let k = 0; k < this.heroes.length; k++) {
@@ -4676,12 +4676,12 @@ export class World {
         const a = this.heroPlayer(k);
         if (a.hp > 0 && dist2(p.x, p.y, a.x, a.y) <= ALT_KIT.cryRadius ** 2) a.cryUntil = this.time + ALT_KIT.cryTime;
       }
-      this.events.push({ type: 'ability', alt: true, slot: 2, x: p.x, y: p.y, angle: 0, r: ALT_KIT.cryRadius });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot: 2, x: p.x, y: p.y, angle: 0, r: ALT_KIT.cryRadius });
     } else if (this.cls === 'lumen') {
       p.wellUntil = this.time + ALT_KIT.wellTime;
       p.wellX = p.x;
       p.wellY = p.y;
-      this.events.push({ type: 'ability', alt: true, slot: 1, x: p.x, y: p.y, angle: 0, r: ALT_KIT.wellRadius });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot: 1, x: p.x, y: p.y, angle: 0, r: ALT_KIT.wellRadius });
     } else if (this.cls === 'slagbinder') {
       const t = this.bladeTarget(ALT_KIT.pitRange);
       const ang = Math.hypot(input.x, input.y) > 0.01 ? Math.atan2(input.y, input.x) : p.facing;
@@ -4691,7 +4691,7 @@ export class World {
       p.pitX = x;
       p.pitY = y;
       this.addZone(x, y, ALT_KIT.pitRadius, ALT_KIT.pitDps * this.dmgMult, ALT_KIT.pitTime);
-      this.events.push({ type: 'ability', alt: true, slot: 1, x, y, angle: 0, r: ALT_KIT.pitRadius });
+      this.events.push({ type: 'ability', alt: true, hero: this.acting, slot: 1, x, y, angle: 0, r: ALT_KIT.pitRadius });
     }
   }
 
@@ -5323,7 +5323,7 @@ export class World {
     p.sanctX = p.x;
     p.sanctY = p.y;
     p.sanctTick = 0;
-    this.events.push({ type: 'ability', ...(canopy ? { alt: true } : {}), slot: 2, x: p.x, y: p.y, angle: 0, r: this.sanctuaryRadius });
+    this.events.push({ type: 'ability', ...(canopy ? { alt: true, hero: this.acting } : {}), slot: 2, x: p.x, y: p.y, angle: 0, r: this.sanctuaryRadius });
   }
 
   // ---------------------------------------------------------------- bulwark
