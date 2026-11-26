@@ -207,12 +207,12 @@ export const ABILITY_GLYPH: Record<ClassId, string[]> = {
     // Hush: a muted sound wave inside the cut cast ring.
     'M7.5 12.5q1.1-2 2.2 0t2.2 0 2.2 0 2.2 0 ' + CUT,
   ],
-  // Slagbinder (Molten Plating, Interpose, Cooling Shell, Clinker).
+  // Slagbinder (Molten Plating, Recoil, Cooling Shell, Clinker).
   slagbinder: [
     // Molten Plating: a plate with a molten drop held in it.
     'M12 3 5 6v5.5c0 4 3 7 7 8.5 4-1.5 7-4.5 7-8.5V6Z M9 8.5h6 M12 11c1.1 1.4 1.7 2.3 1.7 3.2a1.7 1.7 0 0 1-3.4 0c0-.9.6-1.8 1.7-3.2Z',
-    // Interpose: a leap arcing in front of an ally.
-    'M2.5 20c1-8 6-12.5 11.5-11.5 M14 8.5l-3.4-.9 M14 8.5l-1.8 3 M18.5 7a2 2 0 1 1 0 4a2 2 0 1 1 0-4Z M18.5 11v6 M16 20l2.5-3 2.5 3',
+    // Recoil: the cannon fires to the right and its kick throws you back in an arc to the left.
+    'M10.5 14.5l8.5-3.2 1.1 3-8.5 3.2Z M22 9.5l1.5-1.2 M22.5 13h1.5 M12.5 19a1.5 1.5 0 1 1 0 .1 M10 12.5C8.5 7 5.5 5.5 3 6.5 M3 6.5l3.2-.6 M3 6.5l.4 3.2 M2.5 21.5h19',
     // Cooling Shell: a dome over a hero, cold rising off it.
     'M3 20a9 9 0 0 1 18 0Z M12 13.5a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6Z M12 5.5V2.5 M6.6 7.4 5 5.8 M17.4 7.4 19 5.8',
     // Clinker: a slag lump inside the cut cast ring.

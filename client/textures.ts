@@ -1884,25 +1884,37 @@ function drawSlagbinder(ctx: Ctx, _s: number, f: number, anvil = false): void {
     cracks(ctx, [[[-1.5, 3], [1, 4.5], [3.5, 3]]], SEAM, 0.8);
     ctx.restore();
   }
-  // Front arm and the ladle: a long haft, a deep bowl brimming with molten slag, one drip falling.
-  limb(ctx, 33, 26 + bob, 39, 31 + bob, 3, '#4a403c');
-  limb(ctx, 37, 34 + bob, 41.5, 25 + bob, 1.8, '#5a4a3a');
-  // The bowl: a deep iron cup, its rim brimming.
+  // The slag cannon (Steve 25 Nov: the Slagbinder is a slow, heavy gunner): a squat iron barrel held level at the hip,
+  // two brass bands, a flared muzzle with molten slag glowing in the bore, and a seam of heat along the breech.
+  limb(ctx, 33, 26 + bob, 30, 33 + bob, 3, '#4a403c');
+  ctx.save();
+  ctx.translate(30, 33 + bob);
+  // Breech: a rounded iron cap behind the grip.
+  ell(ctx, -3, 0, 4.2, 4.4); shade(ctx, '#5a504c', '#1c1816', -4, 4, 1.2);
+  // Barrel.
   ctx.beginPath();
-  ctx.moveTo(37.5, 22 + bob);
-  ctx.quadraticCurveTo(38, 30 + bob, 43.5, 30 + bob);
-  ctx.quadraticCurveTo(49, 30 + bob, 49.5, 22 + bob);
+  ctx.moveTo(-2, -4); ctx.lineTo(16, -3.4); ctx.lineTo(16, 3.4); ctx.lineTo(-2, 4);
   ctx.closePath();
-  shade(ctx, '#7a6e68', '#2c2624', 22, 30, 1.2);
+  shade(ctx, '#6e6460', '#221d1b', -4, 4, 1.2);
+  ctx.fillStyle = 'rgba(235,225,215,0.55)';
+  ctx.fillRect(-1, -3.6, 16, 1.1);
+  ctx.fillStyle = '#c99a3e';
+  ctx.fillRect(4, -4, 1.8, 8); ctx.fillRect(11, -3.8, 1.6, 7.6);
+  // Muzzle: a flared lip, and the hot bore inside it.
+  ctx.beginPath();
+  ctx.moveTo(16, -4.8); ctx.lineTo(19.5, -5.4); ctx.lineTo(19.5, 5.4); ctx.lineTo(16, 4.8);
+  ctx.closePath();
+  shade(ctx, '#7a6e68', '#2c2624', -5, 5, 1.2);
   ctx.save();
   ctx.fillStyle = '#ffb347'; ctx.shadowColor = '#ff7a2a'; ctx.shadowBlur = 5;
-  ell(ctx, 43.5, 22.2 + bob, 6, 1.7); ctx.fill();
-  ctx.fillStyle = '#fff0c0';
-  ell(ctx, 42, 21.9 + bob, 2.2, 0.6); ctx.fill();
-  ctx.fillStyle = '#ffb347';
-  const drop = (f % 2) * 2.5;
-  ell(ctx, 49.2, 25 + bob + drop, 0.9, 1.3); ctx.fill();
+  ell(ctx, 19.6, 0, 1.1, 2.8); ctx.fill();
   ctx.restore();
+  cracks(ctx, [[[-4, -1.5], [0, -0.5], [2.5, -1.8]]], SEAM, 0.8);
+  ctx.restore();
+  // The hand on the grip, and a wisp of heat off the muzzle that rises frame by frame.
+  ell(ctx, 30.5, 34.5 + bob, 2.6, 2.4); shade(ctx, '#6e6460', '#2a2422', 32, 37, 1);
+  ctx.fillStyle = `rgba(200,190,180,${0.35 - (f % 2) * 0.15})`;
+  ell(ctx, 50, 29 + bob - f, 1.6, 1.6); ctx.fill();
 }
 
 /** A route gate: a broken stone arch. The portal inside is a separate tinted glow. */
