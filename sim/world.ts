@@ -326,6 +326,11 @@ export interface Enemy {
   affix: number;
   /** Phase 18 Halls: the map pack (World.halls.packs index) this foe belongs to; set only on Halls runs. */
   pack?: number;
+  /** FOE_AI lunge: seconds until it may lunge again, wind-up left (red lane showing), dash left, and the lane's angle. */
+  lungeT: number;
+  lungeW: number;
+  lungeD: number;
+  lungeA: number;
 }
 
 export interface Orb {
@@ -1441,7 +1446,7 @@ export class World {
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
       x: 0, y: 0, px: 0, py: 0, hp: 0, maxHp: 0, touchCd: 0, orbitCd: 0,
       burnDps: 0, burnT: 0, woundT: 0, flash: 0, abilityT: 0, spawnedAt: 0,
-      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0, ward: 0, warded: false, named: -1, affix: 0,
+      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0, ward: 0, warded: false, named: -1, affix: 0, lungeT: 0, lungeW: 0, lungeD: 0, lungeA: 0,
     }));
     this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0, owner: 0, pierce: 0, lastHit: -1 }));
     this.gems = pool(CAP.gems, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, value: 0, pulled: false }));
@@ -3759,6 +3764,11 @@ export class World {
     // Phase 16 U2: an Ashwall comes in with its shield already toward the hero (aux is its facing).
     e.aux = kind === 'ashwall' ? Math.atan2(this.player.y - y, this.player.x - x) : 0;
     e.aux2 = 0;
+    // FOE_AI: the first lunge waits a while after it wakes, staggered per foe so a pack doesn't lunge as one.
+    e.lungeT = FOE_AI.lungeFirst + foeHash(idx, 3) * FOE_AI.lungeSpread;
+    e.lungeW = 0;
+    e.lungeD = 0;
+    e.lungeA = 0;
     e.ward = 0;
     e.warded = false;
     e.named = -1;
@@ -6033,6 +6043,7 @@ export class World {
       }
       if (e.stunT > 0) {
         e.stunT -= dt;
+        if (e.lungeW > 0 || e.lungeD > 0) this.stopLunge(i); // a stun breaks a lunge: the lane goes with it
         continue;
       }
 
@@ -6056,13 +6067,26 @@ export class World {
       let mx = (dx / d) * speed;
       let my = (dy / d) * speed;
       // Phase 18 Halls: a foe that can't walk straight at its hero heads round the wall, room to room.
+      let roundWall = false;
       if (this.hallsOn) {
         const wp = hallsWay(this.halls!, e.x, e.y, p.x, p.y);
         if (wp.x !== p.x || wp.y !== p.y) {
           const wx = wp.x - e.x, wy = wp.y - e.y, wd = Math.hypot(wx, wy) || 1;
           mx = (wx / wd) * speed;
           my = (wy / wd) * speed;
+          roundWall = true;
         }
+      }
+      // FOE_AI (Steve, 26 Nov: "They just walk towards you"): with a clear path, a chaser cuts you off, comes in from its
+      // own side and sways, so running a circle no longer drags the pack behind you in a line.
+      if (!roundWall && speed > 0 && !FOE_AI_OWN_MOVE.has(e.kind) && e.def.rank !== 'boss') {
+        const v = this.chaseDir(i, p, dx, dy, d, speed, dt);
+        mx = v.x * speed;
+        my = v.y * speed;
+      }
+      if (FOE_AI_LUNGERS.has(e.kind) && e.def.rank !== 'boss') {
+        const l = this.runLunge(i, p, d, dt, speed);
+        if (l) { mx = l.x; my = l.y; }
       }
       // V1: an Ember Spitter keeps its distance: it backs off when you close in and circles at range.
       if (e.kind === 'emberSpitter') {
@@ -6175,7 +6199,7 @@ export class World {
       // for every foe but a boss), so a hero on a raft is safe until the water stops. The arena keeps its rule.
       if ((e.kind === 'shoalLurker' || (this.hallsOn && this.ebbT > 0 && e.def.rank !== 'boss')) && this.rafts.length) this.keepOffRafts(e);
 
-      if (e.def.rank !== 'normal') this.runAbilities(i, dt);
+      if (e.def.rank !== 'normal' && e.lungeW <= 0 && e.lungeD <= 0) this.runAbilities(i, dt); // no Snap mid-lunge
 
       if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !(this.kmStage === 2 && e.kind === 'kilnMother')) {
         e.touchCd = 0.6;
@@ -6242,6 +6266,68 @@ export class World {
       e.touchCd = 0.6;
       this.hurtPlayer(e.def.damage * this.tierDamage, i);
     }
+  }
+
+  /**
+   * FOE_AI: the way a chaser walks when its path is clear (a unit vector). It aims `lead` s ahead of where its hero is
+   * running (at most `leadMax` px), comes in from its own side (`flank`), and sways (`weave`). Both side pulls fade out
+   * inside `close` px, so the last steps are straight at you and hits still land.
+   */
+  private chaseDir(i: number, p: Player, dx: number, dy: number, d: number, speed: number, dt: number): { x: number; y: number } {
+    let vx = (p.x - p.px) / dt, vy = (p.y - p.py) / dt;
+    const vs = Math.hypot(vx, vy);
+    if (vs > FOE_AI.heroTop) { vx *= FOE_AI.heroTop / vs; vy *= FOE_AI.heroTop / vs; } // a blink isn't a run
+    const ahead = Math.min(FOE_AI.lead, d / Math.max(1, speed * this.moveScale));
+    let ax = vx * ahead, ay = vy * ahead;
+    const al = Math.hypot(ax, ay);
+    if (al > FOE_AI.leadMax) { ax *= FOE_AI.leadMax / al; ay *= FOE_AI.leadMax / al; }
+    const tx = dx + ax, ty = dy + ay, td = Math.hypot(tx, ty) || 1;
+    const ux = tx / td, uy = ty / td;
+    const fade = Math.max(0, Math.min(1, (d - FOE_AI.close) / (FOE_AI.far - FOE_AI.close)));
+    const side = foeHash(i, 1) < 0.5 ? -1 : 1;
+    const sway = Math.sin(this.time * Math.PI * 2 * FOE_AI.weaveHz + foeHash(i, 2) * Math.PI * 2);
+    const k = fade * (side * FOE_AI.flank + sway * FOE_AI.weave);
+    const wx = ux - uy * k, wy = uy + ux * k, wl = Math.hypot(wx, wy) || 1;
+    return { x: wx / wl, y: wy / wl };
+  }
+
+  /**
+   * FOE_AI lunge: from `lungeMin` to `lungeMax` away, now and then a chaser stops, shows a red lane `lungeLen` long for
+   * `lungeWind` s, then dashes down it. The lane hits like `lungeHit` touches. At most `lungeCap` foes lunge at once, so
+   * the floor stays readable on a phone. Returns the move to use this step, or null to keep walking.
+   */
+  private runLunge(i: number, p: Player, d: number, dt: number, speed: number): { x: number; y: number } | null {
+    const e = this.enemies[i];
+    if (e.lungeD > 0) {
+      e.lungeD -= dt;
+      return { x: Math.cos(e.lungeA) * FOE_AI.lungeSpeed, y: Math.sin(e.lungeA) * FOE_AI.lungeSpeed };
+    }
+    if (e.lungeW > 0) {
+      e.lungeW -= dt;
+      if (e.lungeW <= 0) {
+        e.lungeW = 0;
+        e.lungeD = FOE_AI.lungeLen / (FOE_AI.lungeSpeed * this.moveScale); // run the lane it showed, no further
+      }
+      return { x: 0, y: 0 };
+    }
+    e.lungeT -= dt;
+    if (e.lungeT > 0 || e.castId || speed <= 0 || d < FOE_AI.lungeMin || d > FOE_AI.lungeMax) return null;
+    let busy = 0;
+    for (const o of this.enemies) if (o.alive && (o.lungeW > 0 || o.lungeD > 0)) busy++;
+    if (busy >= FOE_AI.lungeCap) { e.lungeT = 0.5; return null; }
+    e.lungeT = FOE_AI.lungeEvery * (0.75 + 0.5 * foeHash(i, 4 + Math.floor(this.time)));
+    e.lungeW = FOE_AI.lungeWind;
+    e.lungeA = Math.atan2(p.y - e.y, p.x - e.x);
+    this.addTelegraph('cone', e.x, e.y, FOE_AI.lungeLen + e.def.radius, e.lungeA, FOE_AI.lungeArc, FOE_AI.lungeWind, e.def.damage * FOE_AI.lungeHit, 'hit', i);
+    return { x: 0, y: 0 };
+  }
+
+  /** FOE_AI: ends a lunge early (stunned or killed) and takes its lane away, so nothing lands from a foe that didn't go. */
+  private stopLunge(i: number): void {
+    const e = this.enemies[i];
+    if (e.lungeW > 0) for (const t of this.telegraphs) if (t.alive && t.owner === i && t.angle === e.lungeA) t.alive = false;
+    e.lungeW = 0;
+    e.lungeD = 0;
   }
 
   private startCast(i: number, id: string, name: string, dur: number, interruptible: boolean): void {
@@ -7290,6 +7376,7 @@ export class World {
   private killEnemy(i: number): void {
     const e = this.enemies[i];
     if (e.castId) this.cancelCast(i);
+    if (e.lungeW > 0 || e.lungeD > 0) this.stopLunge(i);
     e.alive = false;
     this.aliveEnemies--;
     this.kills++;
@@ -10532,6 +10619,29 @@ export const VARIETY = {
   /** Hollow Rift in a dungeon fight: Ashlings out at once. */
   riftCap: 8,
 };
+
+/**
+ * Smarter foes (Steve, 26 Nov: "They just walk towards you. They should be smarter and move a little bit more
+ * sporadically or maybe charge sometimes"). A chaser aims `lead` s ahead of a running hero (at most `leadMax` px; hero
+ * speed counted up to `heroTop`), pulls `flank` to its own side and sways `weave` at `weaveHz`, both fading from `far`
+ * px down to none at `close`. Lungers (FOE_AI_LUNGERS) also lunge (see World.runLunge): the first one `lungeFirst` s to
+ * `lungeFirst + lungeSpread` s after it wakes, then about every `lungeEvery` s.
+ */
+export const FOE_AI = {
+  lead: 0.7, leadMax: 150, heroTop: 220, flank: 0.5, weave: 0.35, weaveHz: 0.45, close: 80, far: 300,
+  lungeMin: 70, lungeMax: 200, lungeLen: 170, lungeArc: 0.32, lungeWind: 0.6, lungeSpeed: 560, lungeHit: 1.5,
+  lungeEvery: 7, lungeFirst: 1, lungeSpread: 4, lungeCap: 2,
+};
+/** Foes that keep their own way of moving (they hang back, guard, plant or charge), so FOE_AI leaves their walk alone. */
+export const FOE_AI_OWN_MOVE: ReadonlySet<EnemyKind> = new Set<EnemyKind>(['emberSpitter', 'ashwall', 'dimhorn', 'lampeye', 'ballast', 'ashbuck', 'kilnMother', 'sluiceCrawler']);
+/** The fast pack chasers with no charge of their own: these lunge. */
+export const FOE_AI_LUNGERS: ReadonlySet<EnemyKind> = new Set<EnemyKind>(['cinderhound', 'ashling', 'slagling', 'shade', 'rimehound', 'snuffer', 'shoalLurker']);
+/** A steady 0..1 number per foe slot and salt (no draw from the run's Rng, so nothing else shifts). */
+function foeHash(i: number, salt: number): number {
+  let h = Math.imul(i + 1, 0x9e3779b1) ^ Math.imul(salt + 7, 0x85ebca6b);
+  h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12;
+  return (h >>> 0) / 4294967296;
+}
 
 /**
  * Phase 16 U2: the Ashwall (the Kiln). Its shield turns toward its hero at `turn` rad/s. Hit inside `frontArc`

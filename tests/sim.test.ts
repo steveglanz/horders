@@ -211,7 +211,8 @@ describe('classes', () => {
     const { World } = await import('../sim/world');
     const w = new World({ seed: 2, cls: 'bulwark' });
     w.talents = { ward: 2 };
-    for (let k = 0; k < 8 * 30 + 2; k++) w.step({ x: 0, y: 0 });
+    // Hold off FOE_AI lunges (a hound could lunge in within these 8 s), so the shield fills untouched as before.
+    for (let k = 0; k < 8 * 30 + 2; k++) { for (const e of w.enemies) e.lungeT = 99; w.step({ x: 0, y: 0 }); }
     expect(w.player.ward).toBeCloseTo(w.player.maxHp * 0.16, 5);
   });
 
