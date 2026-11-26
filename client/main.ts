@@ -305,7 +305,7 @@ function startRun(bounty = false, key = false): void {
   // Phase 18 Halls: every dungeon with a map (sim/halls.ts HALLS_ON) is played on it, solo, bot-filled and hosted online
   // co-op alike (the map reaches guests in netsync's Snapshot.halls). Its trash packs (TRASH_ON), and the staged Kiln
   // Mother, Ondrel, Ysmeret and Oskel, are always on in World: no switch and no URL flag (Steve, 25 Nov: "Nothing should
-  // be a switch"). The first delve keeps its teaching fight (World).
+  // be a switch"). The first delve is a small tutorial map with its teaching fights (World, sim/halls.ts genTutorial).
   if (!stress) opts.halls = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();

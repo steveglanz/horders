@@ -6,11 +6,17 @@
 import type { EncounterId } from './dungeon';
 
 export const FIRST_DELVE = {
-  /** Dodge (hounds), dodge the big red (wardens), Quench (the Brute), kill the healers (acolytes), then all three. */
-  route: ['pack', 'wardens', 'brute', 'acolytes', 'kilnMother'] as EncounterId[],
+  /**
+   * Steve, 26 Nov: a very small tutorial Kiln that is almost impossible to lose, room to room like every other run. One
+   * fight per room on its own map (sim/halls.ts genTutorial): dodge (hounds), step out of the Brute's red ring, kill the
+   * healers (acolytes), then the Kiln Mother.
+   */
+  route: ['pack', 'brute', 'acolytes', 'kilnMother'] as EncounterId[],
   /** Foe health and damage multipliers for the first delve. */
   hp: 0.85,
-  dmg: 0.7,
+  dmg: 0.5,
+  /** The Kiln Mother's health share on the first delve (with `hp` on top), so the first boss is short. */
+  bossHp: 0.5,
 };
 
 /**

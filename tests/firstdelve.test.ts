@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { FIRST_DELVE, coachLine } from '../sim/content/firstdelve';
+import { genTutorial, hallsCheck, mainRooms, doorRoom } from '../sim/halls';
+import { botChoose, botInput } from '../sim/bot';
+import { KILN_T1 } from '../sim/world';
 
 const inner = (w: World) => w as unknown as { keyHp: number; keyDmg: number };
 
@@ -49,5 +52,44 @@ describe('L1: the first delve', () => {
     expect(coachLine('brute', 'Kick')).toContain('Kick');
     expect(coachLine('kilnMother', 'Hush')).toContain('Hush');
     expect(coachLine('maelra', 'Kick')).toBeUndefined();
+  });
+
+  it('is room to room on its own small map: four round rooms in a line, one fight each, and the door guard last', () => {
+    const w = new World({ seed: 3, dungeon: 'kiln', tier: 1, omens: [], cls: 'lumen', firstDelve: true, halls: true });
+    const m = w.halls!;
+    expect(m).not.toBeNull();
+    expect(m.rooms.map((r) => r.id)).toEqual(['R0', 'R1', 'R3', 'R5', 'door']);
+    expect(m.rooms.every((r) => r.shape === 'round')).toBe(true);
+    expect(m.packs.map((p) => `${p.role}:${p.enc}`)).toEqual(['A:pack', 'B:brute', 'C:acolytes']);
+    expect(m.packs.find((p) => p.guard)?.role).toBe('C');
+    expect(m.layoutRooms).toEqual([]);
+    expect(mainRooms(m)).toEqual([0, 1, 2, 3, 4]);
+    expect(doorRoom(m)).toBe(4);
+    // The same for every seed, and it passes design's map checker.
+    expect(new World({ seed: 99, dungeon: 'kiln', tier: 1, omens: [], cls: 'bulwark', firstDelve: true, halls: true }).halls!.rooms.map((r) => [r.x, r.y, r.r])).toEqual(m.rooms.map((r) => [r.x, r.y, r.r]));
+    const g = genTutorial();
+    expect(hallsCheck({ rooms: g.rooms, corridors: g.corridors, door: g.door, packs: g.spots, layoutRooms: g.layoutRooms })).toEqual([]);
+  });
+
+  it('a bot clears it and beats the shortened Kiln Mother', () => {
+    const w = new World({ seed: 5, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright', firstDelve: true, halls: true, unlockLevel: 1 });
+    while (w.state !== 'ended' && w.time < 400) {
+      if (w.state === 'draft') { w.choose(botChoose(w)); continue; }
+      w.step(botInput(w));
+    }
+    expect(w.summary().victory).toBe(true);
+    expect(w.halls!.done).toBe(true);
+  });
+
+  it('the Kiln Mother is shorter at Kiln tier 1 only', () => {
+    const boss = (opts: Partial<ConstructorParameters<typeof World>[0]>) => {
+      const w = new World({ seed: 3, dungeon: 'kiln', omens: [], cls: 'emberwright', ...opts });
+      const x = w as unknown as { spawn(k: string, x: number, y: number): number; enemies: { maxHp: number }[] };
+      return x.enemies[x.spawn('kilnMother', 0, 0)].maxHp;
+    };
+    const t1 = boss({ tier: 1 }), t2 = boss({ tier: 2 });
+    expect(t1).toBeCloseTo(3800 * KILN_T1.bossHp);
+    expect(t2).toBeCloseTo(3800 * 1.22);
+    expect(boss({ tier: 1, firstDelve: true })).toBeCloseTo(3800 * FIRST_DELVE.hp * FIRST_DELVE.bossHp);
   });
 });
