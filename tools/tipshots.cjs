@@ -1,4 +1,5 @@
-// Screenshots L1's first-time tips: the first red hit circle near the hero, and the first gold soak circle.
+// Screenshots L1's first-time tips: the first red hit circle near the hero, the first gold soak circle, and
+// a party with no true interrupter when a boss starts a cast (Lumen + Slagbinder at the Kiln Mother).
 // Usage: npm run build && node tools/tipshots.cjs <outDir> [phone]
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
@@ -11,6 +12,7 @@ const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'te
 // Each scene drops its circle beside the hero (a slam's red, a soak's gold) so the shot doesn't wait on the AI.
 const SCENES = [
   { name: 'tip-red', opts: { cls: 'emberwright', route: ['wardens'] }, until: 'red', kind: 'hit', dx: 40 },
+  { name: 'tip-nokick', opts: { cls: 'lumen', party: [{ cls: 'slagbinder' }], partySize: 2, route: ['kilnMother'] }, until: 'interrupt', kind: 'bossCast' },
   { name: 'tip-gold', opts: { cls: 'bulwark', route: ['kilnMother'] }, until: 'gold', kind: 'soak', dx: 160 },
 ];
 
@@ -36,11 +38,17 @@ const SCENES = [
     await page.waitForFunction(() => window.__ember.scene().world.phase === 'fight', null, { timeout: 15000 });
     await page.evaluate((sc) => {
       const w = window.__ember.scene().world; const p = w.player;
+      if (sc.kind === 'bossCast') {
+        // Start an interruptible cast on the boss, as its own kickable casts do (again each 0.2 s for 20 s: the boss AI may clear it, and the last scene's tip may still be up).
+        const cast = () => { const e = w.enemies.find((x) => x.alive && x.def.rank === 'boss'); if (e && !e.castId) Object.assign(e, { castId: 'tipshot', castName: 'Tip shot', castT: 0, castDur: 4, interruptible: true }); };
+        cast(); const id = setInterval(cast, 200); setTimeout(() => clearInterval(id), 20000);
+        return;
+      }
       w.addTelegraph('circle', p.x + sc.dx, p.y, sc.kind === 'soak' ? 55 : 115, 0, 0, 4, 0, sc.kind, sc.kind === 'soak' ? -2 : -1);
     }, sc);
     await page.waitForFunction((u) => {
       const el = document.getElementById('coach');
-      return !!el && !el.hidden && el.dataset.kind === 'tip' && el.textContent.toLowerCase().includes(u === 'red' ? 'red' : 'gold');
+      return !!el && !el.hidden && el.dataset.kind === 'tip' && el.textContent.toLowerCase().includes(u);
     }, sc.until, { timeout: 60000 });
     await page.waitForTimeout(250);
     await page.screenshot({ path: `${out}/${tag}-${sc.name}.jpg`, quality: 80 });

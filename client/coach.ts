@@ -5,10 +5,12 @@
  *   3. Interrupt: the first time an enemy starts an interruptible cast, a pulse on the interrupt button.
  * Each step also times out, so the coach never nags. Done is stored per browser.
  * After that, L1's first-time tips: the first red hit circle near the hero and the first gold
- * soak circle each get one line, once per browser (see docs/design/first-delve.md).
+ * soak circle each get one line, once per browser (see docs/design/first-delve.md). A party with no
+ * true interrupter gets one line the first time a boss starts a cast it can't stop (the interrupt split).
  */
 import type { World } from '../sim/world';
 import { INTERRUPT_SLOT } from './icons';
+import { CLASSES } from '../sim/content/classes';
 
 const KEY = 'horders.coach.v1';
 const TIPS_KEY = 'horders.tips.v1';
@@ -16,6 +18,8 @@ const TIPS_KEY = 'horders.tips.v1';
 const TIPS: Record<string, string> = {
   red: 'Red on the floor is a hit coming. Step out before it fills.',
   gold: 'Gold circles want someone inside. Stand in it until it fills, or it blasts you.',
+  // The interrupt split (#841): in a party a boss shrugs off the Lumen's and Slagbinder's stun.
+  nokick: 'In a party, bosses shrug off stuns. Bring a Bulwark, Duskblade or Emberwright to interrupt.',
 };
 const TIP_TIME = 5;
 
@@ -92,6 +96,9 @@ export class Coach {
       if (t.kind === 'soak' && !this.seenTips.has('gold')) { found = 'gold'; break; }
       if (t.kind === 'hit' && !this.seenTips.has('red') && Math.hypot(t.x - p.x, t.y - p.y) < t.r + 60) { found = 'red'; break; }
     }
+    // A party with no true interrupter, the first time a boss starts a cast that someone could otherwise stop.
+    if (!found && !this.seenTips.has('nokick') && w.heroes.length > 1 && !w.heroes.some((h) => CLASSES[h.cls].kick)
+      && w.enemies.some((e) => e.alive && e.def.rank === 'boss' && e.castId && e.interruptible)) found = 'nokick';
     if (!found) return this.hide();
     this.tip = found;
     this.tipUntil = w.time + TIP_TIME;
