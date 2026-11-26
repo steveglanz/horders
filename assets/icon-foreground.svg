@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs>
+  <radialGradient id="hwBg" cx="50%" cy="46%" r="72%">
+    <stop offset="0" stop-color="#4a1c10"/><stop offset=".5" stop-color="#22100b"/><stop offset="1" stop-color="#120b0a"/>
+  </radialGradient>
+  <radialGradient id="hwRing" cx="50%" cy="50%" r="50%">
+    <stop offset=".55" stop-color="#ff6a26" stop-opacity="0"/>
+    <stop offset=".74" stop-color="#ff8a3d" stop-opacity=".95"/>
+    <stop offset=".82" stop-color="#ffd27a"/>
+    <stop offset=".9" stop-color="#ff7a2e" stop-opacity=".6"/>
+    <stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="hwIron" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#4b3934"/><stop offset=".35" stop-color="#2a1e1b"/><stop offset="1" stop-color="#120c0b"/>
+  </linearGradient>
+  <linearGradient id="hwHorn" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#2a1e1b"/><stop offset=".7" stop-color="#5a463e"/><stop offset="1" stop-color="#c9b39a"/>
+  </linearGradient>
+  <radialGradient id="hwMaw" cx="50%" cy="35%" r="70%">
+    <stop offset="0" stop-color="#ffe7a8"/><stop offset=".35" stop-color="#ff9a3d"/><stop offset=".8" stop-color="#c2361a"/><stop offset="1" stop-color="#5a120a"/>
+  </radialGradient>
+  <linearGradient id="hwEye" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#fff6cf"/><stop offset=".6" stop-color="#ffd25a"/><stop offset="1" stop-color="#ff8a2e"/>
+  </linearGradient>
+  <radialGradient id="hwGold" cx="50%" cy="20%" r="80%">
+    <stop offset="0" stop-color="#ffe9a0"/><stop offset=".5" stop-color="#e8a83a"/><stop offset="1" stop-color="#7a4a14"/>
+  </radialGradient>
+  <filter id="hwBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
+</defs><g transform="translate(512 512) scale(0.88) translate(-512 -512)">
+  <circle cx="512" cy="500" r="400" fill="url(#hwRing)"/>
+  <path d="M168 940 Q512 760 856 940 Z" fill="url(#hwGold)" stroke="#3a220a" stroke-width="8"/><ellipse cx="300" cy="846" rx="34" ry="13" fill="#ffd56a" stroke="#7a4a14" stroke-width="6"/><ellipse cx="372" cy="822" rx="34" ry="13" fill="#ffd56a" stroke="#7a4a14" stroke-width="6"/><ellipse cx="652" cy="822" rx="34" ry="13" fill="#ffd56a" stroke="#7a4a14" stroke-width="6"/><ellipse cx="724" cy="846" rx="34" ry="13" fill="#ffd56a" stroke="#7a4a14" stroke-width="6"/><ellipse cx="262" cy="884" rx="34" ry="13" fill="#ffd56a" stroke="#7a4a14" stroke-width="6"/><ellipse cx="762" cy="884" rx="34" ry="13" fill="#ffd56a" stroke="#7a4a14" stroke-width="6"/><ellipse cx="430" cy="872" rx="34" ry="13" fill="#ffd56a" stroke="#7a4a14" stroke-width="6"/><ellipse cx="594" cy="872" rx="34" ry="13" fill="#ffd56a" stroke="#7a4a14" stroke-width="6"/><ellipse cx="512" cy="892" rx="34" ry="13" fill="#ffd56a" stroke="#7a4a14" stroke-width="6"/>
+  
+  <path d="M430 372 C352 350 270 292 222 168 C210 140 236 132 248 156 C292 236 362 284 462 300 Z" fill="url(#hwHorn)" stroke="#0a0605" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M356 548 L250 566 L366 612 Z" fill="url(#hwIron)" stroke="#0a0605" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M372 650 L300 700 L398 700 Z" fill="url(#hwIron)" stroke="#0a0605" stroke-width="9" stroke-linejoin="round"/>
+<g transform="translate(1024 0) scale(-1 1)">
+  <path d="M430 372 C352 350 270 292 222 168 C210 140 236 132 248 156 C292 236 362 284 462 300 Z" fill="url(#hwHorn)" stroke="#0a0605" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M356 548 L250 566 L366 612 Z" fill="url(#hwIron)" stroke="#0a0605" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M372 650 L300 700 L398 700 Z" fill="url(#hwIron)" stroke="#0a0605" stroke-width="9" stroke-linejoin="round"/>
+</g>
+  <path d="M512 262 C604 262 684 304 704 386 C720 450 704 522 672 584 L646 690 C626 762 574 804 512 818 C450 804 398 762 378 690 L352 584 C320 522 304 450 320 386 C340 304 420 262 512 262 Z"
+        fill="url(#hwIron)" stroke="#ff7a2e" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M512 290 L540 360 L512 420 L484 360 Z" fill="#5a463e" opacity=".55"/>
+  <path d="M340 430 L512 498 L684 430 L680 474 L512 552 L344 474 Z" fill="#0d0807"/>
+  <path d="M340 430 L512 498 L684 430" fill="none" stroke="#6e5850" stroke-width="10" stroke-linejoin="round"/>
+  <g filter="url(#hwBlur)" fill="#ff9a3d" opacity=".9"><path d="M382 470 L494 524 L478 556 L392 506 Z"/><path d="M642 470 L530 524 L546 556 L632 506 Z"/></g>
+  <path d="M382 470 L494 524 L478 556 L392 506 Z" fill="url(#hwEye)"/><path d="M642 470 L530 524 L546 556 L632 506 Z" fill="url(#hwEye)"/>
+  <path d="M488 606 L500 590 L506 618 Z M536 606 L524 590 L518 618 Z" fill="#0a0605"/>
+  <path d="M418 646 Q512 690 606 646 L588 734 Q512 782 436 734 Z" fill="url(#hwMaw)" stroke="#0a0605" stroke-width="9" stroke-linejoin="round"/>
+  <g fill="#f3e6cf" stroke="#0a0605" stroke-width="6" stroke-linejoin="round">
+    <path d="M434 664 L452 732 L470 664 Z"/><path d="M554 664 L572 732 L590 664 Z"/><path d="M476 674 L486 704 L496 674 Z"/><path d="M502 674 L512 704 L522 674 Z"/><path d="M528 674 L538 704 L548 674 Z"/>
+    <path d="M457 744 L470 700 L483 744 Z"/><path d="M541 744 L554 700 L567 744 Z"/>
+  </g>
+</g></svg>
