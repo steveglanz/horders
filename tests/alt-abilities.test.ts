@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ALT_KIT, World } from '../sim/world';
-import { ALT_ABILITIES, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS } from '../sim/content/classes';
+import { ALT_ABILITIES, ALT_OPTIONS, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS, cleanAlts } from '../sim/content/classes';
 import { TALENTS } from '../sim/content/emberwright';
-import { altOn, CHARACTER_KEYS } from '../sim/hero';
+import { altsOn, altsPicked, CHARACTER_KEYS } from '../sim/hero';
 import type { ClassId } from '../sim/content/emberwright';
 import { botCast } from '../sim/bot';
 
@@ -11,7 +11,7 @@ type Inner = {
   spawn(kind: string, x: number, y: number): number;
   rebuildHash(): void;
   hurtPlayer(amount: number, src?: number, unblockable?: boolean): void;
-  castAlt(input: { x: number; y: number }): void;
+  castAlt(input: { x: number; y: number }, slot?: number): void;
   updateAlt(dt: number): void;
   rollDraft(): void;
   verbHit: boolean;
@@ -40,9 +40,60 @@ describe('ability options', () => {
 
   it('is saved per character and only applies from level 8', () => {
     expect(CHARACTER_KEYS).toContain('alt');
-    expect(altOn({ alt: true, level: ALT_UNLOCK_LEVEL - 1 })).toBe(false);
-    expect(altOn({ alt: true, level: ALT_UNLOCK_LEVEL })).toBe(true);
-    expect(altOn({ alt: false, level: 20 })).toBe(false);
+    expect(CHARACTER_KEYS).toContain('alts');
+    // Old saves: `alt: true` reads as the level-8 option.
+    expect(altsOn('lumen', { alt: true, level: ALT_UNLOCK_LEVEL - 1 })).toEqual([]);
+    expect(altsOn('lumen', { alt: true, level: ALT_UNLOCK_LEVEL })).toEqual(['glowPool']);
+    expect(altsOn('lumen', { alt: false, level: 20 })).toEqual([]);
+  });
+
+  it('options come at levels 8, 12 and 16, each for its own non-interrupt slot', () => {
+    for (const cls of CLASS_IDS) {
+      const l = ALT_OPTIONS[cls];
+      expect(l[0].level).toBe(ALT_UNLOCK_LEVEL);
+      expect(new Set(l.map((o) => o.slot)).size).toBe(l.length);
+      l.forEach((o, k) => {
+        expect(o.slot).toBeLessThan(3);
+        expect(o.level).toBe(8 + 4 * k);
+        expect(CLASSES[cls].abilities[o.slot].name).toBe(o.replaces);
+        expect(o.def.key).toBe(CLASSES[cls].abilities[o.slot].key);
+      });
+    }
+    expect(ALT_OPTIONS.duskblade.map((o) => o.id)).toEqual(['hamstring', 'wideCut', 'quicken']);
+  });
+
+  it('each option unlocks at its own level, and foreign or doubled picks are dropped', () => {
+    const h = { alts: ['hamstring', 'wideCut', 'quicken'] as never, level: 12 };
+    expect(altsOn('duskblade', h)).toEqual(['hamstring', 'wideCut']);
+    expect(altsOn('duskblade', { ...h, level: 16 })).toEqual(['hamstring', 'wideCut', 'quicken']);
+    expect(altsPicked('lumen', h)).toEqual([]);
+    expect(cleanAlts('duskblade', ['glowPool', 'wideCut', 'wideCut'])).toEqual(['wideCut']);
+    const w = new World({ seed: 5, cls: 'duskblade', alts: ['wideCut', 'quicken'], tier: 4, omens: [] });
+    expect(w.abilities.map((d) => d.name)).toEqual(['Rending Dash', 'Quicken', 'Wide Cut', 'Kick']);
+    expect(w.isAlt(0)).toBe(false);
+    expect(new World({ seed: 5, cls: 'lumen', alts: ['wideCut'], tier: 4, omens: [] }).player.alts).toBeUndefined();
+  });
+
+  it('Wide Cut hits and bleeds every foe around the Duskblade, and Quicken speeds its swings', () => {
+    const w = new World({ seed: 5, cls: 'duskblade', alts: ['wideCut', 'quicken'], tier: 4, omens: [] });
+    for (const e of w.enemies) e.alive = false;
+    const inner = w as unknown as Inner;
+    const a = inner.spawn('slagling', w.player.x + 100, w.player.y);
+    const b = inner.spawn('slagling', w.player.x - 100, w.player.y + 30);
+    const far = inner.spawn('slagling', w.player.x + 400, w.player.y);
+    for (const i of [a, b, far]) w.enemies[i].hp = w.enemies[i].maxHp = 1e6;
+    inner.rebuildHash();
+    inner.castAlt({ x: 0, y: 0 }, 2);
+    for (const i of [a, b]) {
+      expect(w.enemies[i].hp).toBeLessThan(1e6);
+      expect(w.enemies[i].burnT).toBeGreaterThan(0);
+    }
+    expect(w.enemies[far].hp).toBe(1e6);
+    const cd = w.swingCooldown;
+    inner.castAlt({ x: 0, y: 0 }, 1);
+    expect(w.swingCooldown).toBeCloseTo(cd / (1 + ALT_KIT.quickenHaste));
+    inner.time += ALT_KIT.quickenTime + 0.1;
+    expect(w.swingCooldown).toBeCloseTo(cd);
   });
 
   it('never drafts talents for the replaced ability', () => {
@@ -142,8 +193,9 @@ describe('ability options', () => {
 
   it('the bot presses the option in a real run', () => {
     for (const cls of CLASS_IDS) {
-      const w = new World({ seed: 3, cls, alt: true, tier: 4, omens: [] });
-      const slot = ALT_ABILITIES[cls].slot;
+    for (const o of ALT_OPTIONS[cls]) {
+      const w = new World({ seed: 3, cls, alts: [o.id], tier: 4, omens: [] });
+      const slot = o.slot;
       let used = false;
       for (let n = 0; n < 30 * 120 && w.state !== 'ended' && !used; n++) {
         if (w.state === 'draft') { w.choose(0); continue; }
@@ -152,7 +204,8 @@ describe('ability options', () => {
         w.step({ x: 0, y: 0, cast: c });
         if (c === slot && w.player.cds[slot] > before) used = true;
       }
-      expect(used, cls).toBe(true);
+      expect(used, o.id).toBe(true);
+    }
     }
   });
 });

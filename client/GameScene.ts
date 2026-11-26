@@ -19,7 +19,7 @@ import { AFFIXES, AFFIX_TIP, NAMED as NAMED_TUNE } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
 import { GLOWS, TRAILS } from '../sim/content/season';
 import { botName, CLASS_ICON, GLOW_MARK, isBotAlly } from './icons';
-import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
+import { ALT_ABILITIES, ALT_OPTIONS, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
 import { hd2dFx, hd2dModule, hideHd2dLoading, type Hd2dView } from './hd2d/api';
@@ -1187,7 +1187,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'ability':
           if (ev.alt) {
-            this.altCast(ev.x, ev.y, ev.r);
+            this.altCast(ev.x, ev.y, ev.r, ev.slot);
           } else if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
             if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, w.abilities[2].name, '#ffe9a8', 18);
@@ -5458,9 +5458,28 @@ export class GameScene extends Phaser.Scene {
    * An ability option's cast (ALT_ABILITIES). The event carries no class, so like the other casts
    * it is drawn as this screen's class.
    */
-  private altCast(x: number, y: number, r: number): void {
+  private altCast(x: number, y: number, r: number, slot: number): void {
     const w = this.world;
-    const name = ALT_ABILITIES[w.cls].def.name;
+    const opt = ALT_OPTIONS[w.cls].find((o) => o.slot === slot) ?? ALT_ABILITIES[w.cls];
+    const name = opt.def.name;
+    if (opt.id === 'wideCut') {
+      // Wide Cut: a full spin of blade light out to its reach, with blood flung outward.
+      this.ring(x, y, r, 0xe0465a, 0.4);
+      this.addShape({ kind: 'ring', x, y, x2: 0, y2: 0, r, angle: 0, color: 0xffd0d8, life: 0.3 });
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2;
+        this.emit(this.fx, 'spark', undefined, x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6, 0.4, { tint: 0xe0465a, vx: Math.cos(a) * 140, vy: Math.sin(a) * 140, drag: 0.9, sx0: 1.6, sx1: 0.5 });
+      }
+      this.shakeBy(0.08);
+      this.floatText(x, y - 40, name, '#ffb0bc', 18);
+      return;
+    }
+    if (opt.id === 'quicken') {
+      // Quicken: a quick violet flare around the hero.
+      this.ring(x, y, 46, 0xb89cff, 0.35);
+      this.floatText(x, y - 40, name, '#d0b8ff', 18);
+      return;
+    }
     switch (w.cls) {
       case 'emberwright': {
         // Ember Ward: fire closes in around the hero and flames leap up.

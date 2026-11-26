@@ -14,7 +14,7 @@ import { Rng } from './rng';
 import { GRIT } from './content/scaling';
 import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
-import { ALT_UNLOCK_LEVEL } from './content/classes';
+import { ALT_OPTIONS, AltId, cleanAlts } from './content/classes';
 import { TREE, TreeNodeId, canTakeNode, isTreeNode } from './content/trees';
 import { PotionId, potionCost } from './content/potions';
 import type { SetId } from './content/sets';
@@ -88,8 +88,10 @@ export interface HeroProfile {
   keyBest?: Partial<Record<DungeonId, number>>;
   /** Slagbinder stance (Anvil tanks, Bellows fills a damage slot); kept per character. Default Bellows. */
   stance?: 'anvil' | 'bellows';
-  /** Ability option (ALT_ABILITIES) picked for this character; it applies from level 8 (ALT_UNLOCK_LEVEL). */
+  /** Old saves: the level-8 ability option was on. Read as `alts` holding that option. */
   alt?: boolean;
+  /** Ability options (ALT_OPTIONS ids) picked for this character, one per slot; each applies from its level. */
+  alts?: AltId[];
   /** P4: every collection book entry the account has held (shared by every class), and the rewards already paid. */
   collection?: EntryKey[];
   collectionPaid?: string[];
@@ -109,13 +111,18 @@ export interface HeroProfile {
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
-/** Whether this character's ability option is on for the next run (picked, and level 8 or higher). */
-export function altOn(h: Pick<HeroProfile, 'alt' | 'level'>): boolean {
-  return !!h.alt && h.level >= ALT_UNLOCK_LEVEL;
+/** The options this character picked (old saves' `alt` reads as the level-8 option), whether or not unlocked yet. */
+export function altsPicked(cls: ClassId, h: Pick<HeroProfile, 'alt' | 'alts'>): AltId[] {
+  return cleanAlts(cls, h.alts ?? (h.alt ? [ALT_OPTIONS[cls][0].id] : []));
+}
+
+/** The ability options this character takes into the next run: picked, and at or past each one's level. */
+export function altsOn(cls: ClassId, h: Pick<HeroProfile, 'alt' | 'alts' | 'level'>): AltId[] {
+  return altsPicked(cls, h).filter((id) => (ALT_OPTIONS[cls].find((o) => o.id === id)?.level ?? 99) <= h.level);
 }
 
 /** P5: embers are not here. One purse is shared by every class (see shareEmbers and economy.md). */
-export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion', 'keys', 'keyBest', 'stance', 'alt'] as const;
+export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion', 'keys', 'keyBest', 'stance', 'alt', 'alts'] as const;
 export type Character = Pick<HeroProfile, (typeof CHARACTER_KEYS)[number]>;
 
 function freshCharacter(): Character {

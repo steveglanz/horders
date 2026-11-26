@@ -78,12 +78,6 @@ export const CLASS_IDS = Object.keys(CLASSES) as ClassId[];
 export const SLAG_GUNNER = true;
 
 /**
- * Ability options (one per class, unlocked at hero level 8): a sidegrade for one action-bar slot,
- * picked in the hub and locked for the run. Never the interrupt (slot 3). See docs/skills.md.
- */
-export const ALT_UNLOCK_LEVEL = 8;
-
-/**
  * Ability unlocks (class progression brief, 25 Nov): a new character starts with its basic attack and Q and earns
  * the other buttons over its first levels. SLOT_UNLOCK[slot] is the character level that slot opens at.
  */
@@ -95,10 +89,50 @@ export function slotOpen(slot: number, level: number | undefined): boolean {
   if (level === undefined) return true;
   return slot === 0 || level >= (SLOT_UNLOCK[slot] ?? 1);
 }
-export const ALT_ABILITIES: Record<ClassId, { slot: number; replaces: string; def: AbilityDef }> = {
-  emberwright: { slot: 1, replaces: 'Blink', def: { name: 'Ember Ward', key: 'E', cost: 0, cooldown: 10, text: 'Wrap yourself in fire for 3s: a ward that stops blows (not Glare or ticks), and foes that strike you burn.' } },
-  duskblade: { slot: 0, replaces: 'Rending Dash', def: { name: 'Hamstring', key: 'Q', cost: 25, cooldown: 5, text: 'Cut and bleed the foe in reach, and slow it and those near it by half for 4s (bosses and elites by a fifth). Better against single targets; you lose Rending Dash\'s gap-closer.' } },
-  bulwark: { slot: 2, replaces: 'Anvil Skin', def: { name: 'Muster', key: 'R', cost: 50, cooldown: 20, text: 'For 5s, heroes near you take 25% less damage. Alone, you mend 15% of your health instead.' } },
-  lumen: { slot: 1, replaces: 'Glimmer Step', def: { name: 'Glow Pool', key: 'E', cost: 0, cooldown: 12, text: 'Set down a well of light for 6s that heals anyone in it 3 a second. It never clears Slag Grip.' } },
-  slagbinder: { slot: 1, replaces: 'Recoil', def: { name: 'Cinder Sump', key: 'E', cost: 0, cooldown: 10, text: 'Pour a pit at your target for 5s: foes in it slow by 40% (bosses and elites by a fifth) and burn.' } },
+
+/**
+ * Ability options: sidegrades for the action bar, picked in the hub and locked for the run, saved per character.
+ * Each class earns up to three, at hero levels 8, 12 and 16, each for a different slot (never the interrupt, slot 3),
+ * so by level 16 Q, E and R each have two abilities to choose from. See docs/skills.md, "Ability options".
+ */
+export type AltId = 'emberWard' | 'hamstring' | 'muster' | 'glowPool' | 'cinderSump' | 'wideCut' | 'quicken';
+export interface AltOption { id: AltId; slot: number; level: number; replaces: string; def: AbilityDef }
+export const ALT_UNLOCK_LEVEL = 8;
+export const ALT_OPTIONS: Record<ClassId, AltOption[]> = {
+  emberwright: [
+    { id: 'emberWard', slot: 1, level: 8, replaces: 'Blink', def: { name: 'Ember Ward', key: 'E', cost: 0, cooldown: 10, text: 'Wrap yourself in fire for 3s: a ward that stops blows (not Glare or ticks), and foes that strike you burn.' } },
+  ],
+  duskblade: [
+    { id: 'hamstring', slot: 0, level: 8, replaces: 'Rending Dash', def: { name: 'Hamstring', key: 'Q', cost: 25, cooldown: 5, text: 'Cut and bleed the foe in reach, and slow it and those near it by half for 4s (bosses and elites by a fifth). Better against single targets; you lose Rending Dash\'s gap-closer.' } },
+    { id: 'wideCut', slot: 2, level: 12, replaces: 'Execution', def: { name: 'Wide Cut', key: 'R', cost: 60, cooldown: 18, text: 'Spin your blades through every foe around you: 110 damage and a 4s bleed to each. Better against packs; Execution is better on one big foe.' } },
+    { id: 'quicken', slot: 1, level: 16, replaces: 'Sidestep', def: { name: 'Quicken', key: 'E', cost: 0, cooldown: 12, text: 'For 5s your blades swing 40% faster. You give up Sidestep\'s dodge and mend.' } },
+  ],
+  bulwark: [
+    { id: 'muster', slot: 2, level: 8, replaces: 'Anvil Skin', def: { name: 'Muster', key: 'R', cost: 50, cooldown: 20, text: 'For 5s, heroes near you take 25% less damage. Alone, you mend 15% of your health instead.' } },
+  ],
+  lumen: [
+    { id: 'glowPool', slot: 1, level: 8, replaces: 'Glimmer Step', def: { name: 'Glow Pool', key: 'E', cost: 0, cooldown: 12, text: 'Set down a well of light for 6s that heals anyone in it 3 a second. It never clears Slag Grip.' } },
+  ],
+  slagbinder: [
+    { id: 'cinderSump', slot: 1, level: 8, replaces: 'Recoil', def: { name: 'Cinder Sump', key: 'E', cost: 0, cooldown: 10, text: 'Pour a pit at your target for 5s: foes in it slow by 40% (bosses and elites by a fifth) and burn.' } },
+  ],
 };
+/** Each class's first option (level 8). */
+export const ALT_ABILITIES: Record<ClassId, AltOption> = Object.fromEntries(Object.entries(ALT_OPTIONS).map(([c, l]) => [c, l[0]])) as Record<ClassId, AltOption>;
+/** Every option by id. */
+export const ALT_BY_ID: Record<AltId, AltOption & { cls: ClassId }> = Object.fromEntries(
+  Object.entries(ALT_OPTIONS).flatMap(([c, l]) => l.map((o) => [o.id, { ...o, cls: c as ClassId }])),
+) as Record<AltId, AltOption & { cls: ClassId }>;
+
+/** The picked options of `cls` that are real (this class's, one per slot, first pick wins). */
+export function cleanAlts(cls: ClassId, picked: readonly string[] | undefined): AltId[] {
+  const out: AltId[] = [];
+  const used = new Set<number>();
+  for (const id of picked ?? []) {
+    const o = ALT_OPTIONS[cls].find((x) => x.id === id);
+    if (!o || used.has(o.slot)) continue;
+    used.add(o.slot);
+    out.push(o.id);
+  }
+  return out;
+}

@@ -23,8 +23,10 @@ export interface HeroCard {
   passives: NonNullable<HeroOptions['passives']>;
   /** Slagbinder stance; older clients send none (Bellows). */
   stance?: HeroOptions['stance'];
-  /** Ability option; older clients send none (the class's own ability). */
+  /** Ability option; older clients send none (the class's own ability). Older clients send `alt` for the level-8 option. */
   alt?: boolean;
+  /** Ability options by id (ALT_OPTIONS); the sim drops any that aren't this class's. */
+  alts?: string[];
   /** P6: the worn season title and glow; older clients send none. */
   title?: string;
   /** Season trail worn and its stage (cleaned by cleanLooks like the glow). */
@@ -186,7 +188,7 @@ export class CoopSession {
     const party: HeroOptions[] = this.order.map((id) => {
       const h = this.heroes.get(id)!;
       const potion = POTION_IDS.find((p) => p === h.potion);
-      return { cls: h.cls, stance: h.stance, alt: h.alt, unlockLevel: h.level, gear: h.gear, passives: h.passives, name: h.name, potion };
+      return { cls: h.cls, stance: h.stance, alt: h.alt, alts: Array.isArray(h.alts) ? (h.alts.filter((x) => typeof x === 'string').slice(0, 3) as HeroOptions['alts']) : undefined, unlockLevel: h.level, gear: h.gear, passives: h.passives, name: h.name, potion };
     });
     // V7: Fill with bots tops the party up after the real guests; the host runs them (GameScene).
     const bots = opts.fillBots ? (opts.party ?? []).slice(-opts.fillBots) : [];

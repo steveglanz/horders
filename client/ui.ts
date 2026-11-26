@@ -119,7 +119,7 @@ export class Hud {
 
   /** Builds the action bar for the class being played. */
   private buildBar(cls: ClassId, w: World): void {
-    const alt = !!w.player.alt;
+    const alt = (w.player.alts ?? []).join(',');
     const locks = [0, 1, 2, 3].map((i) => (w.unlocked(i) ? 1 : 0)).join('');
     if (this.barFor === `${cls}${alt}${locks}`) return;
     this.barFor = `${cls}${alt}${locks}`;
@@ -128,7 +128,7 @@ export class Hud {
     this.abButtons = [];
     // The ability option (ALT_ABILITIES) replaces one slot: w.abilities already holds it.
     const def = { ...CLASSES[cls], abilities: w.abilities };
-    const icons = ABILITY_GLYPH[cls].map((g, i) => (alt && w.isAlt(i) ? ALT_GLYPH[cls] : g));
+    const icons = ABILITY_GLYPH[cls].map((g, i) => { const o = w.altAt(i); return o ? ALT_GLYPH[o.id] : g; });
     bar.style.setProperty('--ac', CLASS_ICON[cls].color);
     def.abilities.forEach((a, i) => {
       const b = document.createElement('button');

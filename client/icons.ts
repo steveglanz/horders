@@ -6,6 +6,7 @@ import type { OmenId } from '../sim/content/omens';
 import type { HeatId } from '../sim/content/heat';
 import type { PotionId } from '../sim/content/potions';
 import type { Branch, ClassId } from '../sim/content/emberwright';
+import type { AltId } from '../sim/content/classes';
 import type { SetId } from '../sim/content/sets';
 import type { MythicId, WeaponFxId } from '../sim/content/items';
 
@@ -132,17 +133,21 @@ const CUT = 'M17.7 6.3A8 8 0 1 1 13.5 4.1 M14.5 2.5l7 7';
 /**
  * Ability-option glyphs (ALT_ABILITIES in sim/content/classes.ts), shown in the swapped slot.
  */
-export const ALT_GLYPH: Record<ClassId, string> = {
+export const ALT_GLYPH: Record<AltId, string> = {
   // Ember Ward: a hero wrapped in flame tongues (Quench already owns the drop in a ring).
-  emberwright: 'M12 9.5a2.3 2.3 0 1 1 0 4.6a2.3 2.3 0 1 1 0-4.6Z M8.2 20.5c.7-2.4 2-3.6 3.8-3.6s3.1 1.2 3.8 3.6 M5 19C2.2 14.8 3 9 7.6 4.6c-.2 2.2.4 3.7 1.8 4.6 M19 19c2.8-4.2 2-10-2.6-14.4.2 2.2-.4 3.7-1.8 4.6',
+  emberWard: 'M12 9.5a2.3 2.3 0 1 1 0 4.6a2.3 2.3 0 1 1 0-4.6Z M8.2 20.5c.7-2.4 2-3.6 3.8-3.6s3.1 1.2 3.8 3.6 M5 19C2.2 14.8 3 9 7.6 4.6c-.2 2.2.4 3.7 1.8 4.6 M19 19c2.8-4.2 2-10-2.6-14.4.2 2.2-.4 3.7-1.8 4.6',
   // Hamstring: a blade cuts through the stride, so the arrow of movement is broken.
-  duskblade: 'M2.5 15.5h5 M14 15.5h4.5 M16.5 12.5l3 3-3 3 M16.5 2.5 10 17.5 M7.6 16.2l5 2.2 M10.1 17.3 9 20.5',
+  hamstring: 'M2.5 15.5h5 M14 15.5h4.5 M16.5 12.5l3 3-3 3 M16.5 2.5 10 17.5 M7.6 16.2l5 2.2 M10.1 17.3 9 20.5',
   // Muster: a war banner, with the call ringing out from it.
-  bulwark: 'M5 21.5V2.5 M5 3.5h12l-3 4 3 4H5 M17 15.5a3.5 3.5 0 0 1 0 5 M20 13a7 7 0 0 1 0 10',
+  muster: 'M5 21.5V2.5 M5 3.5h12l-3 4 3 4H5 M17 15.5a3.5 3.5 0 0 1 0 5 M20 13a7 7 0 0 1 0 10',
   // Glow Pool: a pool with a mending cross rising from it.
-  lumen: 'M3.5 17.5c0 2.6 17 2.6 17 0s-17-2.6-17 0Z M12 4v8 M8 8h8 M6 12.5v.01 M18 12.5v.01',
+  glowPool: 'M3.5 17.5c0 2.6 17 2.6 17 0s-17-2.6-17 0Z M12 4v8 M8 8h8 M6 12.5v.01 M18 12.5v.01',
   // Cinder Sump: a molten pit with bubbles breaking.
-  slagbinder: 'M3 16.5c0 2.8 18 2.8 18 0s-18-2.8-18 0Z M8.5 9a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4Z M15 4a2.3 2.3 0 1 1 0 4.6a2.3 2.3 0 1 1 0-4.6Z M14 12.5v.01',
+  cinderSump: 'M3 16.5c0 2.8 18 2.8 18 0s-18-2.8-18 0Z M8.5 9a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4Z M15 4a2.3 2.3 0 1 1 0 4.6a2.3 2.3 0 1 1 0-4.6Z M14 12.5v.01',
+  // Wide Cut: two blade arcs sweeping all the way round a centre point.
+  wideCut: 'M12 10.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3Z M4 12a8 8 0 0 1 13.7-5.6 M20 12a8 8 0 0 1-13.7 5.6 M17.7 2.8v3.6h-3.6 M6.3 21.2v-3.6h3.6',
+  // Quicken: a blade with speed lines trailing behind it.
+  quicken: 'M20.5 3.5 10 14 M10 14l-1.5 3.5L12 16 M7.5 12.5l4 4 M2.5 9.5h5 M3.5 13.5h3 M5.5 5.5h6',
 };
 
 export const ABILITY_GLYPH: Record<ClassId, string[]> = {
