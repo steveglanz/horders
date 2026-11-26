@@ -17,7 +17,7 @@ import { Loadout, PointId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { TREE, TreeNodeId } from './content/trees';
 /** Character tree numbers, re-exported so the tools' TUNE=TREE.bulkHp=8 reaches them. */
 export { TREE };
-import { Item, LootSource, Rarity } from './content/items';
+import { Item, LootSource, RARITIES, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
 import { FIRST_DELVE } from './content/firstdelve';
@@ -7453,12 +7453,16 @@ export class World {
     if (e.def.rank === 'boss') {
       this.victory = true;
       // The run ends on this tick (or moves to the shadow fight), so boss loot goes straight to the bags.
-      // From tier 2, an Epic is guaranteed the first time you beat a tier; otherwise the boss rolls on the boss table.
+      // The first time you beat a tier, the boss's item is at least FIRST_CLEAR_LADDER's rarity; otherwise it rolls on the boss table.
       // Every hero in the party gets their own boss item (not only whoever landed the
       // killing blow). Group dungeons add a second boss-table item each, but only
       // for a real party: a bot-filled run pays like a solo one.
       const raid = !!this.dungeonDef.raid;
-      const min: Rarity = (this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER) || (raid && RAID_LOOT.epic) ? 'epic' : 'common';
+      // The better of the first-clear ladder and a raid's guaranteed Epic.
+      const floors: Rarity[] = ['common'];
+      if (this.firstClear) floors.push(firstClearRarity(this.tier));
+      if (raid && RAID_LOOT.epic) floors.push('epic');
+      const min = floors.reduce((a, b) => (RARITIES.indexOf(b) > RARITIES.indexOf(a) ? b : a));
       const group = this.dungeonDef.style === 'group' && this.fillBots === 0;
       const give = () => {
         this.pickUp(this.withSet(this.makeItem('boss', min)));
@@ -10297,8 +10301,19 @@ export function xpFor(level: number): number {
 
 export const VEIN_TIME = 1.2;
 export const QUENCH_RANGE = 520;
-/** First tier whose first clear guarantees an Epic from the boss. */
-export const FIRST_CLEAR_EPIC_TIER = 2;
+/**
+ * First clear of a tier (the hero's highest unlocked tier): the boss's item is at least this rarity, by tier
+ * (Steve, 26 Nov: "depending on the tier it should give a guaranteed, so for tier one maybe a rare").
+ * Each row is [from tier, rarity]; the steps line up with the Foundry (4), the Coldmarrow (10) and past the Wrackline (15).
+ */
+export const FIRST_CLEAR_LADDER: [number, Rarity][] = [[1, 'rare'], [4, 'epic'], [10, 'legendary'], [15, 'mythic']];
+
+/** The rarity a first clear of `tier` guarantees from the boss. */
+export function firstClearRarity(tier: number): Rarity {
+  let r: Rarity = FIRST_CLEAR_LADDER[0][1];
+  for (const [from, rarity] of FIRST_CLEAR_LADDER) if (tier >= from) r = rarity;
+  return r;
+}
 /**
  * Raid boss loot (design, 24 Nov): a raid boss fight runs 140-340 s against 40-90 s in a group dungeon, so with the
  * same two boss items a raid paid about half the Rare-or-better items a minute. `epic` makes every hero's boss item

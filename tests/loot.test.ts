@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Rng } from '../sim/rng';
 import { MYTHIC_FROM_TIER, newHero, rollDrop, toTree } from '../sim/hero';
 import { LOOT, RARITIES, rarityOdds } from '../sim/content/items';
-import { World, FIRST_CLEAR_EPIC_TIER } from '../sim/world';
+import { World, firstClearRarity } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 
 function win(opts: ConstructorParameters<typeof World>[0]): World | null {
@@ -33,10 +33,12 @@ describe('loot rarity', () => {
     expect(epic / 4000).toBeLessThan(0.025);
   });
 
-  it('the boss guarantees an Epic only on a first clear from tier 2', () => {
-    const first = win({ seed: 1, tier: FIRST_CLEAR_EPIC_TIER, omens: [], firstClear: true });
-    expect(first).not.toBeNull();
-    expect(first!.runDrops.some((i) => i.rarity === 'epic' || i.rarity === 'mythic')).toBe(true);
+  it('a first clear guarantees a rarity by tier: Rare at tier 1, then Epic, Legendary and Mythic', () => {
+    expect([1, 3, 4, 9, 10, 14, 15, 40].map(firstClearRarity)).toEqual(['rare', 'rare', 'epic', 'epic', 'legendary', 'legendary', 'mythic', 'mythic']);
+    const t1 = win({ seed: 1, tier: 1, omens: [], firstClear: true });
+    expect(t1).not.toBeNull();
+    const boss = t1!.runDrops[t1!.runDrops.length - 1];
+    expect(RARITIES.indexOf(boss.rarity)).toBeGreaterThanOrEqual(RARITIES.indexOf('rare'));
   }, 120000);
 });
 
