@@ -11,7 +11,7 @@ import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
 import { metIn, recordSeen } from '../sim/seen';
 import { botTree } from '../sim/content/trees';
-import { altsOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers, toTree } from '../sim/hero';
+import { altsOn, applyRun, equippedItems, HeroProfile, newHero, newerHero, resetProgress, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers, toTree } from '../sim/hero';
 import { DUNGEONS, raidCountsTriple } from '../sim/content/dungeon';
 import { ALT_OPTIONS, CLASSES } from '../sim/content/classes';
 import { standInGear } from '../sim/content/botfill';
@@ -66,7 +66,8 @@ function mergeCloud(loaded: HeroProfile | null): Kept {
   if (remote && remote.version === 1 && Array.isArray(remote.inventory)) {
     const best = newerHero(hero, remote);
     if (best === remote && el('title').hidden === false) {
-      hero = { ...hero, ...remote };
+      // After a reset on another device, take that copy alone: spreading this one under it would bring back its classes.
+      hero = (remote.resets ?? 0) > (hero.resets ?? 0) ? { ...newHero(), ...remote } : { ...hero, ...remote };
       saveHero(hero);
       hub.tier = topTier(hero.maxTier);
       kept = 'cloud';
@@ -365,23 +366,21 @@ el('stressLink').addEventListener('click', (e) => {
   hud.showPerf = true;
   startRun();
 });
-// Reset wipes the hero for good, so it takes a second tap within a few seconds.
-let resetArmed: ReturnType<typeof setTimeout> | null = null;
-el('resetBtn').addEventListener('click', () => {
-  const btn = el('resetBtn');
-  if (!resetArmed) {
-    btn.textContent = 'Tap again to erase your hero';
-    resetArmed = setTimeout(() => { resetArmed = null; btn.textContent = 'Reset hero'; }, 4000);
-    return;
+// Settings > Start over > Reset all progress (confirmed in hub.confirmReset): a brand new hero here and
+// in the cloud save, then a reload so the first-delve coach and tips come back. The account, leaderboard times and
+// display settings stay. newerHero prefers the copy with more resets, so an old copy can't undo it.
+hub.onResetAll = () => {
+  hero = resetProgress(hero);
+  try {
+    localStorage.removeItem('horders.coach.v1');
+    localStorage.removeItem('horders.tips.v1');
+  } catch {
+    // Nothing stored to clear.
   }
-  clearTimeout(resetArmed);
-  resetArmed = null;
-  btn.textContent = 'Reset hero';
-  hero = resetHero();
-  hub.tier = 1;
-  save();
-  hub.render();
-});
+  saveHero(hero);
+  // Reload once the cloud copy is replaced (or the call gave up offline), so the tutorial coach starts fresh too.
+  void cloud.saveHero(hero).finally(() => location.reload());
+};
 // Link codes (migration 0009): every storage area (a browser, an iPhone Home Screen app, the store
 // app) is its own anonymous player, so a code from one place joins another place to the same save.
 const linkMsg = (t: string) => { el('linkMsg').textContent = t; };
@@ -432,7 +431,7 @@ el('linkUseBtn').addEventListener('click', async () => {
     : 'Linked. Both places now share this hero, since it has made more progress.');
 });
 // Delete my account (store rule, 1.0 M6): erases the online account and every row it owns, then the
-// hero and tips in this browser. Like Reset it takes a second tap; display settings stay.
+// hero and tips in this browser. It takes a second tap; display settings stay.
 let deleteArmed: ReturnType<typeof setTimeout> | null = null;
 el('deleteAcctBtn').addEventListener('click', async () => {
   const btn = el('deleteAcctBtn') as HTMLButtonElement;
