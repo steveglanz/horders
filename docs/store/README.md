@@ -53,3 +53,9 @@ boss with a party of four at 1280 × 720 (`trailer-hammerdeep.webm`). The bots p
 nothing is staged. It records in real time, so on a machine without a GPU the frame
 rate is low; run it on a machine with one for the final cut, and edit or speed-ramp
 it there.
+
+## App icon for the stores (1.0)
+
+The Capacitor app uses the hoard beast emblem in `assets/` (see `docs/art/app-icon/`). The store
+listing icon must match the app's, so the M9 refresh should render the listing icons from
+`assets/icon.svg` instead of `icon.svg` above.
