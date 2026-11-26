@@ -1,0 +1,90 @@
+// Installs the debug APK on a running Android emulator, opens the app, and plays one delve with the
+// autopilot inside the app's own WebView (roadmap 1.0 M7 "done when"). Used by the App shell
+// workflow's android-play job. Fails if the delve does not end, if the end screen does not show,
+// or if the page throws.
+//
+// Usage: node tools/apkplay.cjs <apk> <outDir>      (needs adb and a booted emulator)
+//        node tools/apkplay.cjs --desktop <outDir>  (same delve in desktop Chromium on dist/, for a
+//                                                    quick check of this script without an emulator)
+//
+// Driven by Playwright's Android support (playwright-core `_android`), which talks to the app's
+// WebView over the DevTools socket. Capacitor turns WebView debugging on in debug builds.
+const fs = require('fs');
+const path = require('path');
+
+const PKG = 'com.steveglanz.horders';
+const desktop = process.argv[2] === '--desktop';
+const apk = desktop ? null : process.argv[2];
+const out = process.argv[3] || 'tools/shots/apk';
+fs.mkdirSync(out, { recursive: true });
+const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+
+async function openPage() {
+  if (desktop) {
+    const { chromium } = require('playwright');
+    const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+    const page = await b.newPage({ viewport: { width: 412, height: 915 }, hasTouch: true });
+    await page.goto('file://' + path.resolve('dist/index.html') + '?seed=1');
+    return { page, close: () => b.close(), shot: (f) => page.screenshot({ path: f }) };
+  }
+  const { _android } = require('playwright-core');
+  const [device] = await _android.devices();
+  if (!device) throw new Error('no Android device found by adb');
+  log('device', device.model(), device.serial());
+  log('android', (await device.shell('getprop ro.build.version.release')).toString().trim(),
+    'webview', (await device.shell('dumpsys package com.google.android.webview')).toString().match(/versionName=(\S+)/)?.[1] ?? '?');
+  await device.installApk(fs.readFileSync(apk));
+  log('installed', apk);
+  await device.shell(`am start -W -n ${PKG}/.MainActivity`);
+  const webview = await device.webView({ pkg: PKG }, { timeout: 120000 });
+  const page = await webview.page();
+  return {
+    page,
+    close: () => device.close(),
+    // The device screenshot shows the whole screen as a player sees it, WebGL included.
+    shot: async (f) => fs.writeFileSync(f, await device.screenshot()),
+  };
+}
+
+(async () => {
+  const { page, close, shot } = await openPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  log('url', page.url());
+  await page.waitForFunction(() => !!window.__ember, null, { timeout: 120000 });
+  const info = await page.evaluate(() => ({ ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: devicePixelRatio,
+    webgl: !!document.createElement('canvas').getContext('webgl2') }));
+  log('page', JSON.stringify(info));
+  await page.locator('#startBtn').waitFor({ state: 'visible', timeout: 60000 });
+  await page.waitForTimeout(1500);
+  await shot(`${out}/1-hub.png`);
+  await page.locator('#startBtn').tap().catch(() => page.click('#startBtn'));
+  await page.waitForFunction(() => window.__ember.scene()?.world?.tick > 0, null, { timeout: 120000 });
+  await page.waitForTimeout(3000);
+  await shot(`${out}/2-delve.png`);
+  const st = () => page.evaluate(() => { const w = window.__ember.scene().world;
+    return { t: Math.round(w.time), state: w.state, lvl: w.player.level, hp: Math.round(w.player.hp), kills: w.kills, dungeon: w.dungeonId }; });
+  log('start', JSON.stringify(await st()), '3D look:', await page.evaluate(() => window.__ember.look3d()));
+  await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.warp = 10; });
+  let midShot = false;
+  const deadline = Date.now() + 20 * 60 * 1000;
+  let s = await st();
+  for (let k = 0; s.state !== 'ended' && Date.now() < deadline; k++) {
+    await page.waitForTimeout(2000);
+    s = await st();
+    if (k % 15 === 0) log('run', JSON.stringify(s));
+    if (!midShot && s.t >= 120) { midShot = true; await shot(`${out}/3-mid.png`); }
+  }
+  if (s.state !== 'ended') throw new Error('the delve did not end within 20 minutes: ' + JSON.stringify(s));
+  const sum = await page.evaluate(() => window.__ember.scene().world.summary());
+  log('ended', JSON.stringify({ victory: sum.victory, time: Math.round(sum.time), kills: sum.kills, level: sum.level, fights: sum.fightsCleared }));
+  await page.locator('#end').waitFor({ state: 'visible', timeout: 30000 });
+  await page.waitForTimeout(1500);
+  await shot(`${out}/4-end.png`);
+  log(errors.length ? 'page errors:\n' + errors.join('\n') : 'no page errors');
+  await close();
+  if (sum.kills <= 0) throw new Error('the delve ended with no kills');
+  if (errors.some((e) => e.startsWith('pageerror'))) throw new Error('the page threw during the delve');
+  log('OK: played a delve in the app');
+})().catch((e) => { console.error(e); process.exit(1); });
