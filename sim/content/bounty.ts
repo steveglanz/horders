@@ -7,6 +7,7 @@
 import { Rng } from '../rng';
 import { DUNGEONS, BOUNTY_DUNGEON_IDS, DungeonId, EncounterId } from './dungeon';
 import { OMEN_IDS, OmenId } from './omens';
+import { MAX_TIER } from './scaling';
 
 export const BOUNTY = {
   /** The hub shows the bounty once the hero has won a delve (tier 2 unlocked). */
@@ -34,7 +35,7 @@ export function dayOf(ms: number): number {
 
 /** Tier a hero takes the bounty at: one below their best, so it's a confident run, not a wall. */
 export function bountyTier(maxTier: number): number {
-  return Math.max(1, maxTier - 1);
+  return Math.max(1, Math.min(MAX_TIER, maxTier - 1));
 }
 
 /**

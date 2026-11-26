@@ -16,7 +16,7 @@ import { SETS } from '../sim/content/sets';
 import { GLOWS, SEASON, SEASONS, TRAILS, trailLabel, seasonDef, seasonLevel, seasonNumber, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
 import { SEASON_ART } from './seasonArt';
 import { itemHtml, setsWorn } from './ui';
-import { GRIT } from '../sim/content/scaling';
+import { GRIT, MAX_TIER, topTier } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
 import { BOT_FILL, botFillBlocker, fillClasses } from '../sim/content/botfill';
 import type { ClassId } from '../sim/content/emberwright';
@@ -209,7 +209,7 @@ export class Hub {
 
   render(): void {
     const h = this.hero();
-    this.tier = Math.min(Math.max(1, this.tier), h.maxTier);
+    this.tier = Math.min(Math.max(1, this.tier), topTier(h.maxTier));
     const pts = pointsAvailable(h);
     const atCap = h.level >= heroMaxLevel();
     const need = heroXpToNext(h.level);
@@ -370,7 +370,7 @@ export class Hub {
       b.addEventListener('click', () => {
         // Each class is its own hero, with its own level, talents, gear and bags.
         switchClass(h, b.dataset.cls as typeof cls);
-        this.tier = h.maxTier;
+        this.tier = topTier(h.maxTier);
         this.save();
         this.render();
       }));
@@ -388,13 +388,15 @@ export class Hub {
         + `<span class="style ${d.style}">${d.style === 'group' ? `<span class="roles">${roleTile('bulwark', 14)}${roleTile('lumen', 14)}</span>` : ''}<span class="slbl">${label}</span></span></button>`;
     }).join('');
     const tiers: string[] = [];
-    for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}" aria-pressed="${t === this.tier}">${t}</button>`);
+    for (let t = 1; t <= topTier(h.maxTier); t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}" aria-pressed="${t === this.tier}">${t}</button>`);
     const omens = omensFor(this.tier, weekOf(Date.now()));
     $('tiers').innerHTML = `<div class="dungeons">${dungeons}</div>`
       // One tier unlocked: nothing to choose yet, so the row waits until tier 2 (tab mode hides it via .solo-tier).
       + `<div class="${h.maxTier === 1 ? 'solo-tier' : ''}"><div class="sec-h"><span>Difficulty</span><span class="muted">Tier ${this.tier}${omens.length ? ` · ${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}` : ''}</span></div>`
-      + `<div class="tierrow">${tiers.join('')}</div></div>`
-      + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
+      + `<div class="tierrow">${tiers.join('')}</div>`
+      // Steve, 26 Nov: say what a tier does. One line; tier 15 is the top (MAX_TIER), and keys go on from there.
+      + (h.maxTier > 1 ? `<div class="hint">${h.maxTier > MAX_TIER ? `Tier ${MAX_TIER} is the top. Delver's Keys keep going.` : 'Higher tiers: tougher foes, better loot. Win your top tier to open the next.'}</div>` : '') + '</div>'
+      + (h.maxTier === 1 ? '<div class="hint">Higher tiers: tougher foes, better loot. Beat the Kiln Mother to unlock tier 2.</div>' : '')
       + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a talent and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
       + `<div class="prep-full">${this.heatLine()}${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}${this.seenLine(true)}</div>`;

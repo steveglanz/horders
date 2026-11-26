@@ -2,6 +2,7 @@ import { weekOf } from '../sim/content/omens';
 import { keyOmens, keyTier } from '../sim/content/keys';
 import { bountyFor, dayOf } from '../sim/content/bounty';
 import { heatFor } from '../sim/content/heat';
+import { topTier } from '../sim/content/scaling';
 import Phaser from 'phaser';
 import { GameScene } from './GameScene';
 import { Hud } from './ui';
@@ -51,7 +52,7 @@ hud.onGearChange = save;
 hud.tipSeen = (id) => !!hero.tipsSeen?.includes(id);
 hud.markTip = (id) => { if (hero.tipsSeen?.includes(id)) return; (hero.tipsSeen ??= []).push(id); save(); };
 const hub = new Hub(() => hero, save);
-hub.tier = hero.maxTier;
+hub.tier = topTier(hero.maxTier);
 hub.render();
 
 // Pull the cloud save (if any) and keep whichever copy has made more progress.
@@ -64,7 +65,7 @@ void (async () => {
     if (best === remote && el('title').hidden === false) {
       hero = { ...hero, ...remote };
       saveHero(hero);
-      hub.tier = hero.maxTier;
+      hub.tier = topTier(hero.maxTier);
     } else if (best !== remote) {
       void cloud.saveHero(hero);
     }
@@ -175,13 +176,13 @@ function finishRun(w: World) {
     // Drops carry the host's item ids: give them ours. And a delve the host
     // chose above your own ladder unlocks at most your next tier.
     ({ drops, equipped } = rekeyDrops(hero, drops, equipped));
-    summary = { ...summary, tier: Math.min(summary.tier ?? 1, hero.maxTier) };
+    summary = { ...summary, tier: Math.min(summary.tier ?? 1, topTier(hero.maxTier)) };
   }
   const topBefore = hero.maxTier;
   const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, drops, equipped);
   // A win that opens the next tier moves the delve up to it, when you were on your top tier (a playtester's new player
   // replayed tier 1 five times: the tier was only picked at page load). A lower tier you chose to replay stays picked.
-  if (hero.maxTier > topBefore && hub.tier === topBefore) hub.tier = hero.maxTier;
+  if (topTier(hero.maxTier) > topTier(topBefore) && hub.tier === topTier(topBefore)) hub.tier = topTier(hero.maxTier);
   // Phase 15 Y4: what this delve met goes in the Seen log; the end screen marks the first meetings.
   rewards.seenNew = recordSeen(hero, metIn(w));
   save();
