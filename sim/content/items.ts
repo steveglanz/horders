@@ -5,27 +5,73 @@ import type { SetId } from './sets';
 export type Slot = 'weapon' | 'head' | 'chest' | 'hands' | 'ring' | 'trinket';
 export const SLOTS: Slot[] = ['weapon', 'head', 'chest', 'hands', 'ring', 'trinket'];
 
-export type Rarity = 'common' | 'fine' | 'rare' | 'epic' | 'mythic';
-export const RARITIES: Rarity[] = ['common', 'fine', 'rare', 'epic', 'mythic'];
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+export const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 
 export interface RarityDef {
   id: Rarity;
   name: string;
-  /** Relative drop weight before bad-luck protection. */
-  weight: number;
   bonusStats: number;
   color: string;
   /** Embers returned when salvaged. */
   salvage: number;
 }
 
+/**
+ * Rarity ladder (Steve, 26 Nov): Common, Uncommon, Rare, Epic, Legendary, Mythic. Each step adds a bonus stat;
+ * Epic and up give a class weapon effect on weapons, and a Mythic adds a Mythic effect. Drop odds are in LOOT.
+ */
 export const RARITY: Record<Rarity, RarityDef> = {
-  common: { id: 'common', name: 'Common', weight: 60, bonusStats: 0, color: '#c9bfb5', salvage: 1 },
-  fine: { id: 'fine', name: 'Fine', weight: 26, bonusStats: 1, color: '#7fd67a', salvage: 3 },
-  rare: { id: 'rare', name: 'Rare', weight: 10, bonusStats: 2, color: '#5aa9ff', salvage: 8 },
-  epic: { id: 'epic', name: 'Epic', weight: 1.5, bonusStats: 3, color: '#c77dff', salvage: 20 },
-  mythic: { id: 'mythic', name: 'Mythic', weight: 0.3, bonusStats: 3, color: '#ff9a3d', salvage: 50 },
+  common: { id: 'common', name: 'Common', bonusStats: 0, color: '#c9bfb5', salvage: 1 },
+  uncommon: { id: 'uncommon', name: 'Uncommon', bonusStats: 1, color: '#7fd67a', salvage: 3 },
+  rare: { id: 'rare', name: 'Rare', bonusStats: 2, color: '#5aa9ff', salvage: 8 },
+  epic: { id: 'epic', name: 'Epic', bonusStats: 3, color: '#c77dff', salvage: 20 },
+  legendary: { id: 'legendary', name: 'Legendary', bonusStats: 4, color: '#ffd84a', salvage: 35 },
+  mythic: { id: 'mythic', name: 'Mythic', bonusStats: 4, color: '#ff9a3d', salvage: 50 },
 };
+
+/** Saves from before 26 Nov call Uncommon "fine". */
+export function fixRarity(r: string): Rarity {
+  return r === 'fine' ? 'uncommon' : (r as Rarity);
+}
+
+/**
+ * What dropped an item (Steve, 26 Nov: a loot table per kind of foe). `trash` is a pack's clear bag and
+ * stray trash drops; `elite` an elite (Cinder Brute, Ashmaw), a quest and a won run's end chest; `rare` a
+ * named elite (a rare spawn); `boss` a dungeon or raid boss.
+ */
+export type LootSource = 'trash' | 'elite' | 'rare' | 'boss';
+
+/**
+ * Loot tables (Steve, 26 Nov). `table` is each source's tier 1 odds in percent, in RARITIES order: every step is
+ * about five to ten times rarer than the one below it. Each tier above 1 multiplies a rarity's weight by
+ * (1 + tierStep) for every step it sits above Common, up to `tierCap`, so higher tiers lean slowly towards better
+ * gear. Omen luck multiplies every weight above Common. Legendary and Mythic can't drop below their tier.
+ */
+export const LOOT = {
+  table: {
+    trash: [80, 16, 3.5, 0.45, 0.05, 0.005],
+    elite: [62, 28, 8, 1.7, 0.25, 0.03],
+    rare: [45, 36, 15, 3.5, 0.5, 0.06],
+    boss: [30, 45, 20, 4.5, 0.6, 0.08],
+  } as Record<LootSource, number[]>,
+  tierStep: 0.08,
+  tierCap: 15,
+  legendaryFromTier: 2,
+  mythicFromTier: 3,
+};
+
+/** The chance of each rarity (RARITIES order, summing to 1) for one drop from `source` at `tier` with `luck`. */
+export function rarityOdds(source: LootSource, tier: number, luck = 1): number[] {
+  const grow = Math.pow(1 + LOOT.tierStep, Math.max(0, Math.min(tier, LOOT.tierCap) - 1));
+  const w = LOOT.table[source].map((base, r) => {
+    if (RARITIES[r] === 'legendary' && tier < LOOT.legendaryFromTier) return 0;
+    if (RARITIES[r] === 'mythic' && tier < LOOT.mythicFromTier) return 0;
+    return r === 0 ? base : base * Math.pow(grow, r) * luck;
+  });
+  const total = w.reduce((a, b) => a + b, 0);
+  return w.map((x) => x / total);
+}
 
 export type Stat = 'power' | 'vitality' | 'haste' | 'crit' | 'swiftness' | 'reach';
 
@@ -78,9 +124,10 @@ export const WEAPON_NAMES: Record<ClassId, string[]> = {
 
 export const RARITY_PREFIX: Record<Rarity, string[]> = {
   common: ['Worn', 'Sooty', 'Plain', 'Cracked'],
-  fine: ['Ashwoven', 'Tempered', 'Warded', 'Banked'],
+  uncommon: ['Ashwoven', 'Tempered', 'Warded', 'Banked'],
   rare: ['Cinderforged', 'Kilnfired', 'Emberbound', 'Smoldering'],
   epic: ['Titanheart', 'Rimeburnt', 'Furnace-Sworn', 'Tidebreaker'],
+  legendary: ['Ashcrowned', 'Starkiln', 'Hoardsworn', 'Sunbanked'],
   mythic: ['Heartfire', 'Everburning', 'Kaldera', 'Firstflame'],
 };
 

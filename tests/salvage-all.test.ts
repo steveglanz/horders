@@ -21,10 +21,10 @@ function setup() {
 describe('salvage all', () => {
   it('breaks down weaker spares and pays their embers', () => {
     const { h, rng } = setup();
-    h.inventory.push(makeItem(rng, 'r1', 'ring', 'common', 1), makeItem(rng, 'h1', 'head', 'fine', 1));
+    h.inventory.push(makeItem(rng, 'r1', 'ring', 'common', 1), makeItem(rng, 'h1', 'head', 'uncommon', 1));
     const plan = salvageAllPlan(h);
     expect(plan.items.map((i) => i.id).sort()).toEqual(['h1', 'r1']);
-    expect(plan.embers).toBe(RARITY.common.salvage + RARITY.fine.salvage);
+    expect(plan.embers).toBe(RARITY.common.salvage + RARITY.uncommon.salvage);
     expect(salvageAll(h)).toEqual({ count: 2, embers: plan.embers });
     expect(h.embers).toBe(plan.embers);
     expect(h.inventory.map((i) => i.id).sort()).toEqual(['head', 'ring']);

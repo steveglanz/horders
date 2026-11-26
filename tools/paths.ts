@@ -18,6 +18,6 @@ for (const seed of seeds) {
   const s = w.summary();
   if (s.victory) wins++;
   time += s.time;
-  for (const it of w.runDrops) { rarity += RARITIES.indexOf(it.rarity); drops++; if (it.rarity === 'epic' || it.rarity === 'mythic') epics++; }
+  for (const it of w.runDrops) { rarity += RARITIES.indexOf(it.rarity); drops++; if (RARITIES.indexOf(it.rarity) >= 3) epics++; }
 }
 console.log(`path=${process.env.BOT_PATH ?? 'auto'} tier ${tier}: wins ${wins}/${seeds.length}, avg delve ${Math.round(time / seeds.length)}s, drops ${drops} avg rarity ${(rarity / drops).toFixed(2)} (0 common .. 4 mythic), epic+ ${epics}, gates ${JSON.stringify(taken)}`);

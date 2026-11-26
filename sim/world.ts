@@ -17,7 +17,7 @@ import { Loadout, PointId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { TREE, TreeNodeId } from './content/trees';
 /** Character tree numbers, re-exported so the tools' TUNE=TREE.bulkHp=8 reaches them. */
 export { TREE };
-import { Item, Rarity } from './content/items';
+import { Item, LootSource, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
 import { FIRST_DELVE } from './content/firstdelve';
@@ -1427,7 +1427,8 @@ export class World {
     this.bossOmen = bossOmen && !omens.includes(bossOmen) ? bossOmen : undefined;
     this.omens = this.bossOmen ? [...omens, this.bossOmen] : omens;
     // The boss's Omen always pays its bonus, even when the tier already rolled that Omen.
-    this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length) * (bossOmen ? 1 + OMEN_TUNING.bossOmenLuck : 1)
+    // Omen luck only: the tier's own lean towards better loot is in the loot tables (LOOT.tierStep).
+    this.luck = (1 + OMEN_TUNING.luckPerOmen * this.omens.length) * (bossOmen ? 1 + OMEN_TUNING.bossOmenLuck : 1)
       * (this.heat === 'richHaul' ? HEAT_TUNING.richHaulLuck : 1); // V4 Rich Haul
     const hp = Math.round((this.classDef.baseHp + this.loadout.maxHpBonus) * gritMult(this.grit));
     this.player = {
@@ -2607,15 +2608,13 @@ export class World {
     if (def.id === 'shrine') {
       p.hp = p.maxHp;
     } else {
-      // Clear bags top out at a guaranteed Rare; Epics only come from luck, first clears and bad-luck protection.
-      const order: Rarity[] = ['common', 'fine', 'rare'];
-      let min = this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0;
-      if (this.namedFight) min++;
+      // A clear bag rolls on the trash table, or the elite table after a named gate's fight (LOOT, 26 Nov: no floors).
+      const src: LootSource = this.namedFight ? 'elite' : 'trash';
       // KILNTRASH: a trash pack drops no bag.
       if (this.trashClear) return;
-      this.dropLoot(p.x + 40, p.y, order[Math.min(order.length - 1, min)]);
+      this.dropLoot(p.x + 40, p.y, src);
       // Phase 15 Y10: a stirred fight leaves a second bag.
-      if (this.stir) this.dropLoot(p.x - 40, p.y, order[Math.min(order.length - 1, min)]);
+      if (this.stir) this.dropLoot(p.x - 40, p.y, src);
     }
   }
 
@@ -3021,9 +3020,8 @@ export class World {
     const clear = () => {
       this.clearEncounterFor(def);
       if (def.id === 'shrine') return;
-      const order: Rarity[] = ['common', 'fine', 'rare'];
-      const min = (this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0) + (this.namedFight ? 1 : 0);
-      for (let b = 1; b < pk.bags; b++) this.dropLoot(this.player.x, this.player.y + 40 * b, order[Math.min(order.length - 1, min)]);
+      const src: LootSource = this.namedFight ? 'elite' : 'trash';
+      for (let b = 1; b < pk.bags; b++) this.dropLoot(this.player.x, this.player.y + 40 * b, src);
     };
     this.trashClear = !!pk.trash;
     if (this.heroes.length === 1) clear();
@@ -7455,17 +7453,17 @@ export class World {
     if (e.def.rank === 'boss') {
       this.victory = true;
       // The run ends on this tick (or moves to the shadow fight), so boss loot goes straight to the bags.
-      // From tier 2, an Epic is guaranteed the first time you beat a tier; otherwise the boss drops Rare or better.
+      // From tier 2, an Epic is guaranteed the first time you beat a tier; otherwise the boss rolls on the boss table.
       // Every hero in the party gets their own boss item (not only whoever landed the
-      // killing blow). Group dungeons add a second Rare-or-better item each, but only
+      // killing blow). Group dungeons add a second boss-table item each, but only
       // for a real party: a bot-filled run pays like a solo one.
       const raid = !!this.dungeonDef.raid;
-      const min: Rarity = (this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER) || (raid && RAID_LOOT.epic) ? 'epic' : 'rare';
+      const min: Rarity = (this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER) || (raid && RAID_LOOT.epic) ? 'epic' : 'common';
       const group = this.dungeonDef.style === 'group' && this.fillBots === 0;
       const give = () => {
-        this.pickUp(this.withSet(this.makeItem(min)));
-        if (group) this.pickUp(this.makeItem('rare'));
-        if (raid) for (let k = 0; k < RAID_LOOT.extra; k++) this.pickUp(this.makeItem('rare'));
+        this.pickUp(this.withSet(this.makeItem('boss', min)));
+        if (group) this.pickUp(this.makeItem('boss'));
+        if (raid) for (let k = 0; k < RAID_LOOT.extra; k++) this.pickUp(this.makeItem('boss'));
       };
       if (this.heroes.length === 1) give();
       else {
@@ -7491,9 +7489,8 @@ export class World {
       this.events.push({ type: 'riftClosed', x: e.x, y: e.y });
     }
     if (e.named >= 0) {
-      // A named elite: its own loot, and a Vengeful one bursts where it fell.
-      const r = new Rng((this.seed ^ 0x6c6f6f74) + this.kills);
-      this.dropLoot(e.x, e.y, r.chance(NAMED.epicChance) ? 'epic' : 'rare');
+      // A named elite (a rare spawn): its own loot from the rare table, and a Vengeful one bursts where it fell.
+      this.dropLoot(e.x, e.y, 'rare');
       if (AFFIXES[e.affix] === 'Vengeful') this.addTelegraph('circle', e.x, e.y, NAMED.burstR, 0, 0, NAMED.burstDelay, NAMED.burstDmg);
       // Phase 14 X2 Brood: its pack comes out of it.
       if (AFFIXES[e.affix] === 'Brood') {
@@ -7508,10 +7505,10 @@ export class World {
     }
     if (e.kind === 'ashmaw') {
       this.progressQuest('ashmaw');
-      this.dropLoot(e.x, e.y, 'rare');
+      this.dropLoot(e.x, e.y, 'elite');
     }
-    if (e.kind === 'cinderBrute') this.dropLoot(e.x, e.y, 'fine');
-    if (this.stress && e.def.rank === 'normal' && this.rng.chance(TRASH_DROP)) this.dropLoot(e.x, e.y, 'common');
+    if (e.kind === 'cinderBrute') this.dropLoot(e.x, e.y, 'elite');
+    if (this.stress && e.def.rank === 'normal' && this.rng.chance(TRASH_DROP)) this.dropLoot(e.x, e.y, 'trash');
     if (e.kind === 'cinderBrute') {
       this.eliteKilled = true;
       // Elite chest: a free bonus draft.
@@ -9879,8 +9876,9 @@ export class World {
 
   // ---------------------------------------------------------------- loot
 
-  private makeItem(min: Rarity): Item {
-    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min, this.cls, this.tier);
+  /** One item from `source`'s loot table (LOOT), at least `min`. */
+  private makeItem(source: LootSource, min: Rarity = 'common'): Item {
+    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min, this.cls, this.tier, source);
   }
 
   /**
@@ -9907,9 +9905,9 @@ export class World {
     return this.fillRng.chance(fillLootShare(this.fillBots));
   }
 
-  private dropLoot(x: number, y: number, min: Rarity): void {
+  private dropLoot(x: number, y: number, source: LootSource): void {
     if (!this.fillKeeps()) return;
-    const item = this.makeItem(min);
+    const item = this.makeItem(source);
     const d = this.drops.find((q) => !q.alive);
     if (!d) {
       this.pickUp(item);
@@ -10016,7 +10014,7 @@ export class World {
     if (q.progress < q.goal) return;
     q.done = true;
     this.gainXp(this.player.xpToNext * 0.6);
-    if (this.fillKeeps()) this.pickUp(this.makeItem('fine'));
+    if (this.fillKeeps()) this.pickUp(this.makeItem('elite'));
     this.events.push({ type: 'quest', index: k });
   }
 

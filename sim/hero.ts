@@ -20,7 +20,7 @@ import { PotionId, potionCost } from './content/potions';
 import type { SetId } from './content/sets';
 import { RunSummary } from './world';
 import {
-  Item, MythicId, mythicPool, WeaponFxId, weaponFxFor, RARITIES, RARITY, RARITY_PREFIX, Rarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat, WEAPON_NAMES,
+  Item, MythicId, mythicPool, WeaponFxId, weaponFxFor, RARITIES, RARITY, RARITY_PREFIX, Rarity, LOOT, LootSource, rarityOdds, fixRarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat, WEAPON_NAMES,
 } from './content/items';
 
 export type PassiveId = 'might' | 'fortitude' | 'insight' | 'alacrity';
@@ -44,9 +44,10 @@ export const PASSIVES: Record<PassiveId, { name: string; text: string; tip: stri
   },
 };
 
-export const PITY_LIMIT = 10; // runs without an Epic or better before one is guaranteed
+/** Runs without an Epic or better before the end chest's last item is one (26 Nov: 10 -> 30, Epics are meant to be rare). */
+export const PITY_LIMIT = 30;
 /** Mythics (build-changing items) only drop from this tier up, so the first ones are a milestone. */
-export const MYTHIC_FROM_TIER = 3;
+export const MYTHIC_FROM_TIER = LOOT.mythicFromTier;
 
 export interface HeroProfile {
   version: 1;
@@ -301,21 +302,23 @@ export interface RunRewards {
   seenNew?: string[];
 }
 
-/** One random item for a mid-run drop, at least `minRarity`. */
-export function rollDrop(rng: Rng, id: string, ilvl: number, luck: number, minRarity: Rarity = 'common', cls?: ClassId, tier = MYTHIC_FROM_TIER): Item {
-  let rarity = rollRarity(rng, luck, tier);
+/** One random item for a drop from `source` (its loot table), at least `minRarity`. */
+export function rollDrop(
+  rng: Rng, id: string, ilvl: number, luck: number, minRarity: Rarity = 'common', cls?: ClassId, tier = MYTHIC_FROM_TIER,
+  source: LootSource = 'trash',
+): Item {
+  let rarity = rollRarity(rng, luck, tier, source);
   if (RARITIES.indexOf(rarity) < RARITIES.indexOf(minRarity)) rarity = minRarity;
   const slot = SLOTS[rng.int(SLOTS.length)];
   return makeItem(rng, id, slot, rarity, Math.max(1, ilvl + rng.int(3) - 1), cls);
 }
 
-function rollRarity(rng: Rng, luck: number, tier = MYTHIC_FROM_TIER): Rarity {
-  const weights = RARITIES.map((r) => (r === 'mythic' && tier < MYTHIC_FROM_TIER ? 0 : RARITY[r].weight * (r === 'common' ? 1 : luck)));
-  const total = weights.reduce((a, b) => a + b, 0);
-  let x = rng.next() * total;
+function rollRarity(rng: Rng, luck: number, tier: number, source: LootSource): Rarity {
+  const odds = rarityOdds(source, tier, luck);
+  let x = rng.next();
   for (let i = 0; i < RARITIES.length; i++) {
-    x -= weights[i];
-    if (x <= 0) return RARITIES[i];
+    x -= odds[i];
+    if (x <= 0 && odds[i] > 0) return RARITIES[i];
   }
   return 'common';
 }
@@ -346,8 +349,8 @@ export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl:
     const ids = mythicPool(cls);
     item.mythic = ids[rng.int(ids.length)];
   }
-  // Class weapon effect on an Epic or Mythic weapon found by a class.
-  if (slot === 'weapon' && cls && (rarity === 'epic' || rarity === 'mythic')) item.weaponFx = weaponFxFor(cls, id);
+  // Class weapon effect on an Epic or better weapon found by a class.
+  if (slot === 'weapon' && cls && RARITIES.indexOf(rarity) >= RARITIES.indexOf('epic')) item.weaponFx = weaponFxFor(cls, id);
   return item;
 }
 
@@ -367,17 +370,17 @@ export function rollLoot(
   const count = runDrops.length ? (s.victory ? 1 : 0) : Math.min(7, 1 + Math.floor(s.time / 150) + (eliteKilled ? 1 : 0) + (s.victory ? 2 : 0));
   const tier = s.tier ?? 1;
   const baseIlvl = hero.level + (s.victory ? 2 : 0) + (tier - 1);
-  const luck = (s.victory ? 1.6 : 1) * (1 + 0.12 * (tier - 1));
+  // A won run's chest rolls on the elite table, a lost one on the trash table (tier is in the tables).
+  const source: LootSource = s.victory ? 'elite' : 'trash';
   const items: Item[] = [];
   let pity = hero.pity;
-  let gotEpic = runDrops.some((i) => i.rarity === 'epic' || i.rarity === 'mythic');
+  const epicUp = (r: Rarity) => RARITIES.indexOf(r) >= RARITIES.indexOf('epic');
+  let gotEpic = runDrops.some((i) => epicUp(i.rarity));
   for (let k = 0; k < count; k++) {
-    let rarity = rollRarity(rng, luck, tier);
+    let rarity = rollRarity(rng, 1, tier, source);
     // Bad-luck protection: after enough dry runs the last drop is upgraded.
-    if (k === count - 1 && !gotEpic && pity + 1 >= PITY_LIMIT && (rarity === 'common' || rarity === 'fine' || rarity === 'rare')) {
-      rarity = 'epic';
-    }
-    if (rarity === 'epic' || rarity === 'mythic') gotEpic = true;
+    if (k === count - 1 && !gotEpic && pity + 1 >= PITY_LIMIT && !epicUp(rarity)) rarity = 'epic';
+    if (epicUp(rarity)) gotEpic = true;
     const slot = SLOTS[rng.int(SLOTS.length)];
     const ilvl = Math.max(1, baseIlvl + rng.int(3) - 1);
     items.push(makeItem(rng, `i${hero.nextItemId + runDrops.length + k}`, slot, rarity, ilvl, hero.cls ?? 'emberwright'));
@@ -736,7 +739,14 @@ export function refundStatPoints(hero: Pick<HeroProfile, 'passives'>): void {
 export function toTree(h: HeroProfile): HeroProfile {
   refundStatPoints(h);
   for (const c of Object.values(h.roster ?? {})) if (c?.passives) refundStatPoints(c);
+  renameRarities(h);
   return h;
+}
+
+/** 26 Nov: "Fine" items became Uncommon. Renames them in the save and every roster character's bags (safe on every load). */
+export function renameRarities(h: HeroProfile): void {
+  const bags = [h.inventory, ...Object.values(h.roster ?? {}).map((c) => c?.inventory)];
+  for (const bag of bags) for (const it of bag ?? []) it.rarity = fixRarity(it.rarity);
 }
 
 /** A rough single-number strength used to compare items. */
@@ -761,7 +771,7 @@ export interface BossReward {
  */
 export function grantBossReward(hero: HeroProfile, bossId: number, damage: number): BossReward {
   const rng = new Rng((bossId * 2654435761) ^ hero.nextItemId);
-  const item = rollDrop(rng, `i${hero.nextItemId}`, hero.level + 3, 2, 'epic', hero.cls ?? 'emberwright');
+  const item = rollDrop(rng, `i${hero.nextItemId}`, hero.level + 3, 2, 'epic', hero.cls ?? 'emberwright', MYTHIC_FROM_TIER, 'boss');
   hero.nextItemId++;
   hero.inventory.push(item);
   const embers = 50 + Math.floor(Math.max(0, damage) / 1000);

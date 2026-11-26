@@ -65,7 +65,7 @@ export function lootCues(r: RunRewards | undefined, reducedMotion = false): Time
     const at = LOOT_DEAL.first + Math.min(k, LOOT_DEAL.cap) * LOOT_DEAL.gap;
     // Cards past the cap land together: one flick for the lot.
     if (k <= LOOT_DEAL.cap) out.push({ id: 'lootDeal', at });
-    if (it.rarity === 'epic' || it.rarity === 'mythic') out.push({ id: 'lootShine', at: at + LOOT_DEAL.shine });
+    if (it.rarity === 'epic' || it.rarity === 'legendary' || it.rarity === 'mythic') out.push({ id: 'lootShine', at: at + LOOT_DEAL.shine });
   });
   // Several shines landing together after the cap would stack: keep one per moment.
   return out.filter((c, i) => out.findIndex((o) => o.id === c.id && Math.abs(o.at - c.at) < 1e-6) === i);

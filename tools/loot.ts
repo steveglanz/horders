@@ -6,7 +6,7 @@ import { applyRun, equippedItems, newHero } from '../sim/hero';
 
 const seeds = (process.env.SEEDS ?? Array.from({ length: 40 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 const tier = Number(process.env.TIER ?? 1);
-const tally: Record<string, number> = { common: 0, fine: 0, rare: 0, epic: 0, mythic: 0 };
+const tally: Record<string, number> = { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 };
 let wins = 0, runsWithEpic = 0, runsWithMythic = 0;
 for (const seed of seeds) {
   const h = newHero();

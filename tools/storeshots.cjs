@@ -100,7 +100,7 @@ async function shots(browser, tag) {
       { slot: 'head', rarity: 'rare', name: 'Kilnbreaker Helm', set: 'kilnbreaker', stats: [['vitality', 61], ['power', 9.2], ['reach', 13]] },
       { slot: 'chest', rarity: 'rare', name: 'Ashen Hauberk', stats: [['vitality', 61], ['haste', 5.4], ['swiftness', 3.9]] },
       { slot: 'hands', rarity: 'rare', name: 'Kilnbreaker Grips', set: 'kilnbreaker', stats: [['haste', 10.7], ['power', 8.8], ['crit', 4.1]] },
-      { slot: 'ring', rarity: 'fine', name: 'Cinder Band', stats: [['crit', 9.2], ['vitality', 30]] },
+      { slot: 'ring', rarity: 'uncommon', name: 'Cinder Band', stats: [['crit', 9.2], ['vitality', 30]] },
       { slot: 'trinket', rarity: 'epic', name: 'Banked Coal', stats: [['power', 18.3], ['haste', 6.6], ['crit', 4.4], ['vitality', 41]] },
     ];
     for (const g of gear) {

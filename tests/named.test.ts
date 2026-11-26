@@ -46,7 +46,7 @@ describe('named elites (C2)', () => {
     expect(hits / 200).toBeLessThan(NAMED.chance + 0.1);
   });
 
-  it('a named elite is tougher, says its name, and drops Rare or better', () => {
+  it('a named elite is tougher, says its name, and drops an item', () => {
     const { w, inner, i } = named('Swift');
     const e = w.enemies[i];
     expect(e.named).toBeGreaterThanOrEqual(0);
@@ -57,7 +57,7 @@ describe('named elites (C2)', () => {
     w.events.length = 0;
     inner.killEnemy(i);
     const drop = w.events.find((ev) => ev.type === 'drop');
-    expect(drop && drop.type === 'drop' && ['rare', 'epic'].includes(drop.rarity)).toBe(true);
+    expect(drop && drop.type === 'drop').toBeTruthy();
     expect(w.events.some((ev) => ev.type === 'namedKill' && ev.name === name)).toBe(true);
   });
 

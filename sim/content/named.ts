@@ -12,8 +12,6 @@ export const NAMED = {
   swift: 1.45, ward: 0.2,
   /** Vengeful: on death it bursts, a red circle that lands after `burstDelay` s. */
   burstR: 110, burstDmg: 32, burstDelay: 1.2,
-  /** Its loot: one item, Rare or better, Epic with this chance. */
-  epicChance: 0.25,
   /**
    * Phase 14 X2: share of named elites that get one of the newer affixes (Brood, Smoldering)
    * instead, from an extra draw after the C2 ones, so the other C2 rolls don't move.

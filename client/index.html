@@ -1433,7 +1433,7 @@
   @keyframes xpFill { from { width: var(--from, 0%); } }
   #end:not([hidden]) #rewards .item { position: relative; overflow: hidden; animation: lootIn 0.4s cubic-bezier(.2,1.3,.4,1) both; animation-delay: calc(0.45s + min(var(--k, 0), 8) * 0.11s); }
   @keyframes lootIn { from { opacity: 0; transform: translateX(-14px) scale(0.96); } to { opacity: 1; transform: none; } }
-  #end:not([hidden]) #rewards .item:is(.r-epic, .r-mythic)::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, var(--rc) 45%, transparent) 50%, transparent 65%); transform: translateX(-100%); animation: lootShine 0.9s ease-out both; animation-delay: calc(0.75s + min(var(--k, 0), 8) * 0.11s); }
+  #end:not([hidden]) #rewards .item:is(.r-epic, .r-legendary, .r-mythic)::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, var(--rc) 45%, transparent) 50%, transparent 65%); transform: translateX(-100%); animation: lootShine 0.9s ease-out both; animation-delay: calc(0.75s + min(var(--k, 0), 8) * 0.11s); }
   @keyframes lootShine { to { transform: translateX(100%); } }
   @media (prefers-reduced-motion: reduce) { #end #endTitle, #end #endXp .meter > div, #end #rewards .item { animation: none !important; } #end #rewards .item::after { display: none; } }
   /* Hub motion: a talent point lands with a flare and its rank ticks up; picking a delve card glides its glow. */
