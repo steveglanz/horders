@@ -414,7 +414,7 @@ export class Hud {
       if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary)) continue;
       const d = Math.hypot(e.x - p.x, e.y - p.y);
       if (d > 700) continue;
-      const score = d - (e.castId && e.interruptible ? 1000 : 0) - (e.def.rank === 'rare' ? 200 : 0);
+      const score = d - (e.castId && w.canStop(e) ? 1000 : 0) - (e.def.rank === 'rare' ? 200 : 0);
       if (score < bestScore) { bestScore = score; best = i; }
     }
     return best;
@@ -457,10 +457,10 @@ export class Hud {
     const cast = $('tCast');
     if (e.castId) {
       cast.hidden = false;
-      cast.classList.toggle('kick', e.interruptible);
+      cast.classList.toggle('kick', w.canStop(e));
       $('tCastFill').style.width = `${(100 * e.castT) / e.castDur}%`;
       const touch = matchMedia('(pointer: coarse)').matches;
-      $('tCastName').textContent = e.interruptible ? `${e.castName} · ${touch ? `tap ${w.abilities[3].name}!` : `press F to ${w.abilities[3].name}!`}` : e.castName;
+      $('tCastName').textContent = w.canStop(e) ? `${e.castName} · ${touch ? `tap ${w.abilities[3].name}!` : `press F to ${w.abilities[3].name}!`}` : e.castName;
     } else cast.hidden = true;
   }
 

@@ -4215,7 +4215,15 @@ export class World {
     this.events.push({ type: 'ability', slot: 2, x, y, angle: 0, r });
   }
 
-  /** The enemy Quench would interrupt right now, or -1. */
+  /**
+   * Whether the acting hero's F can stop this foe's cast. An interrupt stops any. The Lumen's and Slagbinder's stun stops
+   * any alone too (solo bosses are tuned for every class), but in a party a boss shrugs it off: its casts need an interrupter.
+   */
+  canStop(e: { interruptible: boolean; def: { rank: string } }): boolean {
+    return e.interruptible && (this.classDef.kick || e.def.rank !== 'boss' || this.heroes.length === 1);
+  }
+
+  /** The enemy the acting hero's F would stop right now (interrupt, or the Lumen's and Slagbinder's stun), or -1. */
   interruptTarget(): number {
     const p = this.player;
     // The most dangerous caster first: boss, then rare, then elite.
@@ -4224,7 +4232,8 @@ export class World {
     let bestW = Infinity;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
-      if (!e.alive || !e.castId || !e.interruptible) continue;
+      // The interrupt split: a Lumen's or Slagbinder's F is a stun, and in a party a boss shrugs it off (canStop).
+      if (!e.alive || !e.castId || !this.canStop(e)) continue;
       const d = dist2(p.x, p.y, e.x, e.y);
       const reach = this.classDef.interruptRange + e.def.radius;
       if (d > reach * reach) continue;

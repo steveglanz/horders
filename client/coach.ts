@@ -67,7 +67,9 @@ export class Coach {
       if (b && b.classList.contains('hot')) {
         if (!this.kickSince) this.kickSince = now;
         if (now - this.kickSince > 5) return this.next('done', now, w);
-        return this.show('kick', this.touch ? 'Tap to interrupt that cast!' : 'Interrupt that cast!', b);
+        // The Lumen's and Slagbinder's F is a stun (the interrupt split): it breaks the cast all the same.
+        const verb = w.classDef.kick ? 'interrupt that cast' : 'stun that caster';
+        return this.show('kick', this.touch ? `Tap to ${verb}!` : `${verb[0].toUpperCase()}${verb.slice(1)}!`, b);
       }
       if (this.kickSince) return this.next('done', now, w);
       return this.hide();

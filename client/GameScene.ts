@@ -2847,13 +2847,13 @@ export class GameScene extends Phaser.Scene {
     const drawBar = (e: World['enemies'][number], hp: number, maxHp: number, ward: number, cast: World['enemies'][number] | undefined, x: number, top: number): void => {
       const bw = e.def.rank === 'rare' ? 70 : 56;
       // HD-2D: the overlay redraws these bars over the 3D view (foeEdgeMarks3d), at the foe's projected place.
-      if (this.hd2d) this.barRecs.push({ i: w.enemies.indexOf(e), pack: x !== e.x, sx: 0, sy: 0, x, y: e.y, top, bw, hp: Math.max(0, hp) / maxHp, col: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank], cast: cast ? cast.castT / cast.castDur : -1, castCol: cast ? (cast.interruptible ? '#8fd8ff' : '#' + SOAK.toString(16).padStart(6, '0')) : '', ward: ward > 0 ? Math.min(1, (ward / maxHp) * 5) : 0 });
+      if (this.hd2d) this.barRecs.push({ i: w.enemies.indexOf(e), pack: x !== e.x, sx: 0, sy: 0, x, y: e.y, top, bw, hp: Math.max(0, hp) / maxHp, col: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank], cast: cast ? cast.castT / cast.castDur : -1, castCol: cast ? (w.canStop(cast) ? '#8fd8ff' : '#' + SOAK.toString(16).padStart(6, '0')) : '', ward: ward > 0 ? Math.min(1, (ward / maxHp) * 5) : 0 });
       foeBoxes.push({ l: x - bw / 2, r: x + bw / 2, t: top - 3, b: top + (cast ? 13 : 6) });
       b.fillStyle(0x000000, 0.6).fillRect(x - bw / 2, top, bw, 6);
       b.fillStyle(hex(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]), 1).fillRect(x - bw / 2, top, (bw * Math.max(0, hp)) / maxHp, 6);
       if (cast) {
         b.fillStyle(0x000000, 0.7).fillRect(x - bw / 2, top + 8, bw, 5);
-        b.fillStyle(cast.interruptible ? 0x8fd8ff : SOAK, 1).fillRect(x - bw / 2, top + 8, (bw * cast.castT) / cast.castDur, 5);
+        b.fillStyle(w.canStop(cast) ? 0x8fd8ff : SOAK, 1).fillRect(x - bw / 2, top + 8, (bw * cast.castT) / cast.castDur, 5);
       }
       if (ward > 0) b.fillStyle(0xe8f4ff, 0.95).fillRect(x - bw / 2, top - 3, bw * Math.min(1, (ward / maxHp) * 5), 3);
     };
