@@ -6700,12 +6700,12 @@ export class World {
       if (e.def.rank !== 'normal' && e.lungeW <= 0 && e.lungeD <= 0) this.runAbilities(i, dt); // no Snap mid-lunge
 
       // CP3 remake: the remade Kiln Mother (kmStage > 0) never hurts by touch; every blow of hers is a red mark first.
-      // CP4 (melee answers): nor do Maelra, the Glass Heir, the Banked Queen, Aunt Ebb and the Iron Uncle. Their touch only ever landed on
-      // whoever stood in reach, whose job is to stand there. The Iron Uncle's Slag Grip on his target stays: the tank's blow, the healer's to clear.
+      // CP4 (melee answers): nor do Maelra, the Glass Heir, the Banked Queen, Aunt Ebb, the Iron Uncle and Cousin Fork (both her flames). Their
+      // touch only ever landed on whoever stood in reach, whose job is to stand there. The Iron Uncle's Slag Grip on his target stays: the tank's
+      // blow, the healer's to clear; so does Cousin Fork's Bellow Slam.
       if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !((this.kmStage > 0 || this.kmOpen > 0) && e.kind === 'kilnMother') && !NO_TOUCH.has(e.kind)) {
         e.touchCd = 0.6;
-        const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1)
-          * (e.kind === 'ysmeret' && this.ysStage === 2 ? YSMERETV2.melee : 1);
+        const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1);
         this.hurtPlayer(e.def.damage * mult * this.tierDamage, i);
         // A Snuffer's touch drinks the hero's light.
         if (e.kind === 'snuffer' && this.player.coal !== undefined) this.player.coal = Math.max(0, this.player.coal - COLD.snufferDim);
@@ -10960,7 +10960,7 @@ export function firstClearRarity(tier: number): Rarity {
 export const RAID_LOOT = { epic: 1, extra: 1 };
 
 /** CP4 (melee answers, docs/design/melee-answers.md): bosses that never hurt by touch; every blow of theirs is warned first. */
-export const NO_TOUCH: ReadonlySet<string> = new Set(['maelra', 'lensmother', 'nhevra', 'hessa', 'ondrel']);
+export const NO_TOUCH: ReadonlySet<string> = new Set(['maelra', 'lensmother', 'nhevra', 'hessa', 'ondrel', 'ysmeret']);
 
 /** The Glarewell's tuning, kept together so balance changes are data changes. */
 export const GLARE = {
@@ -11761,13 +11761,13 @@ export const YSMERET = {
 /**
  * YSMERETV2 (design 25 Nov, ysmeret-v2.md): starting values. Stage 1 is today's fight, but Bellow Slam waits while her vents
  * are open (`bellowWaits`). At `split` of her health she splits into two flames `apart` px apart (inside a Lumen's heal reach,
- * 500) that share one health (what she had left x `hpMult`). Each stays within `leash` of where it landed, hits with
- * `melee` of her melee damage and casts Scatter Embers on its own timer (offset by half); only the flame on the tank Bellows
+ * 500) that share one health (what she had left x `hpMult`). Each stays within `leash` of where it landed (neither hurts by touch,
+ * NO_TOUCH) and casts Scatter Embers on its own timer (offset by half); only the flame on the tank Bellows
  * (`bellowEvery`). A flame with no hero within `flareR` for `flareAfter` s flares and hits every hero for YSMERET.ventBlast.
  * `split: 0` keeps stage 1 only. Tuned 25 Nov (h4b-ashvents-grid.md): hpMult 1.6, bellowEvery 12.
  */
 export const YSMERETV2 = {
-  bellowWaits: 1, split: 0.5, apart: 420, melee: 1, firstScatter: 3,
+  bellowWaits: 1, split: 0.5, apart: 420, firstScatter: 3,
   hpMult: 1.6, leash: 40, flareR: 150, flareAfter: 3,
   /** A flare hits for YSMERET.ventBlast x this. */
   flareMult: 1,
