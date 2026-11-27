@@ -12,6 +12,11 @@ const K = (v: number) => v * KILN_SCALE;
 const halls = (seed = 2, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => new World({ seed, tier: 2, halls: true, ...more });
 /** H1's hand-made map (?hallsmap=a). */
 const tmpl = (seed = 2, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { hallsTemplate: true, ...more });
+/**
+ * The shared generated map, as every dungeon but the Kiln rolls it. Since 1.0 CP2 (27 Nov) the Kiln rolls its own 5-room
+ * run with a fork (genKilnRun; tests/kilnrun.test.ts), so the tests of the shared generator use the Foundry's.
+ */
+const gen = (seed = 2, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'foundry', ...more });
 const clampGratesOf = (m: Parameters<typeof clampGrates>[0], o: { x: number; y: number }) => clampGrates(m, o, 14);
 const ROUTE = ['pack', 'wardens', 'brute', 'acolytes', 'kilnMother'] as EncounterId[];
 const pack = (w: World, role: string) => w.halls!.packs.find((p) => p.role === role)!;
@@ -39,7 +44,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
     for (let seed = 1; seed <= 12; seed++) {
-      const w = halls(seed);
+      const w = gen(seed);
       const m = w.halls!;
       expect(w.phase).toBe('cleared');
       expect(pack(w, 'A').enc).toBe(w.route[0]);
@@ -48,12 +53,12 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       expect(pack(w, 'C').enc).toBe(w.route[2]);
       expect(pack(w, 'E').enc).toBe(w.route[3]);
       expect(pack(w, 'E').guard).toBe(true);
-      expect(w.route[4]).toBe('kilnMother');
+      expect(w.route[4]).toBe('maelra');
       // R2 is a gate as rollFork rolls it (a named fight, or a shrine); D a hard or named fight not already on the map.
       const s = pack(w, 'S');
       expect(s.enc === 'shrine' ? s.gate === 'shrine' : s.gate === 'named').toBe(true);
       const d = pack(w, 'D');
-      expect([...DUNGEONS.kiln.hard, ...DUNGEONS.kiln.named]).toContain(d.enc);
+      expect([...DUNGEONS.foundry.hard, ...DUNGEONS.foundry.named]).toContain(d.enc);
       expect(d.bags).toBe(2);
       expect(m.mirror).toBe(false);
       // Design, 25 Nov: one pack per room; C has its own room (C_ROOM) between B's and the door guard's.
@@ -106,7 +111,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   });
 
   it('wakes a pack when a hero steps into its ring, spawning its foes where they stood', () => {
-    const w = halls(2);
+    const w = gen(2);
     const a = pack(w, 'A');
     put(w, a.x, a.y + HALLS.reach + 30);
     w.step(idle);
@@ -184,7 +189,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
 
   it('a careful hero can walk past C on the path without waking it', () => {
     for (const seed of [2, 3]) {
-      const w = halls(seed);
+      const w = gen(seed);
       const m = w.halls!;
       const c = pack(w, 'C');
       // C stands far enough off the walk from the entrance to the boss door.
@@ -211,11 +216,12 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     const pk = m.packs.find((p) => roomAt(m, p.x, p.y) === c.room)!;
     // Standing on the crust with the pack asleep: no burn.
     const mx = (c.x1 + c.x2) / 2, my = (c.y1 + c.y2) / 2;
-    const far = Math.hypot(mx - pk.x, my - pk.y) > HALLS.reach;
-    put(w!, mx, my);
-    const hp = w!.player.hp;
-    for (let k = 0; k < 30; k++) { w!.step(idle); w!.player.x = mx; w!.player.y = my; }
+    // (On the Kiln run a pack wakes as soon as a hero steps into its room, so only a ring pack can be stood beside.)
+    const far = !pk.roomWake && Math.hypot(mx - pk.x, my - pk.y) > HALLS.reach;
     if (far) {
+      put(w!, mx, my);
+      const hp = w!.player.hp;
+      for (let k = 0; k < 30; k++) { w!.step(idle); w!.player.x = mx; w!.player.y = my; }
       expect(pk.state).toBe('asleep');
       expect(w!.player.hp).toBe(hp);
       expect(c.heat).toBe(0);
@@ -404,7 +410,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   it('H2c: every seed from 1 to 2000 rolls a map that passes design\'s checker, from hashes of the seed alone', () => {
     const shapes = new Set<string>();
     for (let seed = 1; seed <= 2000; seed++) {
-      const g = genHalls(seed);
+      const g = genHalls(seed, 'foundry');
       expect(g.tries, `seed ${seed} fell back to the template`).toBeGreaterThanOrEqual(0);
       expect(hallsCheck({ ...g, packs: g.spots }), `seed ${seed}`).toEqual([]);
       for (const r of g.rooms) shapes.add(`${r.id}:${r.shape}`);
@@ -417,11 +423,11 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(shapes).toContain('R3:twin');
     expect(shapes).toContain('R0:hall');
     // Seeded: the same seed builds the same map, and the run's rng is drawn exactly as on the template.
-    expect(JSON.stringify(genHalls(77))).toBe(JSON.stringify(genHalls(77)));
-    expect(JSON.stringify(genHalls(77).rooms)).not.toBe(JSON.stringify(genHalls(78).rooms));
+    expect(JSON.stringify(genHalls(77, 'foundry'))).toBe(JSON.stringify(genHalls(77, 'foundry')));
+    expect(JSON.stringify(genHalls(77, 'foundry').rooms)).not.toBe(JSON.stringify(genHalls(78, 'foundry').rooms));
     const calls = (template: boolean) => {
       let n = 0;
-      buildHalls(9, ROUTE, 'kiln', () => { n++; return 0; }, () => { n++; return false; }, template);
+      buildHalls(9, ROUTE, 'foundry', () => { n++; return 0; }, () => { n++; return false; }, template);
       return n;
     };
     expect(calls(false)).toBe(calls(true));
@@ -444,7 +450,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   it('H2c: walkers go round a ring\'s hearth island, never through it, and stay out of it', () => {
     let rings = 0;
     for (let seed = 1; seed <= 40; seed++) {
-      const m = buildHalls(seed, ROUTE, 'kiln', () => 0, () => false);
+      const m = buildHalls(seed, ROUTE, 'foundry', () => 0, () => false);
       m.rooms.forEach((rm, i) => {
         if (rm.shape !== 'ring') return;
         rings++;
@@ -469,7 +475,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   it('H2c: bots walk generated maps of every shape to the boss', () => {
     const seen = new Set<string>();
     for (const seed of [1, 9, 12]) {
-      const w = halls(seed, { invulnerable: true, cls: 'duskblade' });
+      const w = gen(seed, { invulnerable: true, cls: 'duskblade' });
       for (const r of w.halls!.rooms) seen.add(r.shape ?? 'round');
       run(w, () => w.bossSpawned, 600);
       expect(w.bossSpawned, `seed ${seed}`).toBe(true);
@@ -479,7 +485,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
 
   it('H2c: a sealed room of any shape keeps heroes in and out at its wall', () => {
     for (const seed of [1, 2, 3, 8]) {
-      const m = buildHalls(seed, ROUTE, 'kiln', () => 0, () => false);
+      const m = buildHalls(seed, ROUTE, 'foundry', () => 0, () => false);
       for (const rm of m.rooms) {
         if (!rm.parts && !rm.holes) continue;
         rm.lock = HALLS.lockDelay;
@@ -501,7 +507,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     }
   });
 
-  it('H2d: every room rolls a theme: the shrine in R2 only, the Slag channel at the door guard, layouts matched, never two alike side by side', () => {
+  it('H2d: every room rolls a theme: no shrine on the Kiln run, the Slag channel at the door guard, layouts matched, never two alike side by side', () => {
     const fits: Record<string, string[]> = { round: ['ash', 'slag', 'cooling'], hall: ['ash', 'bellows'], cross: ['slag', 'ash'], ring: ['cooling', 'ash'], twin: ['bellows', 'ash'] };
     let matched = 0;
     for (let seed = 1; seed <= 120; seed++) {
@@ -509,8 +515,8 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       const m = w.halls!;
       for (const r of m.rooms) expect(['ash', 'bellows', 'slag', 'cooling', 'shrine']).toContain(r.theme);
       for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed}`).not.toBe(m.rooms[c.b].theme);
-      expect(m.rooms[2].theme).toBe('shrine');
-      expect(m.rooms.filter((r) => r.theme === 'shrine').length).toBe(1);
+      // The Kiln run (1.0 CP2) has no side room, so no shrine; the other maps keep it in R2 (the kits below).
+      expect(m.rooms.filter((r) => r.theme === 'shrine').length).toBe(0);
       expect(m.rooms[5].theme).toBe('slag');
       for (const l of w.lava) if (l.room !== 5 && m.rooms[l.room!].theme === 'slag') matched++;
       for (const v of m.vents) if (m.rooms[v.room].theme === 'cooling') matched++;
@@ -563,7 +569,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
 
   it('the Pressworks kit (H4c, ready before its map is on): its own themes, the press floor at the door, no two neighbours alike', () => {
     for (let seed = 1; seed <= 40; seed++) {
-      const m = halls(seed).halls!;
+      const m = gen(seed).halls!;
       hallsThemes(m, seed, () => undefined, 'pressworks');
       expect(m.rooms[5].theme).toBe('press');
       expect(m.rooms[2].theme).toBe('shrine');
@@ -576,7 +582,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     const kits = { crucible: ['ladle', 'crane', 'mould', 'clinker'], hoard: ['bunker', 'scale', 'coffer', 'tithe'], smeltery: ['tap', 'flywheel', 'billet', 'hoist'], flue: ['firebox', 'damper', 'soot', 'sweep'] } as const;
     for (const [raid, ids] of Object.entries(kits)) {
       for (let seed = 1; seed <= 40; seed++) {
-        const m = halls(seed).halls!;
+        const m = gen(seed).halls!;
         hallsThemes(m, seed, () => undefined, raid as 'crucible');
         expect(m.rooms[5].theme).toBe(ids[0]);
         expect(m.rooms[2].theme).toBe('shrine');
@@ -1169,7 +1175,7 @@ describe('H3: every dungeon\'s fight clock runs on a Halls map too', () => {
     const clocks = body('dungeonClocks');
     // Every per-dungeon clock call (this.xClock(dt), this.runGlarewell(dt)) lives in dungeonClocks alone.
     const calls = [...src.matchAll(/this\.(\w+Clock|runGlarewell)\(dt\)/g)].map((m) => m[1]);
-    const shared = new Set(['layoutClock', 'arenaEventClock', 'burnoutClock', 'reinforceClock', 'hallsClock', 'lensmotherClock', 'kmClock',
+    const shared = new Set(['layoutClock', 'arenaEventClock', 'fightClock', 'reinforceClock', 'hallsClock', 'lensmotherClock', 'kmClock',
       // YSMERETV2 stage 2's clock: ysmeretClock (run by dungeonClocks) hands over to it, so it runs on the map too.
       'flamesClock']);
     for (const c of new Set(calls)) {
@@ -1237,7 +1243,7 @@ describe('H3 plan: a pack waking runs the same fight setup as an arena fight', (
 describe('Halls: one pack per room (design, 25 Nov)', () => {
   it('every generated room holds at most one pack, C in its own main-path room, and the walk stays 3,600-5,600', () => {
     for (let seed = 1; seed <= 120; seed++) {
-      const g = genHalls(seed);
+      const g = genHalls(seed, 'foundry');
       expect(g.tries, `seed ${seed}`).toBeGreaterThanOrEqual(0);
       const rooms = g.spots.map((p) => p.room);
       expect(new Set(rooms).size, `seed ${seed}`).toBe(rooms.length);
@@ -1360,7 +1366,7 @@ describe('Halls: from tier 4 a named gate goes on the main path (design, 25 Nov)
   it('B takes the named fight and the side room keeps the steady one; tiers 1-3 keep the old map', () => {
     let moved = 0;
     for (let seed = 1; seed <= 20; seed++) {
-      const lo = halls(seed, { tier: 3 }), hi = halls(seed, { tier: 4 });
+      const lo = gen(seed, { tier: 3 }), hi = gen(seed, { tier: 4 });
       const sLo = lo.halls!.packs.find((q) => q.role === 'S')!, bLo = lo.halls!.packs.find((q) => q.role === 'B')!;
       const sHi = hi.halls!.packs.find((q) => q.role === 'S')!, bHi = hi.halls!.packs.find((q) => q.role === 'B')!;
       expect(bLo.enc).toBe(lo.route[1]);

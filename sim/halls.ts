@@ -45,7 +45,8 @@ export const HALLS = {
   spread: 64,
 };
 
-export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
+/** F (1.0 CP2): the easy door of the Kiln run's fork; C is its hard door there (KILN_RUN). */
+export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S' | 'F';
 
 /** H2c: the five room shapes the generator picks from (design's h2-plan.md, "Rooms"). */
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
@@ -144,6 +145,15 @@ export interface HallsPack {
   /** KILNTRASH (design, 25 Nov): a Kiln opener pack as trash, with more foes at KILNTRASH.hp health and no bag. */
   trash?: boolean;
   state: 'asleep' | 'awake' | 'cleared';
+  /**
+   * 1.0 CP2, the Kiln run's fork (KILN_RUN): 'hard' is the named foe behind one door (pays an extra roll on the rare
+   * loot table), 'easy' a trash pack behind the other (pays an extra Spark). Waking one sends the other away.
+   */
+  fork?: 'hard' | 'easy';
+  /** The other fork door was taken: this pack left without a fight (state 'cleared', no reward, not shown). */
+  skipped?: boolean;
+  /** 1.0 CP2 (the Kiln run): it wakes as soon as a hero steps into its room, so no pull can be walked round. */
+  roomWake?: boolean;
   /** Where each foe stands while asleep (spawned there when the pack wakes). */
   foes: { kind: EnemyKind; x: number; y: number }[];
 }
@@ -235,7 +245,7 @@ export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarro
 export const hallsFor = (dungeon: DungeonId): boolean => HALLS_ON.includes(dungeon);
 
 /** Where a map's packs stand before they are rolled (template spots, or the generator's). */
-type Spot = { role: PackRole; room: number; x: number; y: number; guard?: boolean };
+type Spot = { role: PackRole; room: number; x: number; y: number; guard?: boolean; fork?: 'hard' | 'easy' };
 
 /**
  * Builds this run's map from today's route ([opener, opener, named, hard, boss]): A and B are the openers, C the named
@@ -324,6 +334,11 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   // H5: a raid's map follows the same rule (design, 25 Nov: without it the Crucible's party met Grandmother Slag with
   // 0.8 fewer elite chests than in the arena, engineering/h5a-crucible-grid.md); C, its named fight, guards the door.
   const onPath = side.kind === 'named' && tier >= 4;
+  // 1.0 CP2, the Kiln run (KILN_RUN): the fork's easy door is an opener this route doesn't already have. Rolled only on
+  // a map with a fork, so every other map takes the run's rng as before.
+  const run = spots.some((s) => s.fork);
+  const easyFrom = DUNGEONS[dungeon].openers.filter((e) => !route.includes(e));
+  const easy = run && easyFrom.length ? easyFrom[pick(easyFrom.length)] : route[1];
   const plan: Record<PackRole, { enc: EncounterId; slot: number; main: boolean; bags: number; gate?: GateKind }> = {
     A: { enc: route[0], slot: 0, main: true, bags: 1 },
     B: onPath ? { enc: side.encounter, slot: 1, main: true, bags: 1, gate: 'named' } : { enc: route[1], slot: 1, main: true, bags: 1 },
@@ -331,13 +346,18 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
     E: { enc: route[3], slot: 3, main: true, bags: 1 },
     S: onPath ? { enc: route[1], slot: 1, main: false, bags: 1, gate: 'steady' } : { enc: side.encounter, slot: 1, main: false, bags: 1, gate: side.kind },
     D: { enc: dEnc, slot: 3, main: false, bags: 2 },
+    F: { enc: easy, slot: 2, main: true, bags: 1 },
   };
   const packs: HallsPack[] = spots.map((s, k) => {
     const p = plan[s.role];
     const { x, y } = s;
-    const trash = trashFor(dungeon) && p.gate !== 'named' && DUNGEONS[dungeon].openers.includes(p.enc);
+    // On the Kiln run's map the openers' slots are A, B and F only (C is the named foe even when it's also an opener).
+    const trash = trashFor(dungeon) && p.gate !== 'named' && DUNGEONS[dungeon].openers.includes(p.enc) && (!run || s.role !== 'C');
     const foes = packFoes(seed, k, p.enc, x, y, trash);
-    return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.guard ?? s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes, ...(trash ? { trash } : {}) };
+    return {
+      role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.guard ?? s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes,
+      ...(trash ? { trash } : {}), ...(s.fork ? { fork: s.fork } : {}), ...(run ? { roomWake: true } : {}),
+    };
   });
   return { rooms, corridors, packs, door, mirror, layoutRooms, seen: rooms.map((_, i) => i === 0), done: false, vents: [] };
 }
@@ -883,7 +903,12 @@ export const C_ROOM = 7;
  * The main-path room order the bots and the edge arrow follow: R0, R1, R3, C's room R6 (generated maps), R5, door. A
  * raid's map (H5) has no R6: C guards the door from R5.
  */
-export const mainRooms = (m: { rooms: { id: string }[] }): number[] => ['R0', 'R1', 'R3', 'R6', 'R5', 'door'].map((id) => roomIx(m, id)).filter((i) => i >= 0);
+export const mainRooms = (m: { rooms: { id: string }[]; packs?: HallsPack[] }): number[] => {
+  // 1.0 CP2, the Kiln run: its fork rooms are R6 (hard) and R4 (easy); the path goes through whichever was taken (R6 until then).
+  const easy = m.packs?.find((p) => p.fork === 'easy');
+  const fork = easy && easy.state !== 'asleep' && !easy.skipped ? 'R4' : 'R6';
+  return ['R0', 'R1', 'R3', fork, 'R5', 'door'].map((id) => roomIx(m, id)).filter((i) => i >= 0);
+};
 
 /**
  * One roll of the layout from `rnd`: R0 entrance, R1 (A), R2 (S), R3 (B), R4 (D), R5 (E), the door alcove, then R6
@@ -898,6 +923,7 @@ const QUAY_DUNGEONS: DungeonId[] = ['wrackline'];
 
 function genOnce(rnd: () => number, dungeon: DungeonId = 'kiln'): GenMap {
   if (DUNGEONS[dungeon].raid) return genRaid(rnd);
+  if (dungeon === 'kiln') return genKilnRun(rnd);
   const pick = <T>(list: T[]): T => list[Math.floor(rnd() * list.length)];
   const sgn = () => (rnd() < 0.5 ? -1 : 1);
   const len = (lh: [number, number]) => lh[0] + (lh[1] - lh[0]) * rnd();
@@ -1053,6 +1079,71 @@ export function genTutorial(): GenMap {
   return { rooms, corridors, spots, door: { x: r5.ax, y: doorY }, layoutRooms: [], tries: 0 };
 }
 
+/**
+ * 1.0 CP2, the Kiln run (docs/design/checkpoint-2-grey-box.md, "The run"): 5 rooms with one fork, short corridors, no
+ * side rooms and no pull that can be walked round (each pack wakes when a hero steps into its room). South to north:
+ * R0 entrance, R1 (A, trash), R3 (B, trash), then two doors out of R3's north wall, both in sight: R6 (C, the hard door: a
+ * named foe) and R4 (F, the easy door: a trash pack), which both lead on to R5 (E, the door guard), then the boss door.
+ * `forkX` is how far each fork room's centre stands east or west of the path; `door` how far R3's and R5's two doorways
+ * stand either side of it; `forkCorridor` the north-south run of each fork corridor (rim to rim it is about 550-640,
+ * inside the checker's 300-700, and it runs mostly north-south as a main corridor must).
+ */
+export const KILN_RUN = { forkR: [380, 410] as [number, number], forkX: 460, door: 220, forkCorridor: [540, 580] as [number, number], round: [400, 450] as [number, number], corridor: [300, 340] as [number, number] };
+function genKilnRun(rnd: () => number): GenMap {
+  const K = KILN_RUN;
+  const len = (lh: [number, number]) => lh[0] + (lh[1] - lh[0]) * rnd();
+  const r0 = genRoom('R0', true, 'round', rnd, { r: [360, 400] });
+  const r1 = genRoom('R1', true, 'round', rnd, { r: K.round });
+  const r3 = genRoom('R3', true, 'round', rnd, { r: K.round });
+  const r5 = genRoom('R5', true, 'round', rnd, { r: K.round });
+  const rh = genRoom('R6', true, 'round', rnd, { r: K.forkR });
+  const re = genRoom('R4', true, 'round', rnd, { r: K.forkR });
+  const chain = [r0, r1, r3];
+  for (let k = 1; k < chain.length; k++) {
+    const a = chain[k - 1], b = chain[k];
+    const gap = len(K.corridor);
+    const drift = (rnd() * 2 - 1) * gap * G.drift * 0.5;
+    shiftRoom(b, a.ax + drift, a.ay - a.ext.n - gap - b.ext.s);
+  }
+  // A doorway in a round room's north (or south) wall (R3 and R5 are always round), `dx` east of its axis, `G.port` inside the wall.
+  const rimDoor = (g: GenRoom, dx: number, north: boolean): [number, number] => {
+    const r = g.room.r - G.port;
+    return [g.ax + dx, g.ay + (north ? -1 : 1) * Math.sqrt(r * r - dx * dx)];
+  };
+  const hardSide = rnd() < 0.5 ? -1 : 1;
+  const out3 = rimDoor(r3, 0, true)[1];
+  const runA = len(K.forkCorridor);
+  for (const [g, side] of [[rh, hardSide], [re, -hardSide]] as [GenRoom, number][]) shiftRoom(g, r3.ax + side * K.forkX, out3 - runA - (g.room.r - G.port));
+  // R5 above the fork, its south doorways as far north of the fork rooms' north doorways as R3's are south of theirs.
+  const forkTop = Math.min(rh.ay - (rh.room.r - G.port), re.ay - (re.room.r - G.port));
+  const runB = len(K.forkCorridor);
+  shiftRoom(r5, r3.ax, forkTop - runB - (r5.ext.s - G.port));
+  const doorY = r5.ay - r5.ext.n - G.alcoveGap - G.alcove;
+  const alcove: HallsRoom = { id: 'door', main: true, shape: 'round', x: r5.ax, y: doorY, r: G.alcove, edge: [loop(r5.ax, doorY, G.alcove, 24)], nav: [[r5.ax, doorY]] };
+  // Indexes: 0 R0, 1 R1, 2 R3, 3 R6 (hard), 4 R4 (easy), 5 R5, 6 the door alcove (DOOR_ROOM, as on every map).
+  const rooms = [r0.room, r1.room, r3.room, rh.room, re.room, r5.room, alcove];
+  const cor = (a: number, b: number, pa: [number, number], pb: [number, number]): HallsCorridor => ({ a, b, ax: pa[0], ay: pa[1], bx: pb[0], by: pb[1] });
+  const corridors = [
+    cor(0, 1, port(r0, 'n'), port(r1, 's')),
+    cor(1, 2, port(r1, 'n'), port(r3, 's')),
+    cor(2, 3, rimDoor(r3, hardSide * K.door, true), port(rh, 's')),
+    cor(2, 4, rimDoor(r3, -hardSide * K.door, true), port(re, 's')),
+    cor(3, 5, port(rh, 'n'), rimDoor(r5, hardSide * K.door, false)),
+    cor(4, 5, port(re, 'n'), rimDoor(r5, -hardSide * K.door, false)),
+    cor(5, 6, port(r5, 'n'), [r5.ax, doorY]),
+  ];
+  const spots: Spot[] = [
+    { role: 'A', room: 1, x: r1.ax, y: r1.ay },
+    { role: 'B', room: 2, x: r3.ax, y: r3.ay },
+    { role: 'C', room: 3, x: rh.ax, y: rh.ay, fork: 'hard' },
+    { role: 'F', room: 4, x: re.ax, y: re.ay, fork: 'easy' },
+    { role: 'E', room: 5, x: r5.ax, y: r5.ay - r5.ext.n + G.guardIn },
+  ];
+  for (const sp of spots) { sp.x = Math.round(sp.x); sp.y = Math.round(sp.y); }
+  const layoutRooms = [{ room: 1, slot: 0 }, { room: 2, slot: 1 }, { room: 3, slot: 2 }, { room: 4, slot: 2 }, { room: 5, slot: 3 }];
+  return { rooms, corridors, spots, door: { x: r5.ax, y: doorY }, layoutRooms, tries: 0 };
+}
+
 /** Roll `t` of seed `seed`'s layout (before the checker). */
 export function genRoll(seed: number, t: number, dungeon: DungeonId = 'kiln'): GenMap {
   let k = 0;
@@ -1133,6 +1224,9 @@ export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs
       const d = segSeg(e, ends[k]);
       if (d < HALLS.corridor + G.roomGap) out.push(`corridors ${R[c.a].id}-${R[c.b].id} and ${R[o.a].id}-${R[o.b].id} are ${Math.round(d - HALLS.corridor)} apart`);
     });
+    // 1.0 CP2: each end stands on its own room's floor, or the walking graph can't join the corridor to the room.
+    if (roomGap(R[c.a], e.x1, e.y1) < 0) out.push(`corridor ${R[c.a].id}-${R[c.b].id} starts off ${R[c.a].id}'s floor`);
+    if (c.b !== DR && roomGap(R[c.b], e.x2, e.y2) < 0) out.push(`corridor ${R[c.a].id}-${R[c.b].id} ends off ${R[c.b].id}'s floor`);
     if (c.b === DR || c.a === DR) return;
     // Rim to rim: the part of the centre line outside both its rooms.
     const n = Math.ceil(Math.hypot(e.x2 - e.x1, e.y2 - e.y1) / 10);
@@ -1156,7 +1250,8 @@ export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs
   let off = Infinity;
   for (let k = 1; k < line.length; k++) { const q = segClosest(C.x, C.y, line[k - 1].x, line[k - 1].y, line[k].x, line[k].y); off = Math.min(off, Math.hypot(C.x - q.x, C.y - q.y)); }
   // H5: on a raid's map C is the door guard, so it stands on the walk.
-  if (!C.guard && off < G.cOff) out.push(`C stands ${Math.round(off)} off the walk`);
+  // 1.0 CP2: on the Kiln run's map C is behind one of the fork's doors, and the walk may go through it.
+  if (!C.guard && !m.packs.some((p) => p.fork) && off < G.cOff) out.push(`C stands ${Math.round(off)} off the walk`);
   // Design, 25 Nov: one pack per room, so a sealed room only ever holds one fight.
   for (const p of m.packs) {
     const n = m.packs.filter((q) => q.room === p.room).length;

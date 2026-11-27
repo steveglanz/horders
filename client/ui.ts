@@ -1,6 +1,8 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
 import { coachLine } from '../sim/content/firstdelve';
+import type { EnemyKind } from '../sim/content/enemies';
+import { RELICS } from '../sim/content/relics';
 import { World, BOSS_PHASES, BRIM, ROLL, ROLL_SLOT, SUMMONS, TITHE } from '../sim/world';
 import { runShape, type ShapeKind } from '../sim/runshape';
 import { HEATS, type HeatId } from '../sim/content/heat';
@@ -82,6 +84,15 @@ export function itemHtml(it: Item, extra = '', worn?: Partial<Record<string, num
     : '';
   const slot = it.slot[0].toUpperCase() + it.slot.slice(1);
   return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · <span class="il">iLvl ${it.ilvl}</span> · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}${setHtml}</div>`;
+}
+
+/** Boil-over's countdown on the boss plate (1.0 CP2: no hidden timer): its last BOIL_SHOW s, in place of the phase line. */
+const BOIL_SHOW = 30;
+function bossClock(w: World, e: { kind: EnemyKind; spawnedAt: number }, phase: string): string {
+  const after = w.boilAfter(e.kind);
+  if (after === undefined) return phase;
+  const left = Math.ceil(e.spawnedAt + after - w.time);
+  return left > 0 && left <= BOIL_SHOW ? `Boils over in ${left} s` : phase;
 }
 
 const RANK_COLOR: Record<string, string> = { boss: '#ff3b6b', rare: '#9fd0ff', elite: '#ffc861', normal: '#c77dff' };
@@ -288,7 +299,7 @@ export class Hud {
     else if (w.phase === 'choose') next = `Choose a path · ${Math.ceil(w.phaseT)}`;
     else if (w.phase === 'intro') next = `Fight ${w.encounter + 1} of ${w.route.length} · ${Math.ceil(w.phaseT)}`; // a countdown, as "Choose a path · 6"
     else if (w.inShadow) next = `World boss shadow: ${Math.ceil(w.shadowLeft)}s left`;
-    else if (w.bossEnraged) next = 'Boss enraged!';
+    else if (w.boilSteps > 0) next = 'Boil-over!';
     else next = `Fight ${w.encounter + 1} of ${w.route.length}`;
     setText($('next'), next);
 
@@ -474,7 +485,7 @@ export class Hud {
     // A Warded named elite already says "Warded" in its title, so the live state reads "Shield up".
     const phases = BOSS_PHASES[e.kind] ?? 3;
     // YSMERETV2 stage 2: two flames, one bar (they share their health), and the frame says so.
-    const state = e.kind === 'ysmeret' && w.ysStage === 2 && !w.bossEnraged ? 'Two flames · one health' : e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : phases > 1 ? `Phase ${w.bossPhase} of ${phases}` : '') : e.stunT > 0 ? 'Stunned' : '';
+    const state = e.kind === 'ysmeret' && w.ysStage === 2 && !w.boilSteps ? 'Two flames · one health' : e.def.rank === 'boss' ? (w.boilSteps > 0 ? `Boil-over${w.boilSteps > 1 ? ` ×${w.boilSteps}` : ''}` : bossClock(w, e, phases > 1 ? `Phase ${w.bossPhase} of ${phases}` : ''))  : e.stunT > 0 ? 'Stunned' : '';
     // Join with a dot ("Enraged · Warded"); Maelra's Temper already brings its own.
     $('tPhase').textContent = state && extra && !extra.startsWith(' · ') ? `${state} · ${extra}` : state + extra;
     if (shadow) {
@@ -506,11 +517,13 @@ export class Hud {
     if (w.stress) { $('quests').innerHTML = ''; return; }
     if (w.hallsOn) {
       // Phase 18 Halls H1: the map's packs in path order (a side room only once you've met it), then the boss.
-      const order = ['A', 'S', 'B', 'C', 'D', 'E'];
-      const packs = w.halls!.packs.filter((p) => p.main || p.state !== 'asleep').sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role));
+      const order = ['A', 'S', 'B', 'C', 'F', 'D', 'E'];
+      // 1.0 CP2, the Kiln run's fork: both doors show until one is taken; the other then leaves the list.
+      const packs = w.halls!.packs.filter((p) => !p.skipped && (p.main || p.state !== 'asleep')).sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role));
+      const door = (p: (typeof packs)[number]) => (p.guard ? ' (door guard)' : p.fork === 'hard' ? ' (hard door)' : p.fork === 'easy' ? ' (easy door)' : '');
       const row = (name: string, done: boolean, now: boolean, tip: string) => `<div class="q${done ? ' done' : ''}${now ? ' now' : ''}"><div class="qn">${name}</div>${now ? `<div class="qp">${tip}</div>` : ''}</div>`;
       $('quests').innerHTML = `<h3>${w.dungeonDef.name}</h3>`
-        + packs.map((p) => row(ENCOUNTERS[p.enc].name + (p.guard ? ' (door guard)' : ''), p.state === 'cleared', p.state === 'awake', ENCOUNTERS[p.enc].tip)).join('')
+        + packs.map((p) => row(ENCOUNTERS[p.enc].name + door(p), p.state === 'cleared', p.state === 'awake', ENCOUNTERS[p.enc].tip)).join('')
         + row(ENCOUNTERS[w.dungeonDef.boss].name, false, false, '');
       return;
     }
@@ -678,7 +691,7 @@ export class Hud {
 
   showDraft(w: World): void {
     // Re-render only when a new set of choices appears.
-    const key = w.player.level * 100 + w.player.pendingLevels + (w.choices.length ? 0 : 50);
+    const key = w.player.level * 100 + w.player.pendingLevels + (w.choices.length ? 0 : 50) + (w.choices[0]?.relic ? 25 : 0);
     if (!$('draft').hidden && this.draftShownFor === key) return;
     this.draftShownFor = key;
     const cards = $('cards');
@@ -688,6 +701,22 @@ export class Hud {
       cards.innerHTML = '<div class="muted" style="padding:24px;text-align:center">Waiting for the rest of your party to catch their Sparks.</div>';
       $('draftLevel').textContent = 'Level up';
       $('draftTitle').textContent = 'Waiting for your party';
+      $('draft').hidden = false;
+      return;
+    }
+    if (w.choices[0].relic) {
+      // 1.0 CP2: after the door guard, pick 1 of 2 Relics. Grey box: plain cards in the Spark draft's frame.
+      w.choices.forEach((c, i) => {
+        const def = RELICS[c.relic!];
+        const btn = document.createElement('button');
+        btn.className = 'card relic';
+        btn.innerHTML = `<div class="key">${i + 1}</div><div class="branch"><span class="bn">Relic</span></div><div class="name">${def.name}</div><div class="text">${def.text}</div>`;
+        btn.addEventListener('click', () => this.handlers?.onPick(i));
+        setTip(btn, () => `<b>${def.name}</b><br>${def.text}<br><span class="tip-m">Yours for the rest of this delve.</span>`);
+        cards.appendChild(btn);
+      });
+      $('draftLevel').textContent = 'The door guard falls';
+      $('draftTitle').textContent = 'Pick a Relic';
       $('draft').hidden = false;
       return;
     }

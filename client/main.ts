@@ -11,7 +11,7 @@ import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
 import { metIn, recordSeen } from '../sim/seen';
 import { botTree } from '../sim/content/trees';
-import { altsOn, applyRun, equippedItems, HeroProfile, newHero, newerHero, resetProgress, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers, toTree } from '../sim/hero';
+import { altsOn, applyRun, equippedItems, HeroProfile, newHero, newerHero, resetProgress, gritFor, rekeyDrops, keyLevelOf, keysOpen, shareEmbers, toTree } from '../sim/hero';
 import { DUNGEONS, raidCountsTriple } from '../sim/content/dungeon';
 import { ALT_OPTIONS, CLASSES } from '../sim/content/classes';
 import { standInGear } from '../sim/content/botfill';
@@ -290,12 +290,6 @@ function startRun(bounty = false, key = false): void {
     worldBoss: cloud.online && hub.boss ? hub.boss.name : undefined,
     bossOmen: hub.bossOmen(),
   };
-  // A brewed potion goes into this delve and is used up (the bounty never takes one).
-  // A Rising Draught stays brewed through a group dungeon, where it does nothing (potionWorksIn).
-  if (!bounty && !stress && hero.potion && potionWorksIn(hero.potion, opts.dungeon)) {
-    opts.potion = takePotion(hero);
-    save();
-  }
   if (bounty) {
     // Same fights, spawns and twist for everyone today; only the tier is the hero's own.
     const b = bountyFor(dayOf(Date.now()), hero.maxTier);
@@ -535,7 +529,7 @@ function wornTrail(h: HeroProfile): HeroCard['trail'] {
 
 function myCard(): HeroCard {
   const cls = hero.cls ?? 'emberwright';
-  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altsOn(cls, hero).includes(ALT_OPTIONS[cls][0].id), alts: altsOn(cls, hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow, trail: wornTrail(hero), potion: hero.potion, pid: playerId() };
+  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altsOn(cls, hero).includes(ALT_OPTIONS[cls][0].id), alts: altsOn(cls, hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow, trail: wornTrail(hero), pid: playerId() };
 }
 
 /** This device's player id, kept in storage so a dropped guest can rejoin their delve (CoopSession.resume). */
@@ -717,7 +711,7 @@ const coopEvents = {
     rosterSize = n;
     renderCoop();
   },
-  onStart: (opts: WorldOptions, me: number) => {
+  onStart: (opts: WorldOptions, _me: number) => {
     if (rejoin) { clearTimeout(rejoin.timer); rejoin = null; }
     if (game.scene.getScene('game')) game.scene.stop('game');
     el('end').hidden = true;
@@ -726,11 +720,6 @@ const coopEvents = {
     runApplied = false;
     lastBounty = false;
     lastKey = false;
-    // A guest's brewed potion went into this delve with their card, so it is used up here (never by a bounty).
-    if (opts.bounty === undefined && hero.potion && opts.party?.[me - 1]?.potion === hero.potion && potionWorksIn(hero.potion, opts.dungeon)) {
-      takePotion(hero);
-      save();
-    }
     game.scene.start('game', {
       opts,
       hud,
@@ -855,7 +844,7 @@ hub.render = () => {
   hub.hosting = !!coop && coop.role === 'host' && coop.roster.length > 1;
   hubRender();
   coopButton();
-  // The hero may have changed (gear, a level, a brewed potion): the host starts the next delve with this card.
+  // The hero may have changed (gear, a level): the host starts the next delve with this card.
   coop?.updateMine(myCard());
 };
 renderCoop();

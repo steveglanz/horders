@@ -11,7 +11,7 @@ for (const [cls, dungeon, tier, skill, seed] of cases) {
     if (w.state === 'draft') { w.choose(botChoose(w)); continue; }
     w.step(botInput(w, skill));
     maxAlive = Math.max(maxAlive, w.aliveEnemies);
-    for (const e of w.events) if (e.type === 'burnout') burn += (e as any).warn ? `warn@${w.time.toFixed(0)} ` : `burn@${w.time.toFixed(0)} `;
+    for (const e of w.events) if (e.type === 'bossEnrage') burn += `boil@${w.time.toFixed(0)} `;
   }
   worst = Math.max(worst, w.time);
   console.log(`${cls} ${dungeon} T${tier} s${seed}: ${w.state === 'ended' ? (w.summary().victory ? 'WIN' : 'LOSS') : 'STUCK'} t=${w.time.toFixed(0)} maxAlive=${maxAlive} ${burn}`);

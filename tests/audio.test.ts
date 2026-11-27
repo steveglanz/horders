@@ -1423,8 +1423,8 @@ describe('audio', () => {
     expect(phaseSting('grandmotherSlag', 3)).toBe('phaseRaid3');
     expect(phaseSting('ysmeret', 2)).toBe('phaseYsmeret');
     expect(phaseSting('nobodyYet', 2)).toBe('phase');
-    expect(cueFor({ type: 'burnout', warn: true }, { cls: 'lumen', acting: 0 })?.id).toBe('burnoutWarn');
-    expect(cueFor({ type: 'burnout', warn: false }, { cls: 'lumen', acting: 0 })?.id).toBe('burnout');
+    // Boil-over (1.0 CP2) takes the enrage cue; Burnout's two cues have no event now.
+    expect(cueFor({ type: 'boilOver' }, { cls: 'lumen', acting: 0 })?.id).toBe('enrage');
     expect(cueFor({ type: 'namedSpawn', index: 0, name: 'Grisk the Vengeful', affix: 'Vengeful' }, { cls: 'lumen', acting: 0 })?.id).toBe('namedSpawn');
     expect(cueFor({ type: 'namedKill', x: 0, y: 0, name: 'Grisk the Vengeful' }, { cls: 'lumen', acting: 0 })?.id).toBe('namedKill');
     const alt = { type: 'ability', alt: true, slot: 1, x: 0, y: 0, angle: 0, r: 40 } as const;

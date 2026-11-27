@@ -455,7 +455,9 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'rareSpawn': return { id: 'rareSpawn' };
     case 'namedSpawn': return { id: AFFIX_SPAWN[ev.affix] ?? 'namedSpawn' };
     case 'namedKill': return { id: c.namedAffix === 'Brood' ? 'namedKillBrood' : 'namedKill' };
-    case 'bossEnrage': return { id: 'enrage' };
+    // Boil-over is the boss's clock everyone hears; a boss's own enrage on top of it (the Kiln Mother's at 150 s) is quiet.
+    case 'boilOver': return { id: 'enrage' };
+    case 'bossEnrage': return null;
     case 'phase': return { id: (c.boss === 'worldShadow' && c.worldBoss && SHADOW_STING[c.worldBoss]) || phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
     case 'explode':
     case 'strike': return { id: 'explode', jitter: 0.12 };
@@ -480,7 +482,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'pillarCrack': return { id: 'crack' };
     case 'chest': return { id: 'chest' };
     case 'revive': return mine(ev.hero) ? { id: 'revive' } : { id: 'revive', vol: 0.5 };
-    case 'potion': return { id: 'revive' };
+    case 'relic': return ev.picked ? null : { id: 'revive' };
     case 'ability': {
       if (ev.alt) {
         const o = ALT_OPTIONS[c.cls].find((x) => x.slot === ev.slot);
@@ -606,9 +608,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'drop':
       return { id: ev.rarity === 'mythic' || ev.rarity === 'legendary' ? 'dropMythic' : ev.rarity === 'epic' ? 'dropEpic' : ev.rarity === 'rare' ? 'dropRare' : 'drop', jitter: 0.03 };
     case 'loot': return mine(ev.hero) && ev.equipped ? { id: 'equip' } : null;
-    case 'quest': return { id: 'quest' };
     case 'dodge': return { id: 'dodged' };
-    case 'burnout': return { id: ev.warn ? 'burnoutWarn' : 'burnout' };
     // Today's Heat: a sting with the first fight's banner. The floor Heats already sound their layout sting then.
     case 'encounterStart': return ev.index === 0 && c.heat && !FLOOR_HEATS.has(c.heat) ? { id: HEAT_STING[c.dungeon ?? ''] ?? 'heatSting' } : null;
     case 'encounterClear': return null; // the run's end and the talent draft carry their own sounds

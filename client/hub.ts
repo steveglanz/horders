@@ -1,13 +1,12 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
-  achievementView, brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
+  achievementView, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
   HeroProfile, characterOf, switchClass, lootUpgrades, equipBest, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
-  grantBossReward, charactersMade, resetCharacter, pointsAvailable, potionWorksIn, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor, resetTree, altsPicked,
+  grantBossReward, charactersMade, resetCharacter, pointsAvailable, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor, resetTree, altsPicked,
 } from '../sim/hero';
 import { TREE_KEYSTONE_POINTS, TREE_NODES, TreeNodeId, branchPoints, canTakeNode, treeOf } from '../sim/content/trees';
 import { BRANCH_NAMES } from '../sim/content/emberwright';
 import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
-import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
 import { ALT_OPTIONS, AltId, CLASSES, CLASS_IDS, SLAG_GUNNER, SLOT_UNLOCK, slotOpen } from '../sim/content/classes';
 import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
@@ -30,7 +29,7 @@ import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { drawWorldBossPortrait } from './textures';
 import { HELP } from '../sim/content/help';
-import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, heatTile, omenTile, seenIcon, SEEN_GLYPH } from './icons';
+import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, heatTile, omenTile, seenIcon, SEEN_GLYPH } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const KIT_KEY = 'horders.ui.kit';
@@ -401,7 +400,7 @@ export class Hub {
       + (h.maxTier === 1 ? '<div class="hint">Higher tiers: tougher foes, better loot. Beat the Kiln Mother to unlock tier 2.</div>' : '')
       + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a Spark and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
-      + `<div class="prep-full">${this.heatLine()}${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}${this.seenLine(true)}</div>`;
+      + `<div class="prep-full">${this.heatLine()}${this.omenLine(omens)}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}${this.seenLine(true)}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
@@ -414,7 +413,7 @@ export class Hub {
       this.render();
     });
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
-      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season' | 'seen', omens)));
+      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'heat' | 'omens' | 'bounty' | 'weekly' | 'key' | 'season' | 'seen', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
@@ -456,7 +455,7 @@ export class Hub {
     this.renderTabs();
   }
 
-  /** Bounty and potion buttons, wherever they're drawn (the hub or a sheet). */
+  /** Bounty, key and cosmetic buttons, wherever they're drawn (the hub or a sheet). */
   private bindPrep(root: HTMLElement): void {
     const h = this.hero();
     root.querySelector<HTMLButtonElement>('[data-bounty]')?.addEventListener('click', () => { $('sheet').hidden = true; this.onBounty(); });
@@ -471,24 +470,9 @@ export class Hub {
           if (!$('sheet').hidden && $('sheet').dataset.prep === 'season') this.openPrep('season', []);
         }
       }));
-    root.querySelectorAll<HTMLButtonElement>('[data-potion]').forEach((b) =>
-      b.addEventListener('click', () => {
-        const id = b.dataset.potion as PotionId;
-        if (brewPotion(h, id)) {
-          this.save();
-          this.render();
-          if (!$('sheet').hidden && $('sheet').dataset.prep === 'potion') this.openPrep('potion', []);
-          // R8: the fresh brew pours in: the flask flares and bubbles burst up out of it.
-          document.querySelectorAll<HTMLElement>(`[data-potion="${id}"]`).forEach((el) => {
-            el.classList.remove('poured');
-            void el.offsetWidth;
-            el.classList.add('poured');
-          });
-        }
-      }));
   }
 
-  /** Tab mode: Omens, the potion and the bounty fold into one row of chips that open sheets. */
+  /** Tab mode: Omens and the bounty fold into one row of chips that open sheets. */
   private prepChips(omens: OmenId[]): string {
     const h = this.hero();
     const chips: string[] = [];
@@ -498,11 +482,6 @@ export class Hub {
     if (omens.length) {
       chips.push(`<button class="prep-chip" data-prep="omens" data-sfx="open">${omenTile(omens[0], 22)}<span>${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}</span></button>`);
     }
-    const pot = h.potion ? POTION_ICON[h.potion] : null;
-    // Potions cost embers, which come from salvage: the chip waits until after the first delve.
-    if (h.runs > 0 || h.potion) chips.push(`<button class="prep-chip ${h.potion ? 'on' : ''}" data-prep="potion" data-sfx="open">`
-      + `<span class="gtile" style="--gc:${pot ? pot.color : 'var(--muted)'};width:24px;height:24px">${glyph((pot ?? POTION_ICON[POTION_IDS[0]]).d, 16)}</span>`
-      + `<span>${h.potion ? POTIONS[h.potion].name : 'Potion'}</span></button>`);
     if (h.maxTier >= BOUNTY.unlockTier) {
       const day = dayOf(Date.now());
       const paid = h.bountyDay === day;
@@ -514,7 +493,7 @@ export class Hub {
       chips.push(`<button class="prep-chip" data-prep="key" data-sfx="open"><span class="star" aria-hidden="true">⚿</span>`
         + `<span>Key <b>+${keyLevelOf(h, this.dungeon)}</b></span></button>`);
     }
-    // Weekly quests wait until after the first delve, like the potion.
+    // Weekly quests wait until after the first delve.
     if (h.runs > 0) {
       const wk = weekState(h.weekly, weekOf(Date.now()), h.maxTier);
       const n = wk.quests.filter((q) => q.done).length;
@@ -541,13 +520,13 @@ export class Hub {
   }
 
   /** Opens the sheet for one prep chip. */
-  private openPrep(kind: 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season' | 'seen', omens: OmenId[]): void {
-    const titles = { seen: `Seen in ${DUNGEONS[this.dungeon].name}`, heat: "The Court's Mood", omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
+  private openPrep(kind: 'heat' | 'omens' | 'bounty' | 'weekly' | 'key' | 'season' | 'seen', omens: OmenId[]): void {
+    const titles = { seen: `Seen in ${DUNGEONS[this.dungeon].name}`, heat: "The Court's Mood", omens: "This week's Omens", bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
     const body = kind === 'heat' ? this.heatLine().replace(/^<div class="sec-h">.*?<\/div>/, '') + '<div class="hint">A twist on this dungeon, the same for everyone. Each solo dungeon has its own, and it changes every day.</div>'
       : kind === 'omens'
       ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
       : kind === 'seen' ? this.seenLine(false)
-      : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'season' ? this.seasonLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
+      : kind === 'weekly' ? this.weeklyLine() : kind === 'season' ? this.seasonLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
     openSheet(titles[kind], body);
     $('sheet').dataset.prep = kind;
     this.bindPrep($('sheetBody'));
@@ -807,22 +786,6 @@ export class Hub {
   }
 
   /** Grit after losses in a row on the picked dungeon and tier. */
-  /** Alchemy: brew one potion for the next delve (not used by the daily bounty). */
-  private potionLine(): string {
-    const h = this.hero();
-    const cards = POTION_IDS.map((id) => {
-      const p = POTIONS[id];
-      const on = h.potion === id;
-      const why = brewBlocker(h, id);
-      return `<button data-potion="${id}" data-sfx="${on ? 'select' : 'brew'}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
-        + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}${on ? '<i class="bub" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></i>' : ''}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${potionCost(id, h.maxTier)} embers`}</em></button>`;
-    }).join('');
-    const kept = h.potion && !potionWorksIn(h.potion, this.dungeon) ? ' (kept for a solo delve)' : '';
-    const brewed = h.potion ? `${POTIONS[h.potion].name} ready${kept}` : 'none brewed';
-    return `<div class="sec-h"><span>Potion</span><span class="muted">${brewed} · ${h.embers} embers</span></div>`
-      + `<div class="pots">${cards}</div>`
-      + '<div class="hint">One potion per delve, used up when you start. Brewing another pours the first away.</div>';
-  }
 
   /** Classes in the delve: the party's, or yours plus any fill bots. */
   private classes(): string[] {

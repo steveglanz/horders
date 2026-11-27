@@ -4,11 +4,12 @@
  */
 import { OMENS } from '../sim/content/omens';
 import { coachLine } from '../sim/content/firstdelve';
+import { RELICS } from '../sim/content/relics';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { CLOTH } from './style';
-import { ROLL, ROLL_SLOT, ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OSKELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { ROLL, ROLL_SLOT, ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OSKELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, BOIL_TAUNT, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
 import { inLoop, roomLoops } from './hallsshape';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP, worldBossLabel } from '../sim/content/dungeon';
@@ -1493,12 +1494,13 @@ export class GameScene extends Phaser.Scene {
           this.ring(ev.x, ev.y, 70, 0x5fe0c8, 0.4);
           for (let k = 0; k < 6; k++) this.spark(ev.x + (Math.random() - 0.5) * 30, ev.y + 10, (Math.random() - 0.5) * 40, -90 - Math.random() * 60, 0.6, 1.4);
           break;
-        case 'potion':
-          // Rising Draught: the hero gets back up in a column of gold.
-          this.hud.banner('Rising Draught!', 'Back on your feet at a quarter health');
+        case 'relic':
+          if (ev.hero !== w.acting) break;
+          // 1.0 CP2: a Relic picked up (a short line), or the Spare Wick catching a fatal blow (the old Rising Draught's gold column).
+          if (ev.picked) { this.hud.ding(RELICS[ev.id].name); break; }
+          this.hud.banner(`${RELICS[ev.id].name}!`, 'Back on your feet at a quarter health');
           this.ring(ev.x, ev.y, 120, 0xffc861, 0.6);
           this.burst(ev.x, ev.y, 24);
-          this.floatText(ev.x, ev.y - 50, 'Risen!', '#ffd36a', 20);
           break;
         case 'glare':
           // The whole room flashes white-gold; a hit also shakes it.
@@ -1621,12 +1623,6 @@ export class GameScene extends Phaser.Scene {
           if (ev.hero !== undefined && ev.hero !== w.acting) break;
           this.hud.toast(ev.item, ev.equipped, ev.delta);
           break;
-        case 'quest': {
-          const q = w.quests[ev.index];
-          this.hud.ding('Quest complete');
-          if (q) this.burst(w.player.x, w.player.y, 18);
-          break;
-        }
         case 'echo':
           // Phase 16 U1: the boss borrows another version's move. Name it, so a phone shows what's coming.
           this.hud.ding(`Echo: ${BOSS_VERSION_NAME[ev.id] ?? ev.id}`);
@@ -1850,12 +1846,9 @@ export class GameScene extends Phaser.Scene {
         case 'encounterClear':
           this.hud.ding(ev.index + 1 >= w.route.length ? 'Victory!' : 'Cleared!');
           break;
-        case 'burnout':
-          if (ev.warn) this.hud.banner('The fire is closing in', '30 seconds to finish this fight');
-          else this.hud.banner('Burnout', 'The fire takes everything');
-          break;
-        case 'bossEnrage':
-          this.hud.banner(`${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} is enraged`, 'Finish it, fast');
+        case 'boilOver':
+          // Boil-over (1.0 CP2): the boss glows, taunts once, and hits harder every BOIL.every s from now.
+          this.hud.banner(`${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} boils over`, w.dungeonDef.boss === 'kilnMother' ? BOIL_TAUNT.kilnMother : BOIL_TAUNT.other);
           break;
         case 'revive':
           if (ev.by !== undefined && ev.hero !== undefined) {
@@ -5320,7 +5313,7 @@ export class GameScene extends Phaser.Scene {
     const m = this.world.halls;
     if (!m || e.pack === undefined || e.named >= 0) return false;
     const role = m.packs[e.pack]?.role;
-    return role === 'A' || role === 'B';
+    return role === 'A' || role === 'B' || role === 'F';
   }
 
   private namedMark(g: Phaser.GameObjects.Graphics, b: Phaser.GameObjects.Graphics, e: World['enemies'][number], top: number, now: number): void {

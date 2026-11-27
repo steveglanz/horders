@@ -35,6 +35,8 @@ Baseline cells are tightened as each place is remade: the Kiln to the full budge
 
 "Never lose to a clock" (pillar 3) means no hidden timer kills you. At **90 s** the boss shows **Boil-over** (rename-map section 4): it glows, says one taunt, and hits harder **every 10 s** after that (vision section 6, item 5). The player loses to the boss, and the loss screen names the blow. Burnout's trash and named-fight timers go away; packs are held to their budgets by tuning, not by a clock. Built in Checkpoint 2 (design queue item 4); the per-step damage rise is set there and measured on the Kiln.
 
+**As built (CP2, 27 Nov; sim/world.ts `BOIL`, `boilAfter`, `fightClock`):** the Kiln Mother boils over at 90 s and hits +20% harder every 10 s after (x1.2 at 100 s, x1.4 at 110 s, and so on); her own enrage at 150 s stays as it was. The boss plate counts down the last 30 s ("Boils over in N s"), then reads "Boil-over xN"; a banner says her one line. The other bosses boil over at their old enrage time until their places are remade (Checkpoint 5). Trash and named fights have no clock that hurts the hero: past 240 s (named +60 s) a quiet stall breaker wears the foes down instead, so a stuck bot or a kiting player still finishes the fight. The boss glow is not built yet (grey box: banner, plate and sound).
+
 ## Steve's earlier pacing call
 
 Steve (25 Nov 16:21Z): standard packs die fast, drop less, come denser; elites and rares up to about 1 min is OK; bosses 1+ min is OK. The budgets above sit inside that (named 30-45 s is under his 1 min, boss 60-90 s is his "1+ min"). If cold testers at Checkpoint 2 find named fights too short to read, the named ceiling can rise toward 60 s without breaking his call.

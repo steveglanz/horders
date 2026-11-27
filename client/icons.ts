@@ -4,7 +4,6 @@
  */
 import type { OmenId } from '../sim/content/omens';
 import type { HeatId } from '../sim/content/heat';
-import type { PotionId } from '../sim/content/potions';
 import type { Branch, ClassId } from '../sim/content/emberwright';
 import type { AltId } from '../sim/content/classes';
 import type { SetId } from '../sim/content/sets';
@@ -272,16 +271,6 @@ export const SET_ICON: Record<SetId, string> = {
   // Handover (pass it on): the Decree's eight-sided seal thrown in an arc from one open hand to the other.
   // (A seal sitting between two flat arms read as a person, or a map pin.)
   handover: 'M2 19.5q3.5 3 7 0 M15 19.5q3.5 3 7 0 M10.6 2.5h2.8l2 2v2.8l-2 2h-2.8l-2-2V4.5Z M5.5 16.5C5.5 12 7 9 9 7.5 M15 7.5c2 1.5 3.5 4.5 3.5 9 M16.3 14.3l2.2 2.2 2.2-2.2',
-};
-
-/** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */
-export const POTION_ICON: Record<PotionId, { color: string; d: string }> = {
-  // Rising Draught: a round flask with a rising arrow (you get back up).
-  risingDraught: { color: '#ffc861', d: 'M10 3h4 M10.5 3v4.5 M13.5 3v4.5 M10.5 7.5C7 8.8 5 11.5 5 14.5a7 7 0 0 0 14 0c0-3-2-5.7-5.5-7 M12 18.5v-6 M9.5 15 12 12.5l2.5 2.5' },
-  // Stillwater Tonic: a tall vial holding a calm wave (interrupt blue).
-  stillwater: { color: '#8fd8ff', d: 'M9 3h6 M10 3v15.5a2 2 0 0 0 4 0V3 M10 12.5q1-1.2 2 0t2 0' },
-  // Kindling Brew: a conical flask with a flame inside.
-  kindling: { color: '#ff8a3d', d: 'M9.5 3h5 M10.5 3v5L5.5 18.5A1.6 1.6 0 0 0 6.9 21h10.2a1.6 1.6 0 0 0 1.4-2.5L13.5 8V3 M12 12c.6 1.8 2.5 2.6 2.5 4.6a2.5 2.5 0 0 1-5 0c0-1 .6-1.8 1.2-2.4 0 .8.5 1.3 1 1.3 0-1.4 0-2.3.3-3.5Z' },
 };
 
 /** Gear slots, for the bag grid on phones (docs/design/mobile-ux.md §3.4). */

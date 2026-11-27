@@ -6,6 +6,7 @@ import { YSMERETV2, OSKELV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECH
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_BY_ID, AltId } from './content/classes';
 import { SET_TUNING } from './content/sets';
+import type { RelicId } from './content/relics';
 import { BOT_WALK_STEP, HALLS, HallsPack, PackRole, clearWalk, hallsWay, inside, roomGap, roomInward, wallPush } from './halls';
 
 export const BOT_PRIORITY: TalentId[] = [
@@ -1654,8 +1655,19 @@ const FORCE_BRANCH = typeof process !== 'undefined' ? (process.env.BOT_BRANCH ??
 const FORCE_CAP = typeof process !== 'undefined' ? (process.env.BOT_CAP ?? '').split(',').filter(Boolean) : [];
 /** BOT_SITE=1 (balance tools only): the bot takes a site card whenever one is offered, unless a capstone is. */
 const FORCE_SITE = typeof process !== 'undefined' && process.env.BOT_SITE === '1';
+/** BOT_RELIC=fireBrick (balance tools only): the bot takes this Relic whenever it's offered. */
+const FORCE_RELIC = (typeof process !== 'undefined' ? process.env.BOT_RELIC : undefined) as RelicId | undefined;
+/** The bot's Relic order (design, 27 Nov: the plainest first; Fire Brick last, as a bot that kites seldom stands still). */
+const BOT_RELICS: RelicId[] = ['spareWick', 'looseLid', 'slipGlaze', 'fireBrick'];
 /** Takes a capstone when offered, otherwise commits to the branch it has the most ranks in. */
 export function botChoose(w: World): number {
+  // 1.0 CP2 Relic cards: BOT_RELIC=<id> (balance tools) takes that one when offered, else the bot keeps to BOT_RELICS' order.
+  if (w.choices[0]?.relic) {
+    const rank = (id: RelicId | undefined) => (id === FORCE_RELIC ? -1 : BOT_RELICS.indexOf(id!));
+    let k = 0;
+    w.choices.forEach((c, i) => { if (rank(c.relic) < rank(w.choices[k].relic)) k = i; });
+    return k;
+  }
   let best = 0;
   let bestScore = Infinity;
   w.choices.forEach((c, i) => {
@@ -1809,11 +1821,19 @@ function hallsEnv(name: string): boolean {
 export function hallsTarget(w: World): HallsPack | null {
   const m = w.halls;
   if (!m) return null;
-  for (const role of hallsOrder()) {
+  // 1.0 CP2, the Kiln run's fork: the bot takes one door, HALLS_FORK=hard|easy, or else the hard door on odd seeds.
+  const fork = hallsForkEnv() ?? (w.seed & 1 ? 'hard' : 'easy');
+  const order = m.packs.some((q) => q.fork) ? ['A', 'B', fork === 'hard' ? 'C' : 'F', fork === 'hard' ? 'F' : 'C', 'E'] as PackRole[] : hallsOrder();
+  for (const role of order) {
     const pk = m.packs.find((q) => q.role === role);
     if (pk && pk.state !== 'cleared') return pk;
   }
   return null;
+}
+
+function hallsForkEnv(): 'hard' | 'easy' | undefined {
+  const v = typeof process !== 'undefined' ? process.env?.HALLS_FORK : undefined;
+  return v === 'hard' || v === 'easy' ? v : undefined;
 }
 
 /**
