@@ -61,5 +61,7 @@ export default defineConfig({
   // L2: the trimmed Phaser (client/vendor/phaser-lite.js). Tests and types still use the full package.
   resolve: { alias: [{ find: /^phaser$/, replacement: new URL('./client/vendor/phaser-lite.js', import.meta.url).pathname }] },
   plugins: [phaserFlags(), viteSingleFile(), scriptLast()],
+  // Pause/resume (client/resume.ts): a saved delve only replays on the build that recorded it.
+  define: { __HORDERS_BUILD__: JSON.stringify(Date.now().toString(36)) },
   test: { root: '.', include: ['tests/**/*.test.ts'] },
 } as any);

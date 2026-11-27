@@ -34,6 +34,7 @@ import { buildTextures, FRAMES, SPRITE_RES, WORLD_BOSS_SHEET } from './textures'
 import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
+import { quantize, RunLog, stepInputs } from '../sim/runlog';
 import { audio } from './audio';
 import { type CueContext, behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, roomBedFor, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
@@ -204,6 +205,10 @@ export interface SceneData {
   glow?: string;
   /** Season trail the hero wears (TRAILS id) and its best stage, 1 to 3. Looks only. */
   trail?: { id: string; stage: number };
+  /** A resumed delve (client/resume.ts): the World, already replayed to where the page closed. */
+  world?: World;
+  /** Solo delves record every input here, so the run survives the page closing (sim/runlog.ts). */
+  log?: RunLog;
 }
 
 /**
@@ -470,12 +475,16 @@ export class GameScene extends Phaser.Scene {
   private frameTimes: number[] = [];
   private workTimes: number[] = [];
 
+  /** The solo run's input log (pause/resume), or null in co-op, ?stress and the opening. */
+  log: RunLog | null = null;
+
   constructor() {
     super('game');
   }
 
   init(data: SceneData): void {
-    this.world = new World(data.opts);
+    this.world = data.world ?? new World(data.opts);
+    this.log = data.log ?? null;
     this.looks = data.opts.looks ?? [];
     this.coop = data.coop ?? null;
     // A guest draws the run as their own hero.
@@ -965,6 +974,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.world.choose(i, 0);
+    this.log?.pick(i, 0);
     if (this.world.state === 'draft') this.hud.showDraft(this.world);
     else this.hud.hideDraft();
   }
@@ -1100,7 +1110,12 @@ export class GameScene extends Phaser.Scene {
         const rolled = !!input.roll && w.rollReady;
         const slot = input.cast;
         const cdBefore = slot !== undefined ? w.player.cds[slot] : 0;
-        w.step(this.coop ? this.coopInputs(w, input) : w.heroes.length > 1 ? [input, ...this.botAllies(w)] : input);
+        if (this.log) {
+          // Pause/resume: the logged input is what the sim gets (stick values to 2 decimals), so a replay matches.
+          const q = quantize(input);
+          this.log.step(q);
+          w.step(stepInputs(w, q));
+        } else w.step(this.coop ? this.coopInputs(w, input) : w.heroes.length > 1 ? [input, ...this.botAllies(w)] : input);
         this.coop?.afterStep(w);
         if (slot !== undefined && w.player.cds[slot] > cdBefore) {
           if (!this.autopilot) this.queued = null;
@@ -1115,7 +1130,7 @@ export class GameScene extends Phaser.Scene {
     // A local bot party (?botparty): allies take the bot's card.
     // A co-op host picks for its fill bots (V7); guests pick their own.
     if ((!this.coop || this.coop.role === 'host') && w.state === 'draft') {
-      for (let i = 1; i < w.heroes.length; i++) if ((!this.coop || isBotAlly(w, i)) && w.choicesOf(i).length) { w.use(i); const c = botChoose(w); w.use(0); w.choose(c, i); }
+      for (let i = 1; i < w.heroes.length; i++) if ((!this.coop || isBotAlly(w, i)) && w.choicesOf(i).length) { w.use(i); const c = botChoose(w); w.use(0); w.choose(c, i); this.log?.pick(c, i); }
     }
     if ((!this.paused || this.coop) && w.state === 'draft') {
       const key = w.player.level * 100 + w.player.pendingLevels;
