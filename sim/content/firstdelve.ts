@@ -31,7 +31,7 @@ export const FIRST_DELVE = {
   hp: 0.85,
   dmg: 0.5,
   /** The Kiln Mother's health share in the opening (with `hp` on top), tuned so her short fight lasts 60-90 s. */
-  bossHp: 2.2,
+  bossHp: 2.7,
   /**
    * The short Kiln Mother (opening.md, "The short Kiln Mother"; World.runKilnOpening). Stage 1 to half health: a Swipe
    * every swipeEvery[0] s, shown swipeShow s ahead. Stage 2: a Swipe every swipeEvery[1] s plus one blue cast (Kiln
