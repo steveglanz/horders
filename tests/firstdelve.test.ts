@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
-import { FIRST_DELVE, coachLine } from '../sim/content/firstdelve';
+import { FIRST_DELVE, OPENING_LINES, coachLine } from '../sim/content/firstdelve';
 import { genTutorial, hallsCheck, mainRooms, doorRoom } from '../sim/halls';
 import { botChoose, botInput } from '../sim/bot';
 import { KILN_BOSS_HP } from '../sim/world';
@@ -48,9 +48,15 @@ describe('L1: the first delve', () => {
   });
 
   it('coaches every fight on the route, naming the hero\'s interrupt where it matters', () => {
-    for (const id of FIRST_DELVE.route) expect(coachLine(id, 'Kick'), id).toBeTruthy();
-    expect(coachLine('brute', 'Kick')).toContain('Kick');
-    expect(coachLine('kilnMother', 'Hush')).toContain('Hush');
+    // The opening (opening.md): R1 names the first button; R3's red and R5's blue lines come at the moment (client/coach.ts),
+    // so those rooms open on an empty line; without F the caster's room says to step out instead.
+    for (const id of FIRST_DELVE.route) expect(coachLine(id, 'Quench'), id).toBeDefined();
+    expect(coachLine('pack', 'Quench', 'Flame Wave')).toBe('Your attack fires on its own. Tap Flame Wave when they bunch up.');
+    expect(coachLine('wardens', 'Quench')).toBe('');
+    expect(coachLine('brute', 'Quench')).toBe('');
+    expect(coachLine('brute')).toContain('step out');
+    expect(coachLine('kilnMother', 'Quench')).toBe('Roll out of the red. Quench her blue cast.');
+    expect(OPENING_LINES.quench('Quench')).toBe('A blue bar is a cast. Tap Quench, the blue button, to stop it.');
     expect(coachLine('maelra', 'Kick')).toBeUndefined();
   });
 
@@ -60,7 +66,10 @@ describe('L1: the first delve', () => {
     expect(m).not.toBeNull();
     expect(m.rooms.map((r) => r.id)).toEqual(['R0', 'R1', 'R3', 'R5', 'door']);
     expect(m.rooms.every((r) => r.shape === 'round')).toBe(true);
-    expect(m.packs.map((p) => `${p.role}:${p.enc}`)).toEqual(['A:pack', 'B:brute', 'C:acolytes']);
+    expect(m.packs.map((p) => `${p.role}:${p.enc}`)).toEqual(['A:pack', 'B:wardens', 'C:brute']);
+    // Three hounds, one slammer, one caster, and none of them trash.
+    expect(m.packs.map((p) => p.foes.map((f) => f.kind).join(','))).toEqual(['cinderhound,cinderhound,cinderhound', 'husk', 'cinderBrute']);
+    expect(m.packs.some((p) => p.trash)).toBe(false);
     expect(m.packs.find((p) => p.guard)?.role).toBe('C');
     expect(m.layoutRooms).toEqual([]);
     expect(mainRooms(m)).toEqual([0, 1, 2, 3, 4]);

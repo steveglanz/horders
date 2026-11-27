@@ -1,6 +1,6 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
-import { coachLine } from '../sim/content/firstdelve';
+import { coachLine, OPENING_LINES } from '../sim/content/firstdelve';
 import type { EnemyKind } from '../sim/content/enemies';
 import { RELICS } from '../sim/content/relics';
 import { World, BOSS_PHASES, BRIM, ROLL, ROLL_SLOT, SUMMONS, TITHE } from '../sim/world';
@@ -347,7 +347,7 @@ export class Hud {
       this.rollButton.hidden = matchMedia('(pointer: coarse)').matches && display.dodge === 'flick';
     }
     if (!$('pause').hidden || !$('draft').hidden) this.coach.hide();
-    else this.coach.tick(w, this.abButtons);
+    else this.coach.tick(w, this.abButtons, this.rollButton);
 
     this.updateTarget(w);
     this.updateQuests(w);
@@ -562,7 +562,7 @@ export class Hud {
       const done = i < w.encounter;
       const now = i === w.encounter;
       // L1: the first delve's coach line replaces the fight's tip here too.
-      const tip = (w.firstDelve && coachLine(id, w.unlocked(3) ? w.abilities[3].name : undefined)) || def.tip;
+      const tip = (w.firstDelve ? coachLine(id, w.unlocked(3) ? w.abilities[3].name : undefined, w.abilities[0]?.name) : undefined) ?? def.tip;
       return `<div class="q${done ? ' done' : ''}${now ? ' now' : ''}"><div class="qn">${def.name}</div>${now ? `<div class="qp">${tip}</div>` : ''}</div>`;
     }).join('');
   }
@@ -766,7 +766,8 @@ export class Hud {
       setTip(btn, () => `<b>${def.name}</b>${rank ? ` · ${rank}` : ''}<br>${tip}${why ? `<br><span class="tip-m">${why}</span>` : ''}<br><span class="tip-m">${HELP.bothKinds}</span>`);
       cards.appendChild(btn);
     });
-    $('draftLevel').textContent = `Level ${w.player.level}${w.player.pendingLevels > 1 ? ` · ${w.player.pendingLevels} picks` : ''}`;
+    // The opening (opening.md, first level-up): the draft says what a Spark is, in place of the level line.
+    $('draftLevel').textContent = w.firstDelve && w.player.level <= 2 ? OPENING_LINES.draft : `Level ${w.player.level}${w.player.pendingLevels > 1 ? ` · ${w.player.pendingLevels} picks` : ''}`;
     $('draftTitle').textContent = 'Catch a Spark';
     $('draft').hidden = false;
   }

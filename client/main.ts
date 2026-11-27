@@ -12,7 +12,7 @@ import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
 import { metIn, recordSeen } from '../sim/seen';
 import { botTree } from '../sim/content/trees';
-import { altsOn, applyRun, equippedItems, HeroProfile, newHero, newerHero, resetProgress, gritFor, rekeyDrops, keyLevelOf, keysOpen, shareEmbers, toTree } from '../sim/hero';
+import { altsOn, applyRun, equippedItems, HeroProfile, newHero, newerHero, resetProgress, gritFor, rekeyDrops, keyLevelOf, keysOpen, savedRuns, shareEmbers, switchClass, toTree } from '../sim/hero';
 import { DUNGEONS, raidCountsTriple } from '../sim/content/dungeon';
 import { ALT_OPTIONS, CLASSES } from '../sim/content/classes';
 import { standInGear } from '../sim/content/botfill';
@@ -289,8 +289,9 @@ function startRun(bounty = false, key = false): void {
     dungeon: hub.dungeon,
     grit: gritFor(hero, hub.dungeon, hub.tier),
     firstClear: hub.tier >= hero.maxTier,
-    // L1: this character's first delve gets the teaching route (the sim checks Kiln, tier 1, solo).
-    firstDelve: !stress && (hero.runs ?? 0) === 0,
+    // The opening (opening.md rule 6): a save's first delve on any class gets the teaching route (the sim checks Kiln,
+    // tier 1, solo). A second class's first run is a normal Kiln tier 1 run.
+    firstDelve: !stress && savedRuns(hero) === 0,
     cls: hero.cls ?? 'emberwright',
     stance: hero.stance,
     alts: altsOn(hero.cls ?? 'emberwright', hero),
@@ -382,14 +383,17 @@ el('startBtn').addEventListener('click', delve);
 // CP3 opening, PR 1 (docs/design/opening.md): a save that has never delved opens on the title ("Tap to wake."),
 // then two Hearthkeeper lines, then straight into the Kiln. No hub on the way in. ?stress runs skip it.
 let wake: Wake | null = null;
-if (opensOnWake(hero, stress)) {
+function openWake(): void {
   wake = showWake(el('wake'), () => {
-    // The opening is the Kiln, tier 1 (the sim gives a save's first delve the teaching route).
+    // The opening is the Kiln, tier 1, as the Emberwright (opening.md rule 3; the sim gives a save's first delve the
+    // teaching route). A save that has never delved can still have picked another class on the hub: back to the Emberwright.
+    if ((hero.cls ?? 'emberwright') !== 'emberwright') { switchClass(hero, 'emberwright'); save(); hub.render(); }
     hub.dungeon = 'kiln';
     hub.tier = 1;
     delve();
   });
 }
+if (opensOnWake(hero, stress)) openWake();
 /** The cloud brought back a hero who has delved before (a new device or a cleared browser): the hub, not the opening. */
 function wakeFollowsSave(): void {
   if (wake?.open() && !opensOnWake(hero, stress)) wake.close();
@@ -525,11 +529,14 @@ el('quitBtn').addEventListener('click', () => {
   syncLobby();
   // Leaving early still keeps the loot and experience earned so far.
   const scene = game.scene.getScene('game') as GameScene | null;
-  if (scene?.world) finishRun(scene.world);
+  // The opening (opening.md rule 6): quitting it mid-way doesn't count as a run, so it plays again from the title.
+  const opening = !!scene?.world?.firstDelve && scene.world.state !== 'ended';
+  if (scene?.world && !opening) finishRun(scene.world);
   game.scene.stop('game');
   el('pause').hidden = true;
   hud.hideRun();
   el('title').hidden = false;
+  if (opening && opensOnWake(hero, stress)) { openWake(); return; }
   reloadForLook();
 });
 window.addEventListener('keydown', (e) => {
