@@ -194,7 +194,7 @@ describe('Phase 15 Y4: the Seen log', () => {
     q.noteEcho();
     expect(w.echoMet).toBe(true);
     expect(metIn(w)).toContain('kiln:echo:draw');
-    expect(runShape(w).find((c) => c.kind === 'echo')?.label).toBe(`Echo: ${BOSS_VERSION_NAME.draw}`);
+    expect(runShape(w).find((c) => c.kind === 'echo')?.label).toBe(`Old trick: ${BOSS_VERSION_NAME.draw}`);
     // A co-op guest meets it through the snapshot.
     const g = new World({ seed: 99, dungeon: 'kiln', tier: 8, omens: [], cls: 'lumen', party: [{ cls: 'emberwright', name: 'Emberwright' }] });
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);

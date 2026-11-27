@@ -176,7 +176,7 @@ export class Hud {
     const heat = w.heat ? HEATS[w.heat] : undefined;
     box.hidden = !ids.length && !heat;
     if (box.hidden) { box.innerHTML = ''; return; }
-    const head = ids.length ? `${ids.length === 1 ? 'Omen' : 'Omens'}${heat ? " and Today's Heat" : ' this delve'}` : "Today's Heat";
+    const head = ids.length ? `${ids.length === 1 ? 'Omen' : 'Omens'}${heat ? " and the Court's Mood" : ' this delve'}` : "The Court's Mood";
     box.innerHTML = `<div class="po-h">${head}</div>`
       + ids.map((id) => `<div class="po" data-omen="${id}">${omenTile(id, 28)}<span><b>${OMENS[id].name}</b><i>${OMENS[id].tip}</i></span></div>`).join('')
       + (heat ? `<div class="po" data-heat>${heatTile(heat.id, 28)}<span><b>${heat.name}</b><i>${heat.text}</i></span></div>` : '');
@@ -185,7 +185,7 @@ export class Hud {
       setTip(el, () => `<b>${o.name}</b><br>${o.text}<br><span class="tip-g">${o.tip}</span>`);
     });
     const hEl = box.querySelector<HTMLElement>('[data-heat]');
-    if (hEl && heat) setTip(hEl, () => `<b>Today's Heat: ${heat.name}</b><br>${heat.text}<br><span class="tip-g">The same for everyone today.</span>`);
+    if (hEl && heat) setTip(hEl, () => `<b>The Court's Mood: ${heat.name}</b><br>${heat.text}<br><span class="tip-g">The same for everyone today.</span>`);
   }
 
   /** Briefly pulses an action button when it fires. */
@@ -653,7 +653,7 @@ export class Hud {
     cards.innerHTML = '';
     if (!w.choices.length) {
       // Co-op: you've picked; the run resumes when the rest of the party has.
-      cards.innerHTML = '<div class="muted" style="padding:24px;text-align:center">Waiting for the rest of your party to pick their talents.</div>';
+      cards.innerHTML = '<div class="muted" style="padding:24px;text-align:center">Waiting for the rest of your party to catch their Sparks.</div>';
       $('draftLevel').textContent = 'Level up';
       $('draftTitle').textContent = 'Waiting for your party';
       $('draft').hidden = false;
@@ -684,7 +684,7 @@ export class Hud {
       cards.appendChild(btn);
     });
     $('draftLevel').textContent = `Level ${w.player.level}${w.player.pendingLevels > 1 ? ` · ${w.player.pendingLevels} picks` : ''}`;
-    $('draftTitle').textContent = 'Choose a talent';
+    $('draftTitle').textContent = 'Catch a Spark';
     $('draft').hidden = false;
   }
 

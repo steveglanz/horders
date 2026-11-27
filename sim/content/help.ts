@@ -11,10 +11,10 @@ export const HELP = {
     `Your talent tree is permanent. You get 1 point for each hero level after the first. Each branch's last talent opens at ${TREE_KEYSTONE_POINTS} points in that branch. Resetting is free.`,
   /** The level-up cards during a run (TALENTS in sim/content/emberwright.ts; World.rollDraft). */
   runTalents:
-    `When you level up in a delve, pick 1 of 3 talent cards. Most cards belong to a branch. ${CAPSTONE_RANKS} ranks in one branch unlock its capstone, a big upgrade. Talent cards reset when the delve ends.`,
+    `When you level up in a delve, catch 1 of 3 Sparks. Most Sparks belong to a branch. ${CAPSTONE_RANKS} ranks in one branch unlock its capstone, a big upgrade. Sparks fade when the delve ends.`,
   /** Under talent-card tooltips: damage figures are base numbers. */
-  cardNumbers: 'Damage numbers on talent cards are before your damage bonuses from gear, Might and level.',
+  cardNumbers: 'Damage numbers on Sparks are before your damage bonuses from gear, Might and level.',
   /** One line that tells the two kinds apart, for the first time a player sees either. */
   bothKinds:
-    'Hero talents stay with your hero for good. Talent cards in a delve last until the delve ends.',
+    'Hero talents stay with your hero for good. Sparks you catch in a delve last until the delve ends.',
 };

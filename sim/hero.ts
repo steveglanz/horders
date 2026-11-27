@@ -36,7 +36,7 @@ export const PASSIVES: Record<PassiveId, { name: string; text: string; tip: stri
   fortitude: { name: 'Fortitude', text: '+8 health per point', tip: 'More health. +8 max health per point, +80 at 10 points.', max: 10 },
   insight: {
     name: 'Insight', text: '+4% experience per point',
-    tip: 'Level up faster during a delve, so you pick talent cards sooner. +4% experience per point, +20% at 5 points.', max: 5,
+    tip: 'Level up faster during a delve, so you catch Sparks sooner. +4% experience per point, +20% at 5 points.', max: 5,
   },
   alacrity: {
     name: 'Alacrity', text: '+2% attack speed per point',

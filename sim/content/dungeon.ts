@@ -62,7 +62,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   shoalRift: { id: 'shoalRift', name: 'The Rift in the Wrack', tip: 'Break the Rift first. The water drags its Ashlings to the drain, so let the Ebb help.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
   haulerSpitters: { id: 'haulerSpitters', name: 'Hauler and Spitters', tip: 'Quench the Haul, or it yanks you off your raft into the lobs.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   ashbuckWarden: { id: 'ashbuckWarden', name: 'Warden and Ashbucks', tip: 'Stay out of the Warden\'s slam without stepping into a lane.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'ashbuck', n: 2 }] },
-  shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
+  shrine: { id: 'shrine', name: "Delver's Rest", tip: 'A quiet stash. You heal fully and gain a level, but find no loot.', spawns: [] },
   // Phase 16 U2: the Foundry's new elite. Its answer is to keep it walking after you, the same kiting Maelra asks for.
   ballast: { id: 'ballast', name: 'The Ballast', tip: 'When you stand in its reach it drops anchor and barely feels hits. Step back so it has to walk after you, and hit it while it walks.', spawns: [{ kind: 'ballast', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },

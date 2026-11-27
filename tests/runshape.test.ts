@@ -40,7 +40,7 @@ describe('Phase 14 X4: this run\'s shape', () => {
   it('shows Today\'s Heat by name with its text as the tip', () => {
     const w = kiln(9);
     w.heat = 'richHaul';
-    expect(runShape(w).find((c) => c.kind === 'heat')).toEqual({ kind: 'heat', label: `Heat: ${HEATS.richHaul.name}`, tip: HEATS.richHaul.text });
+    expect(runShape(w).find((c) => c.kind === 'heat')).toEqual({ kind: 'heat', label: `The Court's Mood: ${HEATS.richHaul.name}`, tip: HEATS.richHaul.text });
   });
 
   it('leaves out the world boss shadow, a bonus fight, from the route', () => {
