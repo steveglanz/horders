@@ -40,13 +40,13 @@ The listing text, name check, age rating and privacy answers are in `listing.md`
 The seven shots, in store order:
 
 1. **Hub**: the delve cards, difficulty tiers and this week's Omens.
-2. **Nhevra, the Cold Hearth**: the Coldmarrow boss winding up the Long Night, the floor going dark around the hero's Hearthcoal.
-3. **Ondrel of the Hammerdeep**: the Hammerdeep group boss with a full party of four,
+2. **The Banked Queen**: the Coldmarrow boss winding up the Long Night, the floor going dark around the hero's Hearthcoal.
+3. **The Iron Uncle**: the Hammerdeep group boss with a full party of four,
    mid-Anvilfall, with the party frames and the tank call-out.
-4. **The Lensmother**: the Glarewell boss sweeping her lens.
-5. **Maelra, the Drowned Bellows**: the Drowned Foundry boss over her steam vents.
+4. **The Glass Heir**: the Glarewell boss sweeping her lens.
+5. **Dowager Bellows**: the Drowned Foundry boss over her steam vents.
 6. **Grandmother Slag**: the raid, a party of four, a Ladle Pour tipping over the tank.
-7. **Ysmeret, the Twofold Flame**: the Ashvents group boss opening her Twin Vents, with a Slagbinder (the fifth class) leading a party of four, a Cinder Sump under the boss and Bellow Slam winding up.
+7. **Cousin Fork**: the Ashvents group boss opening her Twin Vents, with a Slagbinder (the fifth class) leading a party of four, a Cinder Sump under the boss and Bellow Slam winding up.
 
 Name a target to make only that set (and `ONLY=2-nhevra,6-raid` to remake only those fights): `icons`, `phone`, `landscape`, `desktop`.
 The game loads with `?hires=1` so the canvas renders at the full 3× of the phone sizes.

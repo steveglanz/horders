@@ -17,7 +17,7 @@ import { GLOWS, SEASON, SEASONS, TRAILS, trailLabel, seasonDef, seasonLevel, sea
 import { SEASON_ART } from './seasonArt';
 import { itemHtml, setsWorn } from './ui';
 import { GRIT, MAX_TIER, topTier } from '../sim/content/scaling';
-import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
+import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel, worldBossLabel } from '../sim/content/dungeon';
 import { BOT_FILL, botFillBlocker, fillClasses } from '../sim/content/botfill';
 import type { ClassId } from '../sim/content/emberwright';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
@@ -966,11 +966,11 @@ export class Hub {
     }
     const pct = Math.max(0, Math.min(100, (100 * b.hp) / b.max_hp));
     const claims = b.unclaimed.map((u) =>
-      `<button class="primary" data-claim="${u.boss_id}" data-dmg="${u.damage}" ${this.claiming ? 'disabled' : ''}>Claim reward: ${u.name} fell</button>`).join('');
+      `<button class="primary" data-claim="${u.boss_id}" data-dmg="${u.damage}" ${this.claiming ? 'disabled' : ''}>Claim reward: ${worldBossLabel(u.name)} fell</button>`).join('');
     el.innerHTML = `
       <div class="wb-head"><canvas class="wb-art" width="96" height="96" aria-hidden="true"></canvas><div class="wb-name">
       <div class="top"><span class="lbl">World boss</span><span>${b.fighters} ${b.fighters === 1 ? 'hero' : 'heroes'} fighting</span></div>
-      <div class="ttl">${b.name}, ${b.title}</div></div></div>
+      <div class="ttl">${worldBossLabel(b.name)}, ${b.title}</div></div></div>
       <div class="meter danger" title="${b.hp.toLocaleString()} / ${b.max_hp.toLocaleString()}"><div style="width:${pct}%"></div></div>
       <div class="kv"><span>${Math.round(pct)}% remaining<span class="wb-hpn"> · ${b.hp.toLocaleString()} health</span></span><span>You: ${b.my_damage.toLocaleString()} damage</span></div>
       ${this.bossOmenLine(b)}
@@ -987,7 +987,7 @@ export class Hub {
     $('groupBadge').hidden = !b.unclaimed.length;
     // Tab mode hides the card's explanations (CSS); a long press on the card shows them.
     const om = b.omen && b.omen in OMENS ? OMENS[b.omen as OmenId] : undefined;
-    setTip(el, () => `<b>${b.name}</b><br>Every delve you finish strikes it with the damage you dealt. When it falls, everyone who struck it gets an Epic reward.`
+    setTip(el, () => `<b>${worldBossLabel(b.name)}</b><br>Every delve you finish strikes it with the damage you dealt. When it falls, everyone who struck it gets an Epic reward.`
       + (om ? `<br><span class="tip-m">While it lives, every delve carries ${om.name} for ${Math.round(OMEN_TUNING.bossOmenLuck * 100)}% more loot.</span>` : ''));
     el.querySelectorAll<HTMLButtonElement>('[data-claim]').forEach((btn) =>
       btn.addEventListener('click', () => void this.claim(Number(btn.dataset.claim))));

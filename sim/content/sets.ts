@@ -65,7 +65,7 @@ export const SETS: Record<SetId, SetDef> = {
   },
   platewalker: {
     id: 'platewalker', name: 'Platewalker', verb: 'Get behind him', dungeon: 'smeltery',
-    bonus: ['Behind the Cinder Colossus (outside his front and sides), you take 6% less damage.', 'Behind him, your hits deal 6% more damage.'],
+    bonus: ['Behind the Colossus (outside his front and sides), you take 6% less damage.', 'Behind him, your hits deal 6% more damage.'],
   },
   handover: {
     id: 'handover', name: 'Handover', verb: 'Pass it on', dungeon: 'flue',

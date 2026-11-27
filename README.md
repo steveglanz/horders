@@ -5,7 +5,7 @@ A survivors-style run game with MMO-style progression. This is **build step 1: t
 ## What's in step 1
 - One class (Emberwright), one arena, the Hollow Tide horde.
 - Level-up talent drafts from a three-branch tree, with a capstone per branch.
-- A Cinder Brute mini-boss at 4:00 (drops a bonus talent) and the boss, Smolderhusk the Kiln Mother, at 8:00, with telegraphed attacks and an enrage timer.
+- A Cinder Brute mini-boss at 4:00 (drops a bonus talent) and the boss, the Kiln Mother, at 8:00, with telegraphed attacks and an enrage timer.
 - Touch joystick (drag anywhere) and keyboard (WASD / arrows). Auto-pause when the app goes to the background.
 - No saving yet: hero levels, gear and loot are step 2.
 
