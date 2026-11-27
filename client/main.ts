@@ -293,6 +293,8 @@ function startRun(bounty = false, key = false): void {
     // The opening (opening.md rule 6): a save's first delve on any class gets the teaching route (the sim checks Kiln,
     // tier 1, solo). A second class's first run is a normal Kiln tier 1 run.
     firstDelve: !stress && savedRuns(hero) === 0,
+    // The ease-in (World.easeIn): a save's 2nd and 3rd delves get smaller Kiln tier 1 packs, no Court's Mood and no boss Omen.
+    runsDone: savedRuns(hero),
     cls: hero.cls ?? 'emberwright',
     stance: hero.stance,
     alts: altsOn(hero.cls ?? 'emberwright', hero),

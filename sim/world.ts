@@ -27,7 +27,7 @@ import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterDef, EncounterId, GateKind, r
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
-import { HALLS, HALLS_GEN, KILNTRASH, HallsMap, buildHalls, clampGrates, clampHalls, clearWalk, corridorAt, grateCut, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
+import { HALLS, HALLS_GEN, KILNTRASH, EASE_IN_FOES, HallsMap, buildHalls, clampGrates, clampHalls, clearWalk, corridorAt, grateCut, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 /** Re-exported so tools' TUNE=KILNTRASH.hp=0.3 can reach it. */
@@ -991,6 +991,8 @@ export interface WorldOptions {
   firstClear?: boolean;
   /** L1: a brand-new hero's first delve (the Kiln, tier 1, solo): a fixed teaching route and softer foes. */
   firstDelve?: boolean;
+  /** Delves this save has played before this one, on every class (hero.ts savedRuns): 1 or 2 is the ease-in (World.easeIn). */
+  runsDone?: number;
   /** Day number of a daily bounty run: no forks, and the summary is marked so it doesn't count toward tiers or Grit. */
   bounty?: number;
   /** P3: a Delver's Key run at this key level (foes tougher per level; pass keyOmens as `omens`). */
@@ -1033,6 +1035,8 @@ export interface RunSummary {
   namedKills?: number;
   /** The hero's first delve (the tutorial Kiln): it sets no best time. */
   firstDelve?: boolean;
+  /** The ease-in after the opening (World.easeIn): this run was a save's 2nd or 3rd delve, with smaller packs. */
+  easeIn?: number;
   /** The opening: blows that would have felled the hero, held at 1 health instead (opening.md rule 1). */
   floorSaves?: number;
   /** Real heroes in the party (bots left out), for a party run only. */
@@ -1096,6 +1100,12 @@ export class World {
   private fillRng: Rng | null = null;
   /** L1: this is the hero's first delve (FIRST_DELVE). */
   readonly firstDelve: boolean;
+  /**
+   * The ease-in after the opening (design, 27 Nov 2026): 2 on a save's 2nd delve, 1 on its 3rd, else 0. Only a solo Kiln
+   * tier 1 run that isn't a bounty or key. Its trash packs are smaller (EASE_IN_FOES), and it has no Court's Mood and no
+   * world boss's Omen, so the jump from the can't-lose opening to a full run comes in two steps.
+   */
+  readonly easeIn: number;
   /** The opening: blows that would have felled the hero (held at 1 health instead). */
   floorSaves = 0;
   /** BOSSV2: the three-stage Kiln Mother and the new Gorge, on every run but the first delve (which keeps the old fight). */
@@ -1550,6 +1560,9 @@ export class World {
     this.firstDelve = !!opts.firstDelve && this.dungeonId === 'kiln' && this.tier === 1 && opts.bounty === undefined && !this.keyLevel && this.partySize === 1;
     // Relics from the second delve on (unlock-curve.md); the bounty is the same run for everyone.
     this.relicsOn = !this.firstDelve && !this.stress && opts.bounty === undefined;
+    const done = opts.runsDone ?? 0;
+    this.easeIn = !this.firstDelve && !this.stress && (done === 1 || done === 2) && this.dungeonId === 'kiln' && this.tier === 1
+      && opts.bounty === undefined && !this.keyLevel && this.partySize === 1 ? 3 - done : 0;
     this.bossV2 = !this.firstDelve;
     this.gunner = opts.gunner ?? SLAG_GUNNER;
     if (this.firstDelve) {
@@ -1560,10 +1573,10 @@ export class World {
     }
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
     this.heat = opts.heat && HEATS[opts.heat] && heatFits(this.dungeonId, opts.heat) && !this.firstDelve && !this.stress
-      && opts.bounty === undefined && !opts.keyLevel ? opts.heat : '';
+      && !this.easeIn && opts.bounty === undefined && !opts.keyLevel ? opts.heat : '';
     // The opening (opening.md rule 4): no Omens, not even the world boss's.
     const omens = this.firstDelve ? [] : opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
-    const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress && !this.firstDelve ? opts.bossOmen : undefined;
+    const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress && !this.firstDelve && !this.easeIn ? opts.bossOmen : undefined;
     this.bossOmen = bossOmen && !omens.includes(bossOmen) ? bossOmen : undefined;
     this.omens = this.bossOmen ? [...omens, this.bossOmen] : omens;
     // The boss's Omen always pays its bonus, even when the tier already rolled that Omen.
@@ -1624,7 +1637,8 @@ export class World {
     // Steve, 26 Nov: room to room is the standard game everywhere, the first delve included (on its own small map,
     // genTutorial). The daily bounty stays in the open arena, the survivors-style run now and then.
     if (opts.halls && hallsFor(this.dungeonId) && !this.stress && this.bounty === undefined) {
-      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, this.firstDelve);
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, this.firstDelve,
+        this.easeIn ? EASE_IN_FOES[2 - this.easeIn] : KILNTRASH.foes);
       this.hallsLayouts();
       this.phase = 'cleared';
     }
@@ -2198,6 +2212,7 @@ export class World {
       interrupts: this.player.interrupts ?? 0,
       namedKills: this.namedKills,
       ...(this.firstDelve ? { firstDelve: true, floorSaves: this.floorSaves } : {}),
+      ...(this.easeIn ? { easeIn: this.easeIn } : {}),
       ...(this.heroes.length > 1 ? { realHeroes: this.heroes.length - this.fillBots } : {}),
     };
   }
