@@ -255,10 +255,10 @@ type Spot = { role: PackRole; room: number; x: number; y: number; guard?: boolea
  * H2c: the rooms come from genHalls (hashes of the seed only); `template` keeps H1's hand-made KILN_HALLS_A.
  */
 /** Where the foes of the map's `k`th pack (encounter `enc`, standing at x, y) sleep: round its spot, turned by the seed. */
-export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y: number, trash = false, counts?: Partial<Record<EnemyKind, number>>): { kind: EnemyKind; x: number; y: number }[] {
+export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y: number, trash = false, counts?: Partial<Record<EnemyKind, number>>, trashFoes = KILNTRASH.foes): { kind: EnemyKind; x: number; y: number }[] {
   const kinds: EnemyKind[] = [];
   for (const sp of ENCOUNTERS[enc].spawns) {
-    const n = counts?.[sp.kind] ?? (trash && !KILNTRASH_ONE.includes(sp.kind) ? Math.round(sp.n * KILNTRASH.foes) : sp.n);
+    const n = counts?.[sp.kind] ?? (trash && !KILNTRASH_ONE.includes(sp.kind) ? Math.round(sp.n * trashFoes) : sp.n);
     for (let j = 0; j < n; j++) kinds.push(sp.kind);
   }
   const turn = ((hash(seed, k) >>> 4) % 360) * (Math.PI / 180);
@@ -282,6 +282,13 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
  */
 export const KILNTRASH = { foes: 2, hp: 0.3, named: 0.8 };
 /**
+ * The ease-in after the opening (design, 27 Nov 2026, "Smooth the jump into delve 2"; World.easeIn): a save's 2nd and
+ * 3rd delves (solo Kiln tier 1) multiply a trash pack's foes by these in place of KILNTRASH.foes, so the first pack
+ * after the can't-lose opening is 4 foes, not 8 (the CP3 panel's impatient casual fell 18 s into delve 2 with 6-8
+ * awake). From the 4th delve the packs are full.
+ */
+export const EASE_IN_FOES = [1, 1.5];
+/**
  * A pack's special foes, which keep their count in a trash pack: the Kiln's Rift and Ashwall, and (trash rollout,
  * design 25 Nov, trash-rollout-plan.md) the Foundry's Glass Warden (Mirror Ward), Sluice Crawler (its blue ring), the
  * Ballast, and the Ember Twins (the pair is the mechanic: with four, each death starts another Rekindle); the Glarewell's
@@ -300,7 +307,7 @@ export const TRASH_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarro
 /** Whether `dungeon`'s map has trash packs. */
 export const trashFor = (dungeon: DungeonId): boolean => TRASH_ON.includes(dungeon);
 
-export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, tutorial = false): HallsMap {
+export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, tutorial = false, trashFoes = KILNTRASH.foes): HallsMap {
   let rooms: HallsRoom[], corridors: HallsCorridor[], spots: Spot[], door: { x: number; y: number }, layoutRooms: { room: number; slot: number }[];
   let mirror = false;
   if (template) {
@@ -355,7 +362,7 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
     // On the Kiln run's map the openers' slots are A, B and F only (C is the named foe even when it's also an opener).
     // The opening (tutorial): no trash packs, and its own foe counts (FIRST_DELVE.counts: three hounds, one slammer).
     const trash = !tutorial && trashFor(dungeon) && p.gate !== 'named' && DUNGEONS[dungeon].openers.includes(p.enc) && (!run || s.role !== 'C');
-    const foes = packFoes(seed, k, p.enc, x, y, trash, tutorial ? FIRST_DELVE.counts : undefined);
+    const foes = packFoes(seed, k, p.enc, x, y, trash, tutorial ? FIRST_DELVE.counts : undefined, trashFoes);
     return {
       role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.guard ?? s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes,
       ...(trash ? { trash } : {}), ...(s.fork ? { fork: s.fork } : {}), ...(run ? { roomWake: true } : {}),

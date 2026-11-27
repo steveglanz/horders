@@ -30,8 +30,12 @@ export const FIRST_DELVE = {
   /** Foe health and damage multipliers for the opening. */
   hp: 0.85,
   dmg: 0.5,
-  /** The Kiln Mother's health share in the opening (with `hp` on top), tuned so her short fight lasts 60-90 s. */
-  bossHp: 2.7,
+  /**
+   * The Kiln Mother's health share in the opening (with `hp` on top), tuned so her short fight lasts about 60-90 s.
+   * 2.7 -> 2.5 (27 Nov 2026, CP3 panel: 2 of 3 testers called her a sponge with a dead last 15 s): tools/kmfight.ts
+   * FIRST=1 ULVL=1, 20 seeds, median 71 -> 65 s at average skill, 70 -> 65 s at novice, range 58-81 s.
+   */
+  bossHp: 2.5,
   /**
    * The short Kiln Mother (opening.md, "The short Kiln Mother"; World.runKilnOpening). Stage 1 to half health: a Swipe
    * every swipeEvery[0] s, shown swipeShow s ahead. Stage 2: a Swipe every swipeEvery[1] s plus one blue cast (Kiln
