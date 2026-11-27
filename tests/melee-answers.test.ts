@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { World, MAELRA_HITS } from '../sim/world';
+import { ENEMIES } from '../sim/content/enemies';
+
+const GLASS_HEIR = ENEMIES.lensmother.name;
 
 /**
  * 1.0 CP4 (vision section 6 item 6): every boss attack has a melee answer. docs/design/melee-answers.md lists each
@@ -51,5 +54,55 @@ describe('melee answers: Maelra (the Dowager Bellows)', () => {
       else { circle = true; expect(t.owner).toBe(-1); }
     }
     expect(cone && circle).toBe(true);
+  });
+});
+
+/** A Glarewell room with only the Glass Heir up, the hero `dx` east of her. */
+function heir(dx: number): { w: World; q: Q; b: number } {
+  const w = new World({ seed: 3, dungeon: 'glarewell', tier: 7, omens: [], cls: 'duskblade' });
+  const q = w as unknown as Q;
+  for (const e of w.enemies) e.alive = false;
+  w.player.x = dx; w.player.y = 0;
+  const b = q.spawn('lensmother', 0, 0);
+  q.bossIndex = b; q.bossSpawned = true;
+  return { w, q, b };
+}
+
+describe('melee answers: the Glass Heir (the Glarewell)', () => {
+  it('never hurts by touch: a melee hero standing against her takes nothing between her red marks', () => {
+    const { w, b } = heir(50);
+    const e = w.enemies[b];
+    const hp = w.player.hp;
+    const g = w as unknown as { glareT: number; bossBrandT: number };
+    for (let n = 0; n < 30 * 3; n++) {
+      e.abilityT = 99; e.touchCd = 0; e.x = 0; e.y = 0; g.glareT = 99; g.bossBrandT = 99;
+      w.player.x = 50; w.player.y = 0;
+      for (const t of w.telegraphs) t.alive = false;
+      for (const o of w.enemies) if (o.alive && o.kind !== 'lensmother') o.alive = false;
+      w.step({ x: 0, y: 0 });
+    }
+    expect(w.player.hp).toBeGreaterThanOrEqual(hp);
+  });
+
+  it('her Lens Sweep is still hers when it lands, even when a Quickened cast ends first (parryable, named on a loss)', () => {
+    // Quickened shortens her cast bar but not the cone, so the cast used to end first and leave the cone unowned.
+    for (const omens of [[], ['quickened']]) {
+      const w = new World({ seed: 3, dungeon: 'glarewell', tier: 7, omens: omens as never, cls: 'duskblade' });
+      const q = w as unknown as Q & { glareT: number; bossBrandT: number };
+      for (const e of w.enemies) e.alive = false;
+      const b = q.spawn('lensmother', 0, 0);
+      q.bossIndex = b; q.bossSpawned = true;
+      const e = w.enemies[b];
+      const by: (string | undefined)[] = [];
+      for (let n = 0; n < 30 * 8; n++) {
+        w.player.x = 60; w.player.y = 0; e.x = 0; e.y = 0; q.glareT = 99; q.bossBrandT = 99;
+        w.player.hp = w.player.maxHp; w.player.lastHurtBy = undefined;
+        for (const o of w.enemies) if (o.alive && o.kind !== 'lensmother') o.alive = false;
+        w.step({ x: 0, y: 0 });
+        if (w.player.lastHurtBy) by.push(w.player.lastHurtBy);
+      }
+      expect(by.length).toBeGreaterThan(1);
+      expect(new Set(by)).toEqual(new Set([GLASS_HEIR]));
+    }
   });
 });
