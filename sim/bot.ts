@@ -1817,8 +1817,8 @@ function hallsWalk(w: World): Input {
   }
   // QA, 25 Nov: a standing pillar (the Glarewell's stay up in a cleared room) dead ahead is walked round, not pressed
   // into: the push out of a pillar is straight back along the walk, so heading at its middle the hero never got past.
-  for (const c of w.pillars) {
-    if (c.cracked) continue;
+  // M5 QA, 27 Nov: standing stones block the same way (Coldmarrow t1 seed 2 and t4 seed 1 stood on one forever).
+  for (const c of [...w.pillars.filter((q) => !q.cracked), ...w.stones]) {
     const dx = c.x - p.x, dy = c.y - p.y;
     const ahead = dx * fx + dy * fy;
     if (ahead <= 0 || ahead > c.r + 120) continue;
@@ -1827,7 +1827,11 @@ function hallsWalk(w: World): Input {
     if (Math.abs(across) >= clear) continue;
     // The pillar is on the left of the walk (across > 0): step right, and the other way round.
     const k = 1.2 * (1 - Math.abs(across) / clear) + 0.4;
-    const sx = across > 0 ? fy : -fy, sy = across > 0 ? -fx : fx;
+    let sx = across > 0 ? fy : -fy, sy = across > 0 ? -fx : fx;
+    // Step to the side that has floor past the obstacle: a stone near a wall or an inner corner leaves one side shut,
+    // and stepping that way pinned the hero in the corner.
+    const past = c.r + 40;
+    if (!inside(m, c.x + sx * past, c.y + sy * past, 16) && inside(m, c.x - sx * past, c.y - sy * past, 16)) { sx = -sx; sy = -sy; }
     fx += sx * k;
     fy += sy * k;
   }
