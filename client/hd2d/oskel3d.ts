@@ -4,7 +4,7 @@
  * floor marks, which 2D draws on its main graphics and the floor bridge lays on the 3D floor; this draws what stands up.
  *
  * - Rivets: a brass domed rivet drops onto the middle of each Rivets ring (a 'hit' circle of OSKEL.rivetRadius owned
- *   by -1), falling as the ring's fuse runs (the 2D one's ease, (1 - f)^2) and landing as it goes off.
+ *   by Oskel since CP4's melee answers; it was -1), falling as the ring's fuse runs (the 2D one's ease, (1 - f)^2) and landing as it goes off.
  * - Stamp: a steel die with a yellow-and-black hazard band and a plunger rod drops onto the hero Oskel is stamping
  *   (World.stampOn) as his Stamp cast runs, landing on their head as it hits.
  *
@@ -76,7 +76,7 @@ export function buildOskel3d(o: { S: number; floor: number; rivetR: number }): O
       let n = 0;
       if (w.dungeonId === 'pressworks') {
         for (const t of w.telegraphs) {
-          if (!t.alive || t.kind !== 'hit' || t.owner !== -1 || t.r !== o.rivetR || n >= CAP) continue;
+          if (!t.alive || t.kind !== 'hit' || w.enemies[t.owner]?.kind !== 'oskel' || t.r !== o.rivetR || n >= CAP) continue;
           const f = Math.min(1, t.t / Math.max(0.01, t.dur));
           rivets.setMatrixAt(n++, m4.compose(v.set(t.x * S, FLOOR + (1 - f) * (1 - f) * RIVET_DROP * S, t.y * S), q, one));
         }

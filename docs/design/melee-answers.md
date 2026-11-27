@@ -167,7 +167,7 @@ hero-t4 n=0, average skill, Halls, client Omens, party = the class plus the stan
 Tier 4 is saturated (every class 40/40 in the baseline matrix), so this PR changes readability (his marks are named and
 parryable) rather than wins. Merge gate (CHECK=1 PLACES=hammerdeep): pass.
 
-## Cousin Fork (Ysmeret, the Ashvents, group): this PR
+## Cousin Fork (Ysmeret, the Ashvents, group): done (PR #920)
 
 A party fight: the tank holds her in front, melee stands at her back edge, and the party spreads for Scatter Embers.
 At half health she splits into two leashed flames 420 px apart that share one health.
@@ -199,7 +199,42 @@ Both tiers are saturated, so this PR changes what melee and the tank take (no un
 wins. The Ashvents are not in the bot matrix, so the merge gate does not cover this place. YSMERETV2.melee (the flames'
 touch multiplier) is gone with the touch.
 
+## Cousin Stamp (Oskel, the Pressworks, group): this PR
+
+A party fight: the tank holds him and takes the Stamp, the party takes turns under the Downstroke, and from 55% health
+the press bed carries everyone toward the crush line on the rim.
+
+| Attack | Warning | Melee answer | Status |
+|---|---|---|---|
+| Touch (16 x tier, every 0.6 s, whoever is in reach) | none | none | **removed** (it landed on the tank and on melee at his edge: Bulwark 0-4%, others 0-1% max hp a run at tiers 10 and 13) |
+| Stamp (every 10 s), 75 x tier on the hero picked at wind-up, through dodges and shields | 2 s cast, not stoppable | the tank's blow by design (the healer heals it) | unchanged: it only lands on his target |
+| Downstroke (every 13 s, 8 s late): a gold soak circle r60, 200 px to the side of him away from the tank; a Pressed hero under it takes 50% max hp, a missed one hits everyone for 50 x tier | 4 s fuse | take turns: a melee hero leaves him for 4 s, or a ranged hero takes it | unchanged (owner -3 on purpose: a loss says "an empty gold circle" or "a second Downstroke") |
+| Rivets (his version, every 9 s): a ring r60 under every hero, 30 x tier | 1.6 s fuse | step out of the ring; at his edge a step sideways keeps him in reach | **now his** (was unowned from the start: no parry, a loss said "red marks on the floor") |
+| Die Cut (his version, every 9 s): half the floor through him, 45 x tier | 2.4 s fuse | step to the other half: the cut runs through him, so the safe half touches his edge | **now his** (same) |
+| Punch Line (his version, every 7 s): three rows of punches marching out from his feet, 35 x tier | 1.4 s, then 0.25 s a punch | stand between two rows (120 deg apart at his edge) | **now his** (same) |
+| The crush line (stage 2 on, the rim downstream of the belt), 35% max hp and a push upstream | always visible, the belt's arrow | stay off the rim; melee at his edge is never near it | unchanged (named "the crush line") |
+
+His Stamp can't be stopped, so, as with the Iron Uncle, finishCast never disowns his marks (they used to be made
+unowned, so there was nothing to disown, but owning them would have let a Stamp ending drop them). Only his death clears
+them. The 2D Rivets drawing (GameScene.rivetMark) and the 3D rivets (client/hd2d/oskel3d.ts) now find a Rivets ring by
+its owner being him instead of -1.
+
+Measured (scratch copy of tools/matrix.ts's party run with boss damage by cause and hero, tools/heroes/matrix heroes,
+average skill, Halls, client Omens, party = the class plus the standard fill, seeds 1-20, before (main with #920) vs
+this PR):
+
+| Class (with fill) | Pressworks 10 (hero-t10) wins / boss median s, before / PR | Pressworks 13 (hero-t13) wins / boss median s, before / PR | Touch, % max hp a run before (now 0) |
+|---|---|---|---|
+| Cutwick | 20 / 20, 52 / 52 | 20 / 20, 59 / 59 | Bulwark 2 |
+| Bulwark | 20 / 20, 44 / 44 | 20 / 20, 52 / 52 | Bulwark 3-4 |
+| Emberwright | 20 / 20, 52 / 52 | 20 / 20, 57 / 58 | Bulwark 2, Emberwright 1 |
+| Lumen | 20 / 20, 45 / 45 | 20 / 20, 51 / 52 | Bulwark 1-2, Lumen 1 |
+| Slagbinder | 20 / 20, 41 / 42 | 20 / 20, 50 / 50 | Bulwark 0-2 |
+
+His Rivets, Die Cut and Punch Line damage is the same before and after (4-26% max hp a run by hero); it is now put down
+to Cousin Stamp instead of "red marks on the floor". Both tiers are saturated, so this PR changes readability and what
+the tank takes, not wins. The Pressworks are not in the bot matrix, so the merge gate does not cover this place.
+
 ## Still to audit (one PR each)
 
-- Cousin Stamp (Oskel, the Pressworks), then the four raid bosses (Grandmother
-  Slag, Uncle Glut, the Colossus, the Furnace Regent)
+- The four raid bosses (Grandmother Slag, Uncle Glut, the Colossus, the Furnace Regent)

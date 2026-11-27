@@ -2796,7 +2796,7 @@ export class GameScene extends Phaser.Scene {
         }
         if (t.kind === 'soak' && t.owner === -2 && (w.dungeonId === 'ashvents' || w.dungeonId === 'crucible')) this.ventMark(g, t, f, now);
         if (w.dungeonId === 'pressworks' && t.kind === 'soak' && t.owner === -3) this.pressMark(g, t, f, now);
-        if (w.dungeonId === 'pressworks' && t.kind === 'hit' && t.owner === -1 && t.r === OSKEL.rivetRadius) this.rivetMark(t, f);
+        if (w.dungeonId === 'pressworks' && t.kind === 'hit' && t.r === OSKEL.rivetRadius && w.enemies[t.owner]?.kind === 'oskel') this.rivetMark(t, f);
         if (t.owner >= 0 && w.enemies[t.owner]?.kind === 'hoarfrostWeaver') this.laceMark(g, t, f, now);
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
