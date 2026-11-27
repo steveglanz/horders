@@ -6682,7 +6682,8 @@ export class World {
       if (e.def.rank !== 'normal' && e.lungeW <= 0 && e.lungeD <= 0) this.runAbilities(i, dt); // no Snap mid-lunge
 
       // CP3 remake: the remade Kiln Mother (kmStage > 0) never hurts by touch; every blow of hers is a red mark first.
-      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !((this.kmStage > 0 || this.kmOpen > 0) && e.kind === 'kilnMother')) {
+      // CP4 (melee answers): nor does Maelra. Her touch only ever landed on melee, whose job is to stand there.
+      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !((this.kmStage > 0 || this.kmOpen > 0) && e.kind === 'kilnMother') && e.kind !== 'maelra') {
         e.touchCd = 0.6;
         const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1)
           * (e.kind === 'ysmeret' && this.ysStage === 2 ? YSMERETV2.melee : 1);
@@ -10314,7 +10315,8 @@ export class World {
       this.addTelegraph('circle', p.x, p.y, 110, 0, 0, 1.3, MAELRA_HITS.circle * mult);
     } else {
       const ang = Math.atan2(p.y - e.y, p.x - e.x);
-      this.addTelegraph('cone', e.x, e.y, 300, ang, (65 * Math.PI) / 180, 1.1, MAELRA_HITS.cone * mult);
+      // CP4: the cone is hers (owner i), as the Kiln Mother's Swipe is: a Bulwark can parry it, and a loss names her.
+      this.addTelegraph('cone', e.x, e.y, 300, ang, (65 * Math.PI) / 180, 1.1, MAELRA_HITS.cone * mult, 'hit', i);
     }
   }
 
