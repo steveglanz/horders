@@ -44,8 +44,14 @@ const FLOOR = 0.125;
 /** Handoff hero sprites are 46 px tall; this makes a hero about 1.5 units (105 world units) tall, near the handoff's size. */
 const HERO_PX = 0.032;
 const BOSS_PX = 0.03;
-/** The 2D short side shows 500 world units (GameScene viewFor); the 3D view frames about the same, a little wider. */
-const VIEW = 560 * S;
+/**
+ * The 2D short side shows 500 world units (GameScene viewFor); the 3D view frames about the same, a little wider.
+ * 520 (was 560) puts your hero at 70 to 80 px on a 390x844 phone, the vision v2 camera rule (client/camera.ts).
+ */
+const VIEW = 520 * S;
+/** Vision v2 camera: field of view and pitch, degrees. */
+const CAM_FOV = 30;
+const CAM_PITCH = 55;
 /** How far (world units) your own hero's sprite is drawn toward the camera, so nothing standing next to you covers it. */
 const SELF_LIFT = 1.6;
 const BALLAST_PLANT = SIM.ballastPlant;
@@ -924,9 +930,11 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const rid = roomOf(A.world().dungeonId), th0 = ROOMS[rid];
   scene.background = new THREE.Color(th0.bg);
   scene.fog = new THREE.Fog(th0.fog, 26, 46);
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-  /** The handoff's camera angle: up 15.5 and back 13.6 from what it looks at. */
-  const camDir = new THREE.Vector3(0, 15.5, 13.6).normalize();
+  // Vision v2 camera (CP2, docs/design/vision/vision.md section 7): a 30 degree field of view pitched 55 degrees down.
+  // The narrow lens keeps far foes the same size as near ones; the steeper look shows more floor per screen height.
+  // Was the handoff's 42 degrees, up 15.5 and back 13.6 (49 degrees).
+  const camera = new THREE.PerspectiveCamera(CAM_FOV, 1, 0.1, 140);
+  const camDir = new THREE.Vector3(0, Math.sin(THREE.MathUtils.degToRad(CAM_PITCH)), Math.cos(THREE.MathUtils.degToRad(CAM_PITCH)));
   // Hero and foe sprites lean back to face the camera. Standing straight up, the camera's 49 degree look down showed
   // them at two thirds of their drawn height, squat and wide (Steve, 25 Nov: "sometimes looking a little stretched").
   const SPRITE_TILT = Math.atan2(camDir.y, camDir.z);
@@ -1491,6 +1499,20 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     }
   };
 
+  /**
+   * How tall your own hero's figure shows on screen (CSS px, feet to the top of the sprite's art), for the camera rule
+   * (vision v2: 70 to 80 px at 390x844) and its test. Measured on the twin left at the true spot, since the lifted
+   * sprite is shrunk to keep the same pixels.
+   */
+  const heroTop = new THREE.Vector3(), heroFoot = new THREE.Vector3();
+  const heroPx = (): number => {
+    const h = heroes[0], m = h?.twin ?? h?.mesh;
+    if (!m || !H) return 0;
+    m.updateMatrixWorld();
+    heroFoot.set(0, 0, 0); m.localToWorld(heroFoot).project(camera);
+    heroTop.set(0, 1 - HERO.pad / HERO.H, 0); m.localToWorld(heroTop).project(camera);
+    return +(Math.abs(heroTop.y - heroFoot.y) / 2 * H).toFixed(1);
+  };
   const times: number[] = [];
   const m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion(), v3 = new THREE.Vector3(), sc = new THREE.Vector3(), pv = new THREE.Vector3();
   /** Per enemy index: where its sprite's head was drawn this frame (3D units), for view.foeHead. */
@@ -2029,7 +2051,11 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const fo = A.focus?.();
     const look = v3.set(cx + (fo?.x ?? 0) * S, 0, cz - 0.9 + (fo?.y ?? 0) * S);
     // The Halls room zoom (GameScene, from engineering's camera rule): 1 is today's framing, above 1 shows more.
-    camera.position.copy(camDir).multiplyScalar(dist * (A.zoom?.() ?? 1)).add(look);
+    const camDist = dist * (A.zoom?.() ?? 1);
+    camera.position.copy(camDir).multiplyScalar(camDist).add(look);
+    // The fog starts just past your hero, however far back the camera stands (the narrow lens stands it further back),
+    // and never nearer than the handoff's 26.
+    const fog = scene.fog as THREE.Fog; fog.near = Math.max(26, camDist + 3.5); fog.far = fog.near + 20;
     if (hm && halls) {
       const me = w.player;
       halls.update(hm, look.x, look.z, me.x, me.y, t);
@@ -2103,9 +2129,10 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     sounds() {
       return sfx.splice(0);
     },
+    heroPx,
     stats() {
       const ms = times.length ? times.reduce((x, y) => x + y, 0) / times.length : 0;
-      return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, ms: +ms.toFixed(2), fx, pixelRatio: pr, attacks, foeAttacks };
+      return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, ms: +ms.toFixed(2), fx, pixelRatio: pr, attacks, foeAttacks, heroPx: heroPx() };
     },
   };
 }

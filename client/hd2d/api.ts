@@ -43,7 +43,7 @@ export interface Hd2dAdapter {
   focus?(): { x: number; y: number };
 }
 
-export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number; /** Attacks your hero has started this run (the attack pose). */ attacks: number; /** Foe attacks (lunges) started this run. */ foeAttacks: number }
+export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number; /** Attacks your hero has started this run (the attack pose). */ attacks: number; /** Foe attacks (lunges) started this run. */ foeAttacks: number; /** Your hero's figure height on screen, CSS px. */ heroPx: number }
 
 export interface Hd2dView {
   /** Draws one frame from the world as it is now. `dt` is seconds since the last frame. */
@@ -65,6 +65,8 @@ export interface Hd2dView {
    * forge chains at the end of a sway, and foe lunges starting. Drains the list.
    */
   sounds?(): RoomSound[];
+  /** How tall your own hero's figure shows on screen this frame, CSS px (the camera rule, client/camera.ts). */
+  heroPx?(): number;
 }
 
 export interface Hd2dModule {

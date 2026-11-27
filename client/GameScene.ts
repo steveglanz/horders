@@ -2,6 +2,7 @@
  * Draws the shared simulation. This scene owns no game rules: it feeds input
  * into `World.step` at a fixed rate and renders interpolated state.
  */
+import { zoomCap } from './camera';
 import { corridorEnds } from '../sim/halls';
 import { OMENS } from '../sim/content/omens';
 import { coachLine } from '../sim/content/firstdelve';
@@ -2936,10 +2937,10 @@ export class GameScene extends Phaser.Scene {
         );
       }
     }
-    // Y9: on a phone the view is narrow, so foes coming in from the sides or behind (or hidden under the boss panel)
+    // Y9: the view is narrow, so foes coming in from the sides or behind (or hidden under the boss panel)
     // get a small red chevron at the edge of the clear view: one per direction, a little bigger for a crowd, with a
-    // gold rim when an elite or the boss is among them. Desktop views see the arena, so they stay clean.
-    if (this.hud.compact && w.phase === 'fight') this.foeEdgeMarks(b, now);
+    // gold rim when an elite or the boss is among them. Every screen since vision v2 (CP2): the camera in shows less.
+    if (w.phase === 'fight') this.foeEdgeMarks(b, now);
     // The Pressworks: a Pressed hero (they took the last Downstroke) wears a red press plate by their health bar,
     // its ring running down with the time left, so the party can see at a glance who must stay out of the next one.
     if (w.dungeonId === 'pressworks') {
@@ -4390,7 +4391,9 @@ export class GameScene extends Phaser.Scene {
     const host = this.game.canvas.parentElement;
     if (!view || !host) return;
     let cv = this.edgeCanvas;
-    const foes = this.hud.compact && this.world.phase === 'fight';
+    // Vision v2 (CP2): with the camera in, a room no longer fits on screen at any size, so every screen gets the arrows
+    // (they were phones only).
+    const foes = this.world.phase === 'fight';
     // Co-op: an ally off screen gets its class-coloured arrow at every size, as in 2D (the 3D view hides those too).
     // Bars, names and combat text are flat UI the 3D view leaves to this overlay too (see drawLabels3d).
     const on = true;
@@ -4437,6 +4440,25 @@ export class GameScene extends Phaser.Scene {
       if (isFast) fast[k] = true;
     };
     if (foes) for (const e of w.enemies) if (e.alive && !e.def.stationary) add(e.x, e.y, 1, e.def.rank !== 'normal', false);
+    // Pillar 2 ("read it, answer it"): an attack's tell starts on screen or an edge arrow shows. A hostile telegraph whose
+    // nearest part to your hero is off screen gets a fast-pulsing arrow in its sector.
+    if (foes) {
+      const me = w.player;
+      for (const t of w.telegraphs) {
+        if (!t.alive || t.kind === 'soak') continue;
+        let nx = t.x, ny = t.y;
+        if (t.shape === 'circle') {
+          const dx = me.x - t.x, dy = me.y - t.y, d = Math.hypot(dx, dy);
+          if (d <= t.r) continue;
+          nx += (dx / d) * t.r; ny += (dy / d) * t.r;
+        } else {
+          const ux = Math.cos(t.angle), uy = Math.sin(t.angle);
+          const along = Math.max(0, Math.min(t.r, (me.x - t.x) * ux + (me.y - t.y) * uy));
+          nx += ux * along; ny += uy * along;
+        }
+        add(nx, ny, 1, false, true);
+      }
+    }
     if (foes && w.reinforceN > 0 && w.reinforceT <= WAVES.reinforceWarn) {
       const rr = w.arenaR - 60;
       add(Math.cos(w.reinforceA) * rr, Math.sin(w.reinforceA) * rr, w.reinforceN, false, true);
@@ -5025,6 +5047,8 @@ export class GameScene extends Phaser.Scene {
     this.halls!.frame({
       now, dt, threeD: !!this.bridge, px, py, compact: this.hud.compact, rect,
       view: this.viewUnits,
+      // Your hero's height at zoom 1: measured by the 3D view, or the 2D sprite at the base zoom.
+      zoomMax: zoomCap(view?.heroPx ? view.heroPx() * this.halls!.zoomK : this.player.displayHeight * this.baseZoom * ((rect.width || 1) / this.game.canvas.width)),
       project: view ? (x, y) => view.project(x, y) : (x, y) => ({ x: (x - cam.worldView.x) * zc, y: (y - cam.worldView.y) * zc }),
     });
     // The arena's edge props stand round the boss arena; on the map they would stand in the first rooms.

@@ -431,30 +431,42 @@ export class Hud {
    * Phones: the banner sits at a fixed top, so a boss frame that grows a phase line and a cast
    * bar (landscape), or a target frame pushed down by two rows of buff chips (portrait), ran
    * under the banner. Push the banner below the frame and the chips while it shows.
+   * Vision v2 (CP2): every other banner is one line just above the action bar (UI.banner 'line'), so it never covers
+   * the fight; landscape phones, whose action bar fills the right side, keep it under the top row like a warning.
    */
   private placeBanner(): void {
     const b = $('banner');
     if (!b.classList.contains('show')) return; // keep its place while it fades out
     const target = $('target');
-    let top = '';
-    // Portrait phones with party frames anchor the banner above the action bar instead (CSS).
+    let top = '', bottom = '';
     const landscape = !this.narrow.matches;
-    if (this.compact && (landscape || $('party').hidden)) {
+    const warn = b.classList.contains('warn');
+    const line = b.classList.contains('line');
+    const bar = $('actionbar');
+    const barTop = bar.hidden ? 0 : bar.getBoundingClientRect().top;
+    // Above the bar only while that keeps it clear of your hero, who stands about mid-screen: a short phone (320x568)
+    // has its bar's top near the middle, so there the line goes under the top row instead.
+    if (line && !(this.compact && landscape) && barTop - 8 - b.offsetHeight > window.innerHeight * 0.5 + 45) {
+      bottom = `${Math.max(8, Math.round(window.innerHeight - barTop + 8))}px`;
+      top = 'auto';
+    } else if (this.compact && (landscape || $('party').hidden || line)) {
       // The stylesheet's own top: 68 px in landscape (HUD row + 60), max(21%, 164 px) in portrait.
       // Only ever push it lower: below the target frame and the buff chips (Planted, Warmth, Ward...).
-      // A warning (one slim line, design 25 Nov) sits right under the top row instead of in the upper band.
-      const warn = b.classList.contains('warn');
-      const base = warn ? Math.round($('pauseBtn').getBoundingClientRect().bottom + 6) : landscape ? 68 : Math.max(0.21 * window.innerHeight, 164);
+      // A warning or a line (one slim line, design 25 Nov) sits right under the top row instead of in the upper band.
+      const slim = warn || line;
+      const base = slim ? Math.round($('pauseBtn').getBoundingClientRect().bottom + 6) : landscape ? 68 : Math.max(0.21 * window.innerHeight, 164);
       const buffs = $('buffs');
       const below = Math.round(Math.max(
         target.hidden ? 0 : target.getBoundingClientRect().bottom + 8,
         buffs.childElementCount ? buffs.getBoundingClientRect().bottom + 6 : 0,
       ));
-      if (below > base || warn) top = `${Math.max(below, base)}px`;
+      if (below > base || slim) { top = `${Math.max(below, base)}px`; bottom = 'auto'; }
     }
-    if (top === this.bannerTop) return;
-    this.bannerTop = top;
+    const key = `${top}|${bottom}`;
+    if (key === this.bannerTop) return;
+    this.bannerTop = key;
     b.style.top = top;
+    b.style.bottom = bottom;
     this.placeDing();
   }
 
@@ -806,27 +818,28 @@ export class Hud {
   banner(title: string, sub: string, full = false, next?: BannerNext): void {
     const warn = this.warnNext;
     this.warnNext = false;
+    // Vision v2 (CP2): every banner that isn't a phone warning is one line above the action bar (placeBanner), so the
+    // intro and fight banners no longer sit over the fight. Title and sub side by side, the sub shrunk to fit.
+    const line = !warn;
+    const b = $('banner');
     $('bannerTitle').textContent = title;
     const subEl = $('bannerSub');
     subEl.textContent = sub;
     subEl.style.fontSize = '';
-    $('banner').classList.add('show');
-    $('banner').classList.toggle('warn', warn);
-    $('banner').classList.toggle('full', full);
-    if (warn) {
-      // One line: shrink the sub until it fits (down to 10 px). A sub that still doesn't fit (a 320 px phone and a long
-      // line, like the Long Night's) wraps to a second line rather than losing its end to an ellipsis.
-      $('banner').classList.remove('warn2');
-      let px = parseFloat(getComputedStyle(subEl).fontSize) || 12;
-      while (px > 10 && subEl.scrollWidth > subEl.clientWidth + 1) { px -= 0.5; subEl.style.fontSize = `${px}px`; }
-      if (subEl.scrollWidth > subEl.clientWidth + 1) { subEl.style.fontSize = ''; $('banner').classList.add('warn2'); }
-    } else $('banner').classList.remove('warn2');
-    // Phones clamp the sub-line to 2 lines. A longer one (a fight tip plus its floor line, say) gets the
-    // 4-line banner and the longer time instead of being cut off mid-sentence.
-    if (!warn && !full && subEl.scrollHeight > subEl.clientHeight + 1) {
-      full = true;
-      $('banner').classList.add('full');
-    }
+    b.classList.add('show');
+    b.classList.toggle('warn', warn);
+    b.classList.toggle('line', line);
+    b.classList.remove('full');
+    // Placed now, not on the next tick, so it doesn't flash at the stylesheet's spot first.
+    this.bannerTop = '';
+    this.placeBanner();
+    // One line: shrink the sub until it fits (down to 10 px). A sub that still doesn't fit (a 320 px phone and a long
+    // line, like the Long Night's) wraps to a second line rather than losing its end to an ellipsis.
+    const two = warn ? 'warn2' : 'line2';
+    b.classList.remove('warn2', 'line2');
+    let px = parseFloat(getComputedStyle(subEl).fontSize) || 12;
+    while (px > 10 && subEl.scrollWidth > subEl.clientWidth + 1) { px -= 0.5; subEl.style.fontSize = `${px}px`; }
+    if (subEl.scrollWidth > subEl.clientWidth + 1) { subEl.style.fontSize = ''; b.classList.add(two); full = true; }
     // A follow-up shows once this banner times out, unless another banner takes its place first.
     this.bannerNext = next;
     this.bannerNextAt = 0;
