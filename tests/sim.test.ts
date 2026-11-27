@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { World } from '../sim/world';
 import { runBot, botInput, botChoose } from '../sim/bot';
-import { CAPSTONE_RANKS, TALENTS } from '../sim/content/emberwright';
+import { SPARKS, TALENTS } from '../sim/content/emberwright';
 
 describe('simulation', () => {
   it('is deterministic: same seed and inputs give the same state', () => {
@@ -33,11 +33,16 @@ describe('simulation', () => {
     for (const c of w.choices) expect(TALENTS[c.id]).toBeDefined();
   });
 
-  it('always offers a capstone once its branch has enough ranks', () => {
+  it('1.0 CP2 Sparks: every draft offers one play-changing Spark until one is caught, taking turns', () => {
     const w = new World({ seed: 9 });
-    w.talents = { extraOrb: 2, quickcast: 1 };
-    expect(w.branchRanks('kindling')).toBe(CAPSTONE_RANKS);
-    expect(w.rollDraft().map((c) => c.id)).toContain('phoenixLance');
+    const seen = new Set<string>();
+    for (let k = 0; k < 3; k++) {
+      const ch = w.rollDraft().map((c) => c.id).filter((id) => SPARKS.emberwright.change.includes(id));
+      expect(ch.length).toBe(1);
+      seen.add(ch[0]);
+      w.talents = { ...w.talents, extraOrb: k + 1 }; // pass on it: take a plain Spark
+    }
+    expect([...seen].sort()).toEqual([...SPARKS.emberwright.change].sort());
   });
 
   it('offers one card per branch while every branch has talents left', () => {

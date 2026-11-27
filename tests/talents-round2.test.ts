@@ -50,7 +50,7 @@ describe('class talents round 2 (C5)', () => {
     for (const id of ROUND2) expect(TALENTS[id].capstone).toBeFalsy();
   });
 
-  it('deep cards stay out of the draft until their branch capstone is taken', () => {
+  it('1.0 CP2 Sparks: deep cards stay out of every draft, before and after a capstone (they wait for Blueprints)', () => {
     const before = new Set<string>();
     const after = new Set<string>();
     for (const cls of ['emberwright', 'duskblade', 'bulwark', 'lumen', 'slagbinder'] as ClassId[]) {
@@ -68,7 +68,7 @@ describe('class talents round 2 (C5)', () => {
       }
     }
     expect(ROUND2.filter((id) => before.has(id))).toEqual([]);
-    expect(ROUND2.filter((id) => !after.has(id))).toEqual([]);
+    expect(ROUND2.filter((id) => after.has(id))).toEqual([]);
     for (const id of ROUND2) expect(TALENTS[id].deep).toBe(true);
   });
 

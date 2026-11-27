@@ -3,7 +3,7 @@
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
 import { YSMERETV2, OSKELV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, PARRY, SLAG_KIT, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, ALT_KIT, versionLive } from './world';
-import { TALENTS, TalentId } from './content/emberwright';
+import { ClassId, SPARKS, TALENTS, TalentId, isChangeSpark } from './content/emberwright';
 import { ALT_BY_ID, AltId } from './content/classes';
 import { SET_TUNING } from './content/sets';
 import { BOT_WALK_STEP, HALLS, HallsPack, PackRole, clearWalk, hallsWay, inside, roomGap, roomInward, wallPush } from './halls';
@@ -911,7 +911,7 @@ const NOROLL = typeof process !== 'undefined' && process.env?.NOROLL === '1';
  * `chargeHp` health, and lets go at full charge. Light motes: a hurt hero (not the tank) walks to a mote within
  * `moteReach` while under `moteHp` health. NOVERBS=1 turns all three off for measuring.
  */
-export const BOT_VERBS = { parryLead: 0.2, chargeHp: 0.5, moteHp: 0.5, moteReach: 200 };
+export const BOT_VERBS = { parryLead: 0.2, chargeHp: 0.5, moteHp: 0.5, moteReach: 200, havenPull: 0.15 };
 const NOVERBS = typeof process !== 'undefined' && process.env?.NOVERBS === '1';
 
 function botVerbs(w: World, inp: Input, skill: number): Input {
@@ -1277,6 +1277,12 @@ function botMove(w: World, skill = 1): Input {
       fx += (dx / d) * 0.08 * skill;
       fy += (dy / d) * 0.08 * skill;
     }
+  }
+  // 1.0 CP2 Spark Haven: a Lumen who caught it steps back into its Sanctuary while the ground lasts and a big foe is near
+  // (a gentle pull, BOT_VERBS.havenPull, on top of the rest of the steering).
+  if (w.cls === 'lumen' && w.rank('haven') > 0 && p.sanctT > 0.5 && w.enemies.some((e) => e.alive && e.def.rank !== 'normal' && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < 500 ** 2)) {
+    const dx = p.sanctX - p.x, dy = p.sanctY - p.y, d = Math.hypot(dx, dy) || 1;
+    if (d > w.sanctuaryRadius * 0.7) { fx += (dx / d) * BOT_VERBS.havenPull * skill; fy += (dy / d) * BOT_VERBS.havenPull * skill; }
   }
   // The Ashvents (G3): spread out while Scatter Embers is winding up.
   // YSMERETV2 stage 2: either flame's Scatter counts.
@@ -1700,7 +1706,31 @@ const FORCE_BRANCH = typeof process !== 'undefined' ? (process.env.BOT_BRANCH ??
 const FORCE_CAP = typeof process !== 'undefined' ? (process.env.BOT_CAP ?? '').split(',').filter(Boolean) : [];
 /** BOT_SITE=1 (balance tools only): the bot takes a site card whenever one is offered, unless a capstone is. */
 const FORCE_SITE = typeof process !== 'undefined' && process.env.BOT_SITE === '1';
-/** Takes a capstone when offered, otherwise commits to the branch it has the most ranks in. */
+/**
+ * 1.0 CP2: the play-changing Spark each bot class plays best, best first (CP1 cell setup, Foundry 7, average skill,
+ * 20 seeds, only that Spark offered: Bulwark Warpath 16, Grudge 3, Shield Wake 4, Thornwall 1; Cutwick Killing Rhythm 18,
+ * Whirling Dusk 14, Crimson Tide 9; Lumen 17 for all three; Slagbinder 20 for all three; Emberwright 0-1 for all three).
+ */
+export const BOT_CHANGE: Record<ClassId, TalentId[]> = {
+  emberwright: ['conflagration', 'phoenixLance', 'ringOfAsh'],
+  duskblade: ['killingRhythm', 'bladeStorm', 'crimsonTide'],
+  bulwark: ['warpath', 'shieldWake', 'thornwall'],
+  lumen: ['noon', 'choirOfDawn', 'haven'],
+  slagbinder: ['twinPour', 'shatterpoint', 'slagTide'],
+};
+/** Picks a bot passes on a play-changing Spark that isn't its best (the draft shows the next one each time). */
+export const BOT_CHANGE_WAIT = 2;
+
+/** Whether the bot passes on this play-changing Spark for now: a better one is still to come and it can wait. */
+function waitForChange(w: World, id: TalentId): boolean {
+  if (!isChangeSpark(id)) return false;
+  const picks = Object.values(w.talents).reduce((a, r) => a + (r ?? 0), 0);
+  if (picks >= BOT_CHANGE_WAIT) return false;
+  const best = BOT_CHANGE[w.cls].find((c) => SPARKS[w.cls].change.includes(c) && w.canDraft(c));
+  return best !== undefined && best !== id;
+}
+
+/** Takes a capstone (a play-changing Spark) when offered, otherwise commits to the branch it has the most ranks in. */
 export function botChoose(w: World): number {
   let best = 0;
   let bestScore = Infinity;
@@ -1709,7 +1739,7 @@ export function botChoose(w: World): number {
     const committed = def.branch === 'general' ? 0 : w.branchRanks(def.branch);
     // Forced only until the branch's capstone is in; after that the bot drafts as usual.
     const forced = FORCE_BRANCH.includes(def.branch) && !(Object.keys(TALENTS) as TalentId[]).some((id) => TALENTS[id].branch === def.branch && TALENTS[id].capstone && w.rank(id) > 0) ? 2000 : 0;
-    const s = (def.capstone ? -1000 : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 - forced - (FORCE_CAP.includes(c.id) ? 3000 : 0) - (FORCE_SITE && def.where ? 900 : 0) + BOT_PRIORITY.indexOf(c.id);
+    const s = (def.capstone ? (waitForChange(w, c.id) ? 1000 : -1000) : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 - forced - (FORCE_CAP.includes(c.id) ? 3000 : 0) - (FORCE_SITE && def.where ? 900 : 0) + BOT_PRIORITY.indexOf(c.id);
     if (s < bestScore) {
       bestScore = s;
       best = i;

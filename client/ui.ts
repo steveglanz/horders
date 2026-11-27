@@ -5,7 +5,7 @@ import { World, BOSS_PHASES, BRIM, ROLL, ROLL_SLOT, SUMMONS, TITHE } from '../si
 import { runShape, type ShapeKind } from '../sim/runshape';
 import { HEATS, type HeatId } from '../sim/content/heat';
 import { AFFIXES } from '../sim/content/named';
-import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
+import { BRANCH_NAMES, Branch, ClassId, MAX_HEAT, TALENTS, TalentId, isChangeSpark } from '../sim/content/emberwright';
 import { CLASSES, SLOT_UNLOCK, slotOpen } from '../sim/content/classes';
 import { ENCOUNTERS, worldBossLabel } from '../sim/content/dungeon';
 import { trailLabel } from '../sim/content/season';
@@ -139,12 +139,16 @@ export class Hud {
     bar.style.setProperty('--ac', CLASS_ICON[cls].color);
     def.abilities.forEach((a, i) => {
       const b = document.createElement('button');
-      b.className = i === INTERRUPT_SLOT ? 'ab kick' : 'ab';
+      // 1.0 CP2: F reads as what it is. An interrupt (ClassDef.kick) wears the Interrupt signal and a "Kick" tag; the
+      // Lumen's and Slagbinder's F is a stun: brass, a "Stun" tag, and its title says a boss in a party shrugs it off.
+      const stun = i === INTERRUPT_SLOT && !def.kick;
+      b.className = i === INTERRUPT_SLOT ? (stun ? 'ab stun' : 'ab kick') : 'ab';
       b.setAttribute('aria-label', `${a.name} (${a.key})`);
       b.dataset.tipTouch = 'off';
-      b.title = `${a.name} (${a.key})${a.cost ? ` · ${a.cost} ${def.resource}` : ''}: ${a.text}${i === w.holdVerbSlot && def.verb ? ` Hold ${a.key}: ${def.verb.name}.` : ''}`;
+      b.title = `${a.name} (${a.key})${i === INTERRUPT_SLOT ? (stun ? ' · Stun' : ' · Interrupt') : ''}${a.cost ? ` · ${a.cost} ${def.resource}` : ''}: ${a.text}${i === w.holdVerbSlot && def.verb ? ` Hold ${a.key}: ${def.verb.name}.` : ''}`;
       if (i === w.holdVerbSlot) b.classList.add('holdable');
-      b.innerHTML = `${glyph(icons[i], 30)}<span class="k">${a.key}</span><span class="n">${a.name}</span><span class="cd"></span>`;
+      const fTag = i === INTERRUPT_SLOT ? `<span class="ftag">${stun ? 'Stun' : 'Kick'}</span>` : '';
+      b.innerHTML = `${glyph(icons[i], 30)}<span class="k">${a.key}</span>${fTag}<span class="n">${a.name}</span><span class="cd"></span>`;
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -708,23 +712,15 @@ export class Hud {
       const def = TALENTS[c.id as TalentId];
       const color = BRANCH_COLOR[def.branch];
       const btn = document.createElement('button');
-      const deep = !!(def as { deep?: boolean }).deep;
-      const party = !!(def as { party?: boolean }).party;
-      btn.className = 'card' + (def.capstone ? ' capstone' : '') + (deep ? ' deep' : '') + (party ? ' party' : '');
+      // 1.0 CP2: one card in each draft changes how you play (SPARKS change) until you catch one of the three.
+      const change = isChangeSpark(c.id as TalentId);
+      btn.className = 'card' + (change ? ' capstone' : '');
       btn.style.setProperty('--branch', color);
-      let progress = '';
-      // A deep card comes after the capstone, so it has no capstone progress to show.
-      if (def.branch !== 'general' && !def.capstone && !deep) {
-        const have = Math.min(CAPSTONE_RANKS, w.branchRanks(def.branch) + 1);
-        progress = `<div class="progress"><span class="pb">${BRANCH_NAMES[def.branch]} </span>${have}/${CAPSTONE_RANKS} toward capstone</div>`;
-      }
-      const rank = def.maxRank < 99 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
-      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone, 34, deep, party)}<div class="branch"><span class="bn">${BRANCH_NAMES[def.branch]}</span>${def.capstone ? '<span class="cap">Capstone</span>' : party ? '<span class="deeptag party">Party</span>' : deep ? '<span class="deeptag">Deep</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="meta"><div class="rank">${rank}</div>${progress}</div>`;
+      const rank = def.maxRank < 99 && def.maxRank > 1 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
+      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, change, 34, false, false)}<div class="branch"><span class="bn">${BRANCH_NAMES[def.branch]}</span>${change ? '<span class="cap">Changes play</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="meta"><div class="rank">${rank}</div></div>`;
       btn.addEventListener('click', () => this.handlers?.onPick(i));
       const tip = (def as { tip?: string }).tip ?? def.text;
-      const why = def.capstone ? `Capstone: needs ${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]}.`
-        : deep ? `${party ? 'Party card: offered only when you delve with others, after' : 'Deep card: offered after'} the ${BRANCH_NAMES[def.branch]} capstone.`
-        : def.branch !== 'general' ? `${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]} unlock its capstone.` : '';
+      const why = change ? 'Changes how you play. You catch one of these per delve: taking it closes the other two.' : '';
       setTip(btn, () => `<b>${def.name}</b>${rank ? ` · ${rank}` : ''}<br>${tip}${why ? `<br><span class="tip-m">${why}</span>` : ''}<br><span class="tip-m">${HELP.bothKinds}</span>`);
       cards.appendChild(btn);
     });

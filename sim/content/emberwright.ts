@@ -1,7 +1,8 @@
 /**
  * Talent trees for every class (the file keeps its first class's name), plus
  * the Emberwright's action bar. Each class has three branches, drafted on
- * level-up during a run.
+ * level-up during a run. Since 1.0 CP2 the draft offers only each class's 8 SPARKS (below); the
+ * capstone and deep-card rules that follow describe the cards kept in code for Blueprints.
  * Taking CAPSTONE_RANKS ranks in one branch unlocks that branch's capstones,
  * which transform the class (the survivors "evolution" moment). A branch can
  * have two capstones: the draft offers both, and taking one closes the other.
@@ -135,6 +136,27 @@ export interface TalentDef {
 /** Ranks in one branch that unlock its capstone. A run has about four drafts. */
 export const CAPSTONE_RANKS = 3;
 
+/**
+ * 1.0 CP2 Sparks (docs/design/checkpoint-2-grey-box.md item 6; roadmap: "8 per class, 3 that change behaviour").
+ * The level-up draft offers only these. Each class has 5 plain Sparks (numbers) and 3 that change how you play
+ * (`change`). Every draft holds one of the three until you catch one; catching one closes the other two, so a delve
+ * has one play style ("this run I'm an exploding-orb Emberwright"). The other TALENTS cards stay in code, unoffered:
+ * they are the pool that Blueprints (Checkpoint 4) add back.
+ */
+export const SPARKS: Record<ClassId, { plain: TalentId[]; change: TalentId[] }> = {
+  emberwright: { plain: ['searingBurn', 'kindledGround', 'extraOrb', 'quickcast', 'mend'], change: ['conflagration', 'phoenixLance', 'ringOfAsh'] },
+  duskblade: { plain: ['serratedEdge', 'thirst', 'quickBlades', 'longReach', 'thickHide'], change: ['crimsonTide', 'bladeStorm', 'killingRhythm'] },
+  bulwark: { plain: ['holdTheLine', 'ward', 'spikedShield', 'wideSweep', 'momentum'], change: ['warpath', 'thornwall', 'shieldWake'] },
+  lumen: { plain: ['searingRadiance', 'renewal', 'aegisOfLight', 'hastedHymn', 'prism'], change: ['noon', 'choirOfDawn', 'haven'] },
+  slagbinder: { plain: ['thickPour', 'quickset', 'heavyLob', 'crustedHide', 'hotBlood'], change: ['twinPour', 'shatterpoint', 'slagTide'] },
+};
+
+/** Whether a card is one of its class's three play-changing Sparks. */
+export function isChangeSpark(id: TalentId): boolean {
+  const c = TALENTS[id]?.cls;
+  return !!c && SPARKS[c].change.includes(id);
+}
+
 export const TALENTS: Record<TalentId, TalentDef> = {
   // Wildfire: area damage
   kindledGround: { id: 'kindledGround', cls: 'emberwright', name: 'Kindled Ground', branch: 'wildfire', maxRank: 3, text: 'Orbs leave burning ground behind, and +6% damage.', tip: "Each orb hit leaves burning ground for 2s: 5 damage per second per rank, and the patch grows with each rank. Each rank also gives +6% damage." },
@@ -150,7 +172,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   searingFocus: { id: 'searingFocus', cls: 'emberwright', name: 'Searing Focus', branch: 'kindling', maxRank: 3, text: '+12% chance to crit for double damage.' },
   heatSink: { id: 'heatSink', cls: 'emberwright', name: 'Heat Sink', branch: 'kindling', maxRank: 3, text: 'Orb hits build 35% more Heat; Combustion hits 20% harder and recharges 3s faster.' },
   ignition: { id: 'ignition', ability: 0, cls: 'emberwright', name: 'Ignition', branch: 'kindling', maxRank: 2, text: 'Flame Wave always crits. Rank 2: every crit cuts its cooldown by 0.3s.' },
-  phoenixLance: { id: 'phoenixLance', cls: 'emberwright', name: 'Phoenix Lance', branch: 'kindling', maxRank: 1, capstone: true, text: 'A piercing lance every 2.5s.', tip: "Every 2.5s, a lance hits everything in a 520 px line for 75 damage." },
+  phoenixLance: { id: 'phoenixLance', cls: 'emberwright', name: 'Long Poker', branch: 'kindling', maxRank: 1, capstone: true, text: 'Every 2.5s, a white-hot poker stabs through a long line of foes. Line them up.', tip: "Every 2.5s, a poker hits everything in a 520 px line for 75 damage." },
   searingBloom: { id: 'searingBloom', cls: 'emberwright', name: 'Searing Bloom', branch: 'kindling', maxRank: 1, capstone: true, text: 'Your crits burst onto foes around the target and set the target burning.', tip: "Every crit splashes 60% of the hit onto foes within 90 px of the target, and burns the target for 30 damage per second for 3s." },
   // Ashguard: defense and utility
   cinderSkin: { id: 'cinderSkin', cls: 'emberwright', name: 'Cinder Skin', branch: 'ashguard', maxRank: 3, text: '+25 max health, heal 25, and +6% damage.' },
@@ -247,7 +269,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   wideSpatter: { id: 'wideSpatter', ability: 0, cls: 'slagbinder', name: 'Wide Spatter', branch: 'forge', deep: true, maxRank: 3, text: 'Plating bursts 15 px wider and 10% harder.' },
   everMolten: { id: 'everMolten', cls: 'slagbinder', name: 'Ever-Molten', branch: 'forge', maxRank: 1, capstone: true, text: 'Plating that runs out unbroken gives back 15 Slag.' },
   twinPour: { id: 'twinPour', cls: 'slagbinder', name: 'Twin Coat', branch: 'forge', maxRank: 1, capstone: true, text: 'Molten Plating coats a second hero. Alone, it is 50% thicker. +40% damage while plated.' },
-  heavyLob: { id: 'heavyLob', cls: 'slagbinder', name: 'Heavy Lob', branch: 'clinker', maxRank: 3, text: 'Slag Lob deals 30% more damage.' },
+  heavyLob: { id: 'heavyLob', cls: 'slagbinder', name: 'Packed Shot', branch: 'clinker', maxRank: 3, text: 'Your cannon shots deal 30% more damage.' },
   shrapnel: { id: 'shrapnel', cls: 'slagbinder', name: 'Shrapnel', branch: 'clinker', maxRank: 2, text: 'Slag Lob splashes 15 px wider and 30% harder.' },
   brittleMind: { id: 'brittleMind', cls: 'slagbinder', name: 'Lasting Cracks', branch: 'clinker', maxRank: 2, text: 'Brittle lasts 2s longer.' },
   fastLadle: { id: 'fastLadle', cls: 'slagbinder', name: 'Fast Ladle', branch: 'clinker', deep: true, maxRank: 3, text: 'Slag Lob throws 10% more often.' },
@@ -283,7 +305,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   longStand: { id: 'longStand', ability: 1, cls: 'slagbinder', name: 'Long Stand', branch: 'crust', deep: true, party: true, maxRank: 2, text: 'Interpose guards your ally 1s longer, in either stance.' },
   wideShell: { id: 'wideShell', ability: 2, cls: 'slagbinder', name: 'Wide Shell', branch: 'forge', deep: true, party: true, maxRank: 2, text: 'Cooling Shell covers allies 50 px farther away, in either stance.' },
   clinkerHeart: { id: 'clinkerHeart', cls: 'slagbinder', name: 'Clinker Heart', branch: 'crust', maxRank: 1, capstone: true, text: 'Falling below 30% health plates you for 25% of your max health, once every 30s. +50% damage while plated.' },
-  slagTide: { id: 'slagTide', ability: 1, cls: 'slagbinder', name: 'Slag Tide', branch: 'crust', maxRank: 1, capstone: true, text: 'Interpose lands with a wave: 60 damage and a 1s stun within 120 px.' },
+  slagTide: { id: 'slagTide', ability: 1, cls: 'slagbinder', name: 'Slag Tide', branch: 'crust', maxRank: 1, capstone: true, text: 'Recoil lands with a wave: 60 damage and a 1s stun within 120 px.' },
   // Site cards (Phase 11 variety): each pays off only in its situation, and is offered only while that situation is still ahead in the run.
   ventFed: { id: 'ventFed', cls: 'emberwright', name: 'Vent-Fed', branch: 'kindling', maxRank: 2, where: 'vents', text: 'A vent flaring near you gives Heat and doubles your next volley.', tip: 'When a vent flares within 260 px of you, and you are outside its circle, gain 25 Heat per rank, and your next Cinder Volley deals double damage.' },
   readTheLane: { id: 'readTheLane', ability: 1, cls: 'duskblade', name: 'Read the Lane', branch: 'guard', maxRank: 2, where: 'lane', text: 'Sidestep out of a lob or charge lane: Sidestep comes back sooner, and your next 3 swings hit harder.', tip: 'Sidestep while standing in an Ember Lob circle or an Ashbuck charge lane that has not landed: Sidestep comes back 3s sooner per rank, and your next 3 swings deal 35% more per rank.' },
