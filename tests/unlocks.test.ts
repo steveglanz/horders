@@ -14,10 +14,10 @@ function world(cls: ClassId, unlockLevel?: number, party?: { cls: ClassId; unloc
 }
 
 describe('ability unlocks by character level', () => {
-  it('Q at 1, E at 2, R at 3, F at 4', () => {
-    expect(SLOT_UNLOCK).toEqual([1, 2, 3, 4]);
+  it('Q and F at 1, E at 2, R at 3', () => {
+    expect(SLOT_UNLOCK).toEqual([1, 2, 3, 1]);
     const open = (level: number | undefined) => [0, 1, 2, 3].filter((s) => slotOpen(s, level)).length;
-    expect([1, 2, 3, 4, 5, 20].map(open)).toEqual([1, 2, 3, 4, 4, 4]);
+    expect([1, 2, 3, 4, 5, 20].map(open)).toEqual([2, 3, 4, 4, 4, 4]);
     expect(open(undefined)).toBe(4);
     expect(open(0)).toBe(1);
     expect(open(Number.NaN)).toBe(1);
@@ -29,23 +29,24 @@ describe('ability unlocks by character level', () => {
       w.player.heat = 100;
       expect(w.unlocked(0)).toBe(true);
       expect(w.canCast(0)).toBe(true);
-      for (const slot of [1, 2, 3]) {
+      expect(w.unlocked(3)).toBe(true);
+      for (const slot of [1, 2]) {
         expect(w.unlocked(slot)).toBe(false);
         expect(w.canCast(slot)).toBe(false);
       }
-      const before = w.player.cds[3];
-      w.step({ x: 0, y: 0, cast: 3 });
-      expect(w.player.cds[3]).toBe(before);
+      const before = w.player.cds[2];
+      w.step({ x: 0, y: 0, cast: 2 });
+      expect(w.player.cds[2]).toBe(before);
     }
   });
 
-  it('leaving the level out (tools, tests) keeps all 4, and levels 2 and 3 open E and R', () => {
+  it('leaving the level out (tools, tests) keeps all 4, and levels 2 and 3 open E and R (F is open from level 1)', () => {
     const all = world('emberwright');
     expect([0, 1, 2, 3].every((s) => all.unlocked(s))).toBe(true);
     const two = world('emberwright', 2);
-    expect([0, 1, 2, 3].map((s) => two.unlocked(s))).toEqual([true, true, false, false]);
+    expect([0, 1, 2, 3].map((s) => two.unlocked(s))).toEqual([true, true, false, true]);
     const three = world('emberwright', 3);
-    expect([0, 1, 2, 3].map((s) => three.unlocked(s))).toEqual([true, true, true, false]);
+    expect([0, 1, 2, 3].map((s) => three.unlocked(s))).toEqual([true, true, true, true]);
   });
 
   it('never drafts talents for a slot that is still locked', () => {
@@ -55,7 +56,7 @@ describe('ability unlocks by character level', () => {
         (w as unknown as Inner).rollDraft();
         for (const c of w.choices) {
           const def = TALENTS[c.id as keyof typeof TALENTS];
-          if (def && def.ability !== undefined) expect(def.ability).toBe(0);
+          if (def && def.ability !== undefined) expect([0, 3]).toContain(def.ability);
         }
       }
     }
@@ -65,18 +66,18 @@ describe('ability unlocks by character level', () => {
     const w = world('bulwark', 4, [{ cls: 'lumen', unlockLevel: 2 }, { cls: 'duskblade' }]);
     const inner = w as unknown as Inner;
     inner.use(1);
-    expect([0, 1, 2, 3].map((s) => w.unlocked(s))).toEqual([true, true, false, false]);
+    expect([0, 1, 2, 3].map((s) => w.unlocked(s))).toEqual([true, true, false, true]);
     inner.use(2);
     expect(w.unlocked(3)).toBe(true);
     inner.use(0);
     expect(w.unlocked(3)).toBe(true);
   });
 
-  it('a hero with locked buttons hits harder and is hit softer, one step per locked button', () => {
+  it('a hero below level 4 hits harder and is hit softer, one step per level short of it (even with F open)', () => {
     const full = world('emberwright', 4);
     const one = world('emberwright', 1);
-    expect(full.lockedSlots).toBe(0);
-    expect(one.lockedSlots).toBe(3);
+    expect(full.aidSteps).toBe(0);
+    expect(one.aidSteps).toBe(3);
     expect(one.dmgMult / full.dmgMult).toBeCloseTo(1 + 3 * UNLOCK_AID.dmg, 5);
     const hit = (w: World) => { const hp = w.player.hp; (w as unknown as { hurtPlayer(a: number): void }).hurtPlayer(20); return hp - w.player.hp; };
     const cut = UNLOCK_AID.cut;
@@ -85,6 +86,8 @@ describe('ability unlocks by character level', () => {
     UNLOCK_AID.cut = cut;
     expect(hit(one) / plain).toBeCloseTo(1 - 3 * cut, 2);
     expect(hit(full)).toBeGreaterThan(hit(world('emberwright', 1)));
+    expect([1, 2, 3, 4, 5].map((l) => world('emberwright', l).aidSteps)).toEqual([3, 2, 1, 0, 0]);
+    expect(world('emberwright').aidSteps).toBe(0);
   });
 
   it('the first delve teaches stepping out of the Brute\'s cast when there is no interrupt yet', () => {
