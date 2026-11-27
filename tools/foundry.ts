@@ -2,7 +2,6 @@
 // STANCE=anvil|bellows sets the Slagbinder stance (default bellows).
 // TIER=n, SEEDS=..., CLS=..., BOT_PATH=... as in the other tools. HEAT=stoneFloor etc. plays with that Heat (Phase 14 X1).
 // OMENS=client|rotate|none|ids picks the Omens (tools/omenopt.ts); the default is none, though the client plays 1 to 3 from tier 3.
-// POTION=risingDraught|stillwater|kindling brews that potion for every run.
 // SET=kilnbreaker|tidewalker|glarewarden|hearthkeeper|wrackrider|deepguard|ventwalker|kinbound SETN=2|3 turns the hero's head, hands and trinket (in that order) into set pieces.
 import * as WORLD from '../sim/world';
 import { World } from '../sim/world';
@@ -54,7 +53,7 @@ const seeds = (process.env.SEEDS ?? Array.from({ length: 24 }, (_, i) => i + 1).
 let wins = 0, bossTime = 0, bossFights = 0;
 const fightHurts: number[] = [];
 for (const seed of seeds) {
-  const w = new World({ ...heroOpts, heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln') ?? 'foundry', tier: Number(process.env.TIER ?? 1), omens: toolOmens(Number(process.env.TIER ?? 1), seed), cls: (process.env.CLS as 'emberwright') ?? 'emberwright', halls: process.env.HALLS === '1', hallsTemplate: process.env.HALLSMAP === 'a' });
+  const w = new World({ ...heroOpts, heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, seed, dungeon: (process.env.DUNGEON as 'kiln') ?? 'foundry', tier: Number(process.env.TIER ?? 1), omens: toolOmens(Number(process.env.TIER ?? 1), seed), cls: (process.env.CLS as 'emberwright') ?? 'emberwright', halls: process.env.HALLS === '1', hallsTemplate: process.env.HALLSMAP === 'a' });
   // Phase 16 U2: FIGHT=<encounter id> makes it the first fight of every run (the run is still in its intro), so a new fight compares with another on the same seeds.
   if (process.env.FIGHT) w.route[0] = process.env.FIGHT as never;
   // BOSSV=turning (any boss version id) forces this run's boss version, so versions compare on the same seeds.

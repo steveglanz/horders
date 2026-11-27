@@ -60,7 +60,7 @@ for (let run = 1; run <= runs; run++) {
     writeFileSync(`${snapDir}/hero-t${h.maxTier}${process.env.SEED_OFFSET ? '-' + process.env.SEED_OFFSET : ''}.json`, JSON.stringify(h));
   }
   if (true) {
-    console.log(`run ${String(run).padStart(2)}: T${s.tier} ${s.victory ? 'WIN ' : 'loss'} ${s.time.toFixed(0).padStart(3)}s  hero lvl ${h.level}  gear ${gearScore(h)}  +${r.heroXp}xp  items ${r.items.map((i) => i.rarity[0]).join('')} quests ${s.questsDone}  embers ${h.embers} forged ${forgedTotal}  wins so far ${wins}`);
+    console.log(`run ${String(run).padStart(2)}: T${s.tier} ${s.victory ? 'WIN ' : 'loss'} ${s.time.toFixed(0).padStart(3)}s  hero lvl ${h.level}  gear ${gearScore(h)}  +${r.heroXp}xp  items ${r.items.map((i) => i.rarity[0]).join('')}  embers ${h.embers} forged ${forgedTotal}  wins so far ${wins}`);
   }
 }
 

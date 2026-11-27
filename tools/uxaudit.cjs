@@ -96,9 +96,6 @@ async function run(browser, tag) {
   await page.evaluate(() => document.querySelector('.hub-delve')?.scrollIntoView({ block: 'start' }));
   await page.waitForTimeout(150);
   await shot('04-delve-setup');
-  await page.evaluate(() => document.querySelector('.pots')?.scrollIntoView({ block: 'center' }));
-  await page.waitForTimeout(150);
-  await shot('05-potions');
   await page.evaluate(() => document.getElementById('coop')?.scrollIntoView({ block: 'center' }));
   await page.waitForTimeout(150);
   await shot('06-coop');

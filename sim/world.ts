@@ -18,10 +18,9 @@ import { TREE, TreeNodeId } from './content/trees';
 /** Character tree numbers, re-exported so the tools' TUNE=TREE.bulkHp=8 reaches them. */
 export { TREE };
 import { Item, LootSource, RARITIES, Rarity } from './content/items';
-import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
 import { FIRST_DELVE } from './content/firstdelve';
-import { POTION, POTION_IDS, PotionId } from './content/potions';
+import { RELIC, RELICS, RELIC_IDS, RELIC_OFFER, RelicId } from './content/relics';
 import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/sets';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterDef, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
@@ -46,16 +45,27 @@ export const CHOOSE_TIME = 10;
 /** Gate size and spacing at a fork. */
 export const GATE_RADIUS = 46;
 export const RIFT_TIMES = [60, 200, 330];
+/** The Kiln Mother's own enrage (her harder, faster attacks); her Boil-over starts before it, at BOIL.kilnMother. */
 const BOSS_ENRAGE_AFTER = 150;
 /**
- * Burnout (C7 stall fix): no fight can last forever. After `fight` s in a regular
- * fight, or `boss` s in a boss fight, the fire takes everything: every living hero
- * loses `ramp` of max health per second, plus `ramp` more each second it goes on,
- * through shields. `warn` s before, the HUD warns. `addCap`: a fight never holds
- * more than this many live foes (summons past it fizzle).
+ * Boil-over (1.0 CP2, replaces Burnout; docs/design/fight-budgets.md, rename-map section 4): the boss's clock, shown.
+ * The Kiln Mother boils over `kilnMother` s after she comes in; each other boss when it enrages (its own enrageAfter,
+ * a raid boss's hard enrage) until its place is remade. It glows, taunts once, and every `every` s after that each hit
+ * on a hero lands `step` harder. The boss plate counts down to it. No hidden timer kills anyone: you fall to the boss,
+ * and the loss screen names the blow. The Kiln Mother's own enrage (BOSS_ENRAGE_AFTER, 150 s) still comes on top,
+ * by then at Boil-over's 7th step (design, 27 Nov: moving her whole enrage to 90 s cost the Bulwark at tier 3 8 of 20
+ * wins, Boil-over grid in teams/design.md).
  */
-/** `named`: Phase 14 X5, extra seconds for the fight that holds this delve's named foe (a 2x-health elite, often with a ward, outlasted ranged classes). */
-export const BURNOUT = { fight: 240, boss: 360, warn: 30, ramp: 0.04, addCap: 150, named: 60 };
+export const BOIL = { kilnMother: 90, every: 10, step: 0.2 };
+/** Boil-over's one taunt (vision.md section 6 item 5; the Kiln Mother calls you "little thief", world.md), and the line for the other bosses until they get taunts. */
+export const BOIL_TAUNT: { kilnMother: string; other: string } = { kilnMother: "You've stayed too long, little thief.", other: 'It hits harder every 10 s.' };
+/**
+ * Burnout's trash and named-fight timers are gone (1.0 CP2). What's left is a stall breaker that never hurts a hero:
+ * a regular fight still going after `fight` s (`named` more for the delve's named foe) cracks its own foes, `ramp` of
+ * their max health a second, plus `ramp` more each second. `addCap`: a fight never holds more than this many live
+ * foes (summons past it fizzle).
+ */
+export const STALL = { fight: 240, named: 60, ramp: 0.04, addCap: 150 };
 export const SHADOW_TIME = 60;
 /** Chance that a normal enemy drops an item. */
 const TRASH_DROP = 1 / 800;
@@ -488,13 +498,6 @@ export interface Vein {
   progress: number;
 }
 
-export interface Quest {
-  id: QuestId;
-  progress: number;
-  goal: number;
-  done: boolean;
-}
-
 export interface Gate {
   kind: GateKind;
   encounter: EncounterId;
@@ -600,6 +603,10 @@ export interface Player {
   xp: number;
   xpToNext: number;
   pendingLevels: number;
+  /** 1.0 CP2: a Relic pick is waiting (after the door guard), the Relic carried, and whether a Spare Wick has caught them. */
+  relicPick?: boolean;
+  relic?: RelicId;
+  relicSpent?: boolean;
   /** Set timers (R4): Kilnbreaker damage, time on the move and a charged Tidewalker hit, Glarewarden damage. */
   kbT?: number;
   moveT?: number;
@@ -708,8 +715,9 @@ export type SimEvent =
   | { type: 'namedKill'; x: number; y: number; name: string }
   | { type: 'namedSpawn'; index: number; name: string; affix: Affix }
   | { type: 'bossEnrage' }
+  /** Boil-over (1.0 CP2): the boss glows and taunts, and from now on hits harder every BOIL.every s. */
+  | { type: 'boilOver' }
   /** C7: a fight has gone on too long (`warn`: 30 s left; otherwise the fire now takes everything). */
-  | { type: 'burnout'; warn: boolean }
   | { type: 'emberTaken'; x: number; y: number }
   | { type: 'emberEaten'; x: number; y: number; fed: number }
   | { type: 'swallowed'; hero: number }
@@ -764,7 +772,8 @@ export type SimEvent =
   | { type: 'ventShift'; stage: 'warn' | 'open'; vent: number }
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
-  | { type: 'potion'; id: PotionId; x: number; y: number }
+  /** A Relic (1.0 CP2) did its thing: the Spare Wick caught a hero, or one was picked up (`picked`). */
+  | { type: 'relic'; id: RelicId; hero: number; x: number; y: number; picked?: boolean }
   | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number; /** The hero's ability option (ALT_ABILITIES), not the class's own. */ alt?: boolean; /** Who cast the option (World.acting), so a screen draws it as that hero's class and from that hero. */ hero?: number }
   | { type: 'blink'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'dash'; x1: number; y1: number; x2: number; y2: number; dodge: boolean }
@@ -812,7 +821,6 @@ export type SimEvent =
   | { type: 'soak'; ok: boolean; x: number; y: number; /** The telegraph's owner: -4 is a Banked Coal (a miss feeds Vorhulm, no blast). */ owner?: number }
   | { type: 'drop'; x: number; y: number; rarity: Rarity }
   | { type: 'loot'; item: Item; equipped: boolean; delta: number; hero?: number }
-  | { type: 'quest'; index: number }
   | { type: 'encounterStart'; index: number; id: EncounterId }
   /** Phase 18 Halls: map pack `pack` woke (World.halls.packs), and the party went through the boss door. */
   | { type: 'hallsWake'; pack: number }
@@ -829,6 +837,8 @@ export type SimState = 'running' | 'draft' | 'ended';
 export interface DraftOption {
   id: TalentId;
   nextRank: number;
+  /** 1.0 CP2: a Relic card (after the door guard) instead of a Spark; `id` is then unused. */
+  relic?: RelicId;
 }
 
 /** Another hero in a co-op party (the main hero comes from WorldOptions itself). */
@@ -853,8 +863,6 @@ export interface HeroOptions {
   gear?: Item[];
   passives?: Partial<Record<PointId, number>>;
   name?: string;
-  /** Co-op: the potion this party member brewed (the lead hero's comes from WorldOptions.potion). */
-  potion?: PotionId;
 }
 
 /** The per-hero state a co-op snapshot carries (the rest of HeroSlot comes from the start options). */
@@ -908,8 +916,6 @@ export interface WorldOptions {
   heroLevel?: number;
   /** First free item id, so run drops never collide with the hero's bag. */
   nextItemId?: number;
-  /** Which quests to offer (none by default in the dungeon). */
-  quests?: QuestId[];
   /** Fixed encounter route; rolled from the seed when left out. */
   route?: EncounterId[];
   /** Difficulty tier, 1 and up. Higher tiers hit harder and drop better loot. */
@@ -938,8 +944,6 @@ export interface WorldOptions {
   worldBoss?: string;
   /** Which dungeon to delve (default the Kiln Depths). */
   dungeon?: DungeonId;
-  /** The potion brewed for this delve, if any (R8 Alchemy). */
-  potion?: PotionId;
   /** Heroes in the party (1 to 4). Scales enemy health and targeted mechanics. */
   partySize?: number;
   /** Fill with bots: how many of the party heroes are bots (content/botfill). A bot-filled party gets no extra group boss item. */
@@ -973,7 +977,6 @@ export interface RunSummary {
   shadowDamage?: number;
   shadowTime?: number;
   talents: Partial<Record<TalentId, number>>;
-  questsDone?: number;
   omens?: OmenId[];
   paths?: GateKind[];
   dungeon?: DungeonId;
@@ -1038,12 +1041,10 @@ export class World {
   /** The world boss's Omen when it added one the tier didn't already have. */
   readonly bossOmen: OmenId | undefined;
   readonly dungeonId: DungeonId;
-  /** The lead hero's potion for this delve; `potionUsed` once their Rising Draught has fired. */
-  readonly potion: PotionId | undefined;
-  get potionUsed(): boolean { return this.potionSpent[0]; }
-  /** Each hero's potion, by hero index (0 is `potion`), and whether their Rising Draught has fired. */
-  private readonly potions: (PotionId | undefined)[] = [];
-  private readonly potionSpent: boolean[] = [];
+  /** Relics (1.0 CP2): whether this run offers one after the door guard (not the first delve, the bounty or a stress run). */
+  readonly relicsOn: boolean;
+  /** Loose Lid: the boss fight's health cut is in (it lands once, whoever carries it). */
+  private lidDone = false;
   /** The run's seed, for side streams that mustn't disturb the main rolls. */
   readonly seed: number;
   readonly bounty: number | undefined;
@@ -1372,7 +1373,6 @@ export class World {
   private nightT = 0;
   private waterT = 0;
   private volatileT = 0;
-  quests: Quest[] = [];
   rareSpawned = false;
   rareIndex = -1;
   riftsOpened = 0;
@@ -1463,9 +1463,9 @@ export class World {
   aliveEnemies = 0;
   /** When the current fight started (Burnout counts from here). */
   private fightStartedAt = 0;
-  private burnoutWarned = false;
-  private burnoutTickT = 0;
-  private burnoutOn = false;
+  private stallTickT = 0;
+  /** Boil-over: when this boss fight's boss boiled over (its enrage began), or -1. */
+  boilStart = -1;
 
   // Spatial hash over enemies, rebuilt every tick.
   private head = new Int32Array(HASH_SIZE);
@@ -1488,8 +1488,6 @@ export class World {
     this.nextItemId = opts.nextItemId ?? 1;
     this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
     this.dungeonId = opts.dungeon ?? 'kiln';
-    // Potions are for your own delves; the daily bounty is the same run for everyone.
-    this.potion = opts.bounty === undefined ? opts.potion : undefined;
     this.bounty = opts.bounty;
     this.keyLevel = opts.keyLevel ?? 0;
     ({ hp: this.keyHp, dmg: this.keyDmg } = keyScale(this.keyLevel));
@@ -1497,6 +1495,8 @@ export class World {
     this.fillBots = opts.fillBots ?? 0;
     this.partySize = clampParty(opts.partySize ?? 1 + Math.min(MAX_PARTY - 1, opts.party?.length ?? 0));
     this.firstDelve = !!opts.firstDelve && this.dungeonId === 'kiln' && this.tier === 1 && opts.bounty === undefined && !this.keyLevel && this.partySize === 1;
+    // Relics from the second delve on (unlock-curve.md); the bounty is the same run for everyone.
+    this.relicsOn = !this.firstDelve && !this.stress && opts.bounty === undefined;
     this.bossV2 = !this.firstDelve;
     this.gunner = opts.gunner ?? SLAG_GUNNER;
     if (this.firstDelve) {
@@ -1546,8 +1546,6 @@ export class World {
     this.drops = pool(CAP.drops, () => ({ alive: false, x: 0, y: 0, item: null }));
     this.veins = pool(CAP.veins, () => ({ alive: false, x: 0, y: 0, progress: 0 }));
     this.cracks = pool(CAP.cracks, () => ({ alive: false, x: 0, y: 0, angle: 0, t: 0 }));
-    const ids = opts.quests ?? [];
-    this.quests = ids.map((id) => ({ id, progress: 0, goal: QUESTS[id].goal, done: false }));
     this.route = opts.route ?? (this.firstDelve ? [...FIRST_DELVE.route] : rollRoute((n) => this.rng.int(n), this.dungeonId));
     if (this.bounty !== undefined) {
       // A bounty skips the two openers, so the hero starts with the two levels (and drafts) they would have earned.
@@ -1555,31 +1553,13 @@ export class World {
       this.player.pendingLevels += BOUNTY.headStart;
       this.player.xpToNext = xpFor(this.player.level);
     }
-    if (this.potion === 'kindling') {
-      // Kindling Brew: one level (and one talent pick) before the first fight.
-      this.player.level += 1;
-      this.player.pendingLevels += 1;
-      this.player.xpToNext = xpFor(this.player.level);
-    }
     this.strikes = pool(CAP.strikes, () => ({ alive: false, x: 0, y: 0, r: 0, t: 0, dmg: 0 }));
     this.lances = pool(CAP.lances, () => ({ alive: false, x1: 0, y1: 0, x2: 0, y2: 0, life: 0 }));
     this.heroes.push(this.saveSlot('h0', opts.heroName ?? 'Hero'));
     const extra = (opts.party ?? []).slice(0, MAX_PARTY - 1);
-    this.potions.push(this.potion);
     extra.forEach((h, k) => {
       this.heroes.push(this.makeHero(h, k + 1, opts));
-      this.potions.push(opts.bounty === undefined && h.potion && POTION_IDS.includes(h.potion) ? h.potion : undefined);
     });
-    for (let i = 0; i < this.heroes.length; i++) {
-      this.potionSpent.push(false);
-      // Kindling Brew on a party member: one level (and one pick) before the first fight, as for the lead hero.
-      if (i > 0 && this.potions[i] === 'kindling') {
-        const p = this.heroes[i].player;
-        p.level += 1;
-        p.pendingLevels += 1;
-        p.xpToNext = xpFor(p.level);
-      }
-    }
     // Foes adapt to the party (Steve, 26 Nov): who can stop a cast is fixed at the start (partyStops).
     this.partyKick = this.heroes.some((h) => h.classDef.kick && slotOpen(3, h.player.unlockLevel));
     this.partyF = this.heroes.some((h) => slotOpen(3, h.player.unlockLevel));
@@ -1863,9 +1843,7 @@ export class World {
   }
 
   abilityCooldown(slot: number): number {
-    const cd = this.baseCooldown(slot);
-    // Stillwater Tonic: the interrupt comes back faster all delve.
-    return slot === 3 && this.potions[this.acting] === 'stillwater' ? cd * POTION.stillwaterCd : cd;
+    return this.baseCooldown(slot);
   }
 
   private baseCooldown(slot: number): number {
@@ -2075,18 +2053,16 @@ export class World {
     if (this.heroes.length === 1) {
       const opt = this.choices[index];
       if (!opt) return;
-      this.applyTalent(opt.id);
-      this.player.pendingLevels--;
+      this.takePick(opt);
       this.choices = [];
-      if (this.player.pendingLevels > 0) this.openDraft();
+      if (this.picksWaiting()) this.openDraft();
       else this.state = 'running';
       return;
     }
     this.use(hero);
     const opt = this.choices[index];
     if (opt) {
-      this.applyTalent(opt.id);
-      this.player.pendingLevels--;
+      this.takePick(opt);
       this.choices = [];
     }
     this.use(0);
@@ -2094,6 +2070,42 @@ export class World {
     // on the same tick the draft opened. The run resumes once nobody has cards.
     this.openDraftAll();
     if (this.heroes.every((_, i) => this.choicesOf(i).length === 0)) this.state = 'running';
+  }
+
+  /** A card taken: a Spark (a level's pick) or, once the levels are picked, the Relic. */
+  private takePick(opt: DraftOption): void {
+    const p = this.player;
+    if (opt.relic) {
+      p.relicPick = false;
+      p.relic = opt.relic;
+      if (opt.relic === 'spareWick') { p.maxHp *= RELIC.wickMaxHp; p.hp = Math.min(p.hp, p.maxHp); }
+      this.events.push({ type: 'relic', id: opt.relic, hero: this.acting, x: p.x, y: p.y, picked: true });
+      return;
+    }
+    this.applyTalent(opt.id);
+    p.pendingLevels--;
+  }
+
+  /** Whether the acting hero has a pick waiting: a level's Spark, or the Relic after the door guard. */
+  private picksWaiting(): boolean {
+    return this.player.pendingLevels > 0 || !!this.player.relicPick;
+  }
+
+  /** The acting hero's next cards: Sparks while levels wait, then the Relic pick. */
+  private nextCards(): DraftOption[] {
+    if (this.player.pendingLevels > 0) return this.rollDraft();
+    return this.player.relicPick ? this.relicCards() : [];
+  }
+
+  /**
+   * RELIC_OFFER Relics the acting hero hasn't got, from those that fit this dungeon (Spare Wick only in a solo
+   * dungeon; Loose Lid only where the boss has a Boil-over clock), drawn on the run's rng.
+   */
+  relicCards(): DraftOption[] {
+    const pool = RELIC_IDS.filter((id) => (!RELICS[id].soloOnly || this.dungeonDef.style === 'solo') && (!RELICS[id].needsBoil || this.boilAfter(this.dungeonDef.boss as EnemyKind) !== undefined));
+    const out: DraftOption[] = [];
+    while (out.length < RELIC_OFFER && pool.length) out.push({ id: 'relic' as TalentId, nextRank: 1, relic: pool.splice(this.rng.int(pool.length), 1)[0] });
+    return out;
   }
 
   /** Co-op: the draft cards hero `i` is choosing from (empty when they're done). */
@@ -2119,7 +2131,6 @@ export class World {
       shadowTime: this.shadowStart >= 0 ? Math.round(Math.min(SHADOW_TIME, this.time - this.shadowStart))
         : this.raidStart >= 0 ? Math.round(this.time - this.raidStart) : 0,
       talents: { ...this.talents },
-      questsDone: this.quests.filter((q) => q.done).length,
       week: this.week,
       ...(this.day !== undefined ? { day: this.day } : {}),
       ...(this.keyLevel ? { keyLevel: this.keyLevel } : {}),
@@ -2184,7 +2195,7 @@ export class World {
     if (this.phase === 'fight') this.dungeonClocks(dt);
     if (this.phase === 'fight' && this.layout !== 'open') this.layoutClock(dt);
     if (this.phase === 'fight' && this.arenaEvent) this.arenaEventClock(dt);
-    if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
+    if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.fightClock(dt);
     if (this.phase === 'fight' && this.reinforceN > 0 && !this.victory) this.reinforceClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && this.reinforceN === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
@@ -2279,33 +2290,59 @@ export class World {
     return e.named >= 0 ? `${NAMED_TITLES[e.named]}, ${e.def.name}` : e.def.name;
   }
 
-  /** Burnout: the hard limit on any fight (see BURNOUT). */
-  private burnoutClock(dt: number): void {
-    // The raid boss has her own hard enrage (Last Ember), so Burnout only backs it up.
-    const bossLimit = this.dungeonDef.raid ? SLAG.hardEnrage + SLAG.lastEmberCast + BURNOUT.warn : BURNOUT.boss;
-    const limit = this.fightStartedAt + (this.encounterDef.id === this.dungeonDef.boss ? bossLimit : BURNOUT.fight + (this.encounter === this.namedAt ? BURNOUT.named : 0));
-    if (!this.burnoutWarned && this.time >= limit - BURNOUT.warn) {
-      this.burnoutWarned = true;
-      this.events.push({ type: 'burnout', warn: true });
+  /** Boil-over's steps so far: 0 before the boss boils over, then 1, 2, 3... one more every BOIL.every s. */
+  get boilSteps(): number {
+    return this.boilStart < 0 ? 0 : 1 + Math.floor((this.time - this.boilStart) / BOIL.every + 1e-9);
+  }
+
+  /** Boil-over's share on every hit a hero takes now (1 until the second step). */
+  get boilMult(): number {
+    const n = this.boilSteps;
+    return n > 1 ? 1 + BOIL.step * (n - 1) : 1;
+  }
+
+  /**
+   * When this boss boils over, in seconds after it spawned (its enrage), or undefined for a boss that has none of its
+   * own (a raid boss ends on its hard enrage instead). The boss plate counts down to it.
+   */
+  boilAfter(kind: EnemyKind): number | undefined {
+    const at: Partial<Record<EnemyKind, number>> = {
+      kilnMother: BOIL.kilnMother, maelra: FOUNDRY.enrageAfter, lensmother: GLARE.enrageAfter, nhevra: COLD.enrageAfter,
+      hessa: WRACK.enrageAfter, ysmeret: YSMERET.enrageAfter, oskel: OSKEL.enrageAfter, ondrel: ONDREL.enrageAfter,
+    };
+    const t = at[kind];
+    // Loose Lid (a Relic): the boss boils over sooner.
+    return t !== undefined && this.heroes.some((_, i) => this.heroPlayer(i).relic === 'looseLid') ? t - RELIC.lidSooner : t;
+  }
+
+  /** Every step of a fight: Boil-over in a boss fight, the stall breaker in any other (see BOIL and STALL). */
+  private fightClock(dt: number): void {
+    if (this.encounterDef.id === this.dungeonDef.boss) {
+      const b = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+      // Loose Lid (a Relic): the boss comes in with less health (once, whoever in the party carries it).
+      if (!this.lidDone && b?.alive && b.def.rank === 'boss' && this.heroes.some((_, i) => this.heroPlayer(i).relic === 'looseLid')) {
+        this.lidDone = true;
+        b.hp *= RELIC.lidHp;
+        b.maxHp *= RELIC.lidHp;
+      }
+      if (this.boilStart >= 0) return;
+      const after = b?.alive ? this.boilAfter(b.kind) : undefined;
+      if (this.bossEnraged || (b?.alive && after !== undefined && this.time - b.spawnedAt >= after)) {
+        this.boilStart = this.time;
+        this.events.push({ type: 'boilOver' });
+      }
+      return;
     }
+    const limit = this.fightStartedAt + STALL.fight + (this.encounter === this.namedAt ? STALL.named : 0);
     if (this.time < limit) return;
-    this.burnoutTickT -= dt;
-    if (this.burnoutTickT > 0) return;
-    // The first tick lands as soon as the limit passes, then one a second.
-    if (!this.burnoutOn) {
-      this.burnoutOn = true;
-      this.events.push({ type: 'burnout', warn: false });
+    this.stallTickT -= dt;
+    if (this.stallTickT > 0) return;
+    this.stallTickT += 1;
+    const share = STALL.ramp * (1 + Math.floor(this.time - limit));
+    for (let i = 0; i < this.enemies.length; i++) {
+      const e = this.enemies[i];
+      if (e.alive) this.damageEnemy(i, e.maxHp * share, false, true);
     }
-    this.burnoutTickT += 1;
-    const share = BURNOUT.ramp * (1 + Math.floor(this.time - limit));
-    const at = this.acting;
-    this.eachHero(() => {
-      const p = this.player;
-      this.noteHurt(p, Math.min(p.maxHp * share, Math.max(0, p.hp)), 'Burnout (the fight ran too long)');
-      p.hp -= p.maxHp * share;
-      if (p.hp < 0) p.hp = 0;
-    });
-    this.use(at);
   }
 
   /**
@@ -2345,9 +2382,7 @@ export class World {
       this.ebbWarnT = 0;
       this.ebbT = 0;
     }
-    this.burnoutWarned = false;
-    this.burnoutTickT = 0;
-    this.burnoutOn = false;
+    this.stallTickT = 0;
     this.player.haloUsed = false;
     this.player.windUsed = false;
     // Glarewell: fresh pillars every fight (a cracked pillar only stays down for that fight).
@@ -2984,7 +3019,7 @@ export class World {
       this.runOmens(dt);
       this.dungeonClocks(dt);
       if (this.lava.length || this.flareVents.length) this.layoutClock(dt);
-      if (this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
+      if (this.aliveEnemies > 0 && !this.victory) this.fightClock(dt);
       for (let k = 0; k < m.packs.length; k++) {
         if (m.packs[k].state !== 'awake') continue;
         if (!this.enemies.some((e) => e.alive && e.pack === k)) this.hallsClear(k);
@@ -3008,10 +3043,13 @@ export class World {
 
   /** Halls: whether sleeping pack `k` wakes this step (a living hero inside its ring, or an awake foe close by). */
   private hallsStirs(k: number): boolean {
-    const pk = this.halls!.packs[k];
+    const m = this.halls!;
+    const pk = m.packs[k];
     for (let h = 0; h < this.heroes.length; h++) {
       const q = this.heroPlayer(h);
       if (q.hp > 0 && (q.x - pk.x) ** 2 + (q.y - pk.y) ** 2 <= HALLS.reach ** 2) return true;
+      // 1.0 CP2, the Kiln run: stepping into the room is enough.
+      if (q.hp > 0 && pk.roomWake && roomAt(m, q.x, q.y) === pk.room) return true;
     }
     for (const e of this.enemies) if (e.alive && (e.x - pk.x) ** 2 + (e.y - pk.y) ** 2 <= HALLS.pull ** 2) return true;
     return false;
@@ -3061,6 +3099,8 @@ export class World {
     const first = !m.packs.some((q) => q.state === 'awake');
     pk.state = 'awake';
     this.events.push({ type: 'hallsWake', pack: k });
+    // 1.0 CP2, the Kiln run's fork: taking one door sends the other door's pack away, unfought and unpaid.
+    if (pk.fork) for (const q of m.packs) if (q.fork && q !== pk && q.state === 'asleep') { q.state = 'cleared'; q.skipped = true; }
     if (!def.spawns.length) {
       this.hallsClear(k);
       return;
@@ -3133,8 +3173,15 @@ export class World {
       for (let b = 1; b < pk.bags; b++) this.dropLoot(this.player.x, this.player.y + 40 * b, src);
     };
     this.trashClear = !!pk.trash;
-    if (this.heroes.length === 1) clear();
-    else this.eachHero(clear, true);
+    const forkPay = () => {
+      // 1.0 CP2 (checkpoint-2-grey-box.md): the hard door pays an extra roll on the rare loot table, the easy door an extra Spark.
+      if (pk.fork === 'hard') this.dropLoot(this.player.x, this.player.y - 40, 'rare');
+      if (pk.fork === 'easy') this.player.pendingLevels++;
+    };
+    // 1.0 CP2: the door guard falls, and each hero picks 1 of 2 Relics (after this clear's Spark).
+    const relic = () => { if (pk.guard && this.relicsOn) this.player.relicPick = true; };
+    if (this.heroes.length === 1) { clear(); forkPay(); relic(); }
+    else { this.eachHero(clear, true); this.eachHero(forkPay, true); this.eachHero(relic, true); }
     this.trashClear = false;
     if (this.heroes.length > 1) for (let i = 0; i < this.heroes.length; i++) { const hp = this.heroPlayer(i); if (hp.hp <= 0) hp.hp = hp.maxHp * 0.3; }
     this.namedFight = false;
@@ -3891,7 +3938,7 @@ export class World {
   private spawn(kind: EnemyKind, x: number, y: number): number {
     const def = ENEMIES[kind];
     // C7: summons past the cap fizzle, so a stalled fight can't flood the arena.
-    if (!this.stress && this.phase === 'fight' && def.rank === 'normal' && kind !== 'kilnBellows' && this.aliveEnemies >= BURNOUT.addCap) return -1;
+    if (!this.stress && this.phase === 'fight' && def.rank === 'normal' && kind !== 'kilnBellows' && this.aliveEnemies >= STALL.addCap) return -1;
     const idx = this.enemies.findIndex((e) => !e.alive);
     if (idx < 0) return -1;
     const e = this.enemies[idx];
@@ -4021,8 +4068,10 @@ export class World {
     p.rollAng = ang;
     p.facing = ang;
     p.rollT = ROLL.time;
-    p.rollCd = ROLL.cd;
+    p.rollCd = ROLL.cd * (p.relic === 'slipGlaze' ? RELIC.glazeCd : 1);
     p.shieldT = Math.max(p.shieldT, ROLL.guard + TICK);
+    // Slip Glaze (a Relic): each roll costs a little health (never the last of it).
+    if (p.relic === 'slipGlaze') p.hp = Math.max(1, p.hp - p.maxHp * RELIC.glazeCost);
     this.events.push({ type: 'roll', x: p.x, y: p.y, angle: ang, hero: this.acting });
   }
 
@@ -4136,6 +4185,10 @@ export class World {
       }
       amount *= 1 - PARRY.block;
     }
+    // Boil-over: from its second step, every hit in the boss fight lands harder (BOIL).
+    amount *= this.boilMult;
+    // Fire Brick (a Relic): less from every hit while standing still, more while moving.
+    if (p.relic === 'fireBrick') amount *= p.moving ? RELIC.brickMoving : RELIC.brickStill;
     // Interpose: a Slagbinder beside this hero takes most of each direct hit, at less damage.
     // Only hits from a foe that can be blocked: never soaks, percent ticks, Ladle Burn or Slag Grip.
     if (src >= 0 && !unblockable && (p.interposeUntil ?? -1) > this.time) {
@@ -4145,7 +4198,8 @@ export class World {
         amount -= moved;
         const back = this.acting;
         this.use(k);
-        this.hurtPlayer(moved * (1 - SLAG_KIT.interposeCut), src);
+        // (Boil-over is already in `moved`: the inner call would add it again.)
+        this.hurtPlayer((moved * (1 - SLAG_KIT.interposeCut)) / this.boilMult, src);
         this.use(back);
       }
     }
@@ -4249,13 +4303,12 @@ export class World {
       this.events.push({ type: 'revive', hero: this.acting });
       return;
     }
-    // Solo dungeons only: in a group dungeon or the raid the party picks you up instead (potionWorksIn).
-    if (amount >= p.hp && this.potions[this.acting] === 'risingDraught' && !this.potionSpent[this.acting] && this.dungeonDef.style === 'solo') {
-      // Rising Draught: the hero who brewed it gets back up once, at a quarter health with a moment's shield.
-      this.potionSpent[this.acting] = true;
-      p.hp = p.maxHp * POTION.riseHp;
-      p.shieldT = POTION.riseShield;
-      this.events.push({ type: 'potion', id: 'risingDraught', x: p.x, y: p.y });
+    // Spare Wick (a Relic, offered in solo dungeons only): the first blow that would fell its carrier leaves them at a quarter.
+    if (amount >= p.hp && p.relic === 'spareWick' && !p.relicSpent) {
+      p.relicSpent = true;
+      p.hp = p.maxHp * RELIC.wickHp;
+      p.shieldT = RELIC.wickShield;
+      this.events.push({ type: 'relic', id: 'spareWick', hero: this.acting, x: p.x, y: p.y });
       return;
     }
     if (this.rank('riposte') > 0 && p.parryT <= 0 && amount >= 5 && !unblockable) {
@@ -7794,9 +7847,7 @@ export class World {
       }
       return;
     }
-    if (e.kind === 'cinderhound') this.progressQuest('hounds');
     if (e.kind === 'rift') {
-      this.progressQuest('rifts');
       this.addHeat(20);
       this.events.push({ type: 'riftClosed', x: e.x, y: e.y });
     }
@@ -7816,7 +7867,6 @@ export class World {
       this.events.push({ type: 'namedKill', x: e.x, y: e.y, name: this.namedName(i) });
     }
     if (e.kind === 'ashmaw') {
-      this.progressQuest('ashmaw');
       this.dropLoot(e.x, e.y, 'elite');
     }
     if (e.kind === 'cinderBrute') this.dropLoot(e.x, e.y, 'elite');
@@ -10231,7 +10281,7 @@ export class World {
 
   /**
    * Fill with bots: bot fills clear faster than solo runs, so only fillLootShare(bots) of the
-   * in-run drops (clear bags, elite and named drops, quest items) survive. Boss items don't thin.
+   * in-run drops (clear bags, elite and named drops, in-run drops) survive. Boss items don't thin.
    */
   private fillKeeps(): boolean {
     if (!this.fillBots) return true;
@@ -10309,7 +10359,6 @@ export class World {
       this.addHeat(30);
       p.hp = Math.min(p.maxHp, p.hp + 10);
       this.gainXp(3);
-      this.progressQuest('veins');
       this.events.push({ type: 'gather', x: v.x, y: v.y });
     }
   }
@@ -10329,30 +10378,9 @@ export class World {
       this.addHeat(30);
       p.hp = Math.min(p.maxHp, p.hp + 10);
       this.gainXp(3);
-      this.progressQuest('veins');
       this.events.push({ type: 'gather', x: v.x, y: v.y });
       this.use(0);
     }
-  }
-
-  // ---------------------------------------------------------------- quests
-
-  pickQuests(): QuestId[] {
-    const all = Object.keys(QUESTS) as QuestId[];
-    all.splice(this.rng.int(all.length), 1);
-    return all;
-  }
-
-  private progressQuest(id: QuestId): void {
-    const k = this.quests.findIndex((q) => q.id === id && !q.done);
-    if (k < 0) return;
-    const q = this.quests[k];
-    q.progress++;
-    if (q.progress < q.goal) return;
-    q.done = true;
-    this.gainXp(this.player.xpToNext * 0.6);
-    if (this.fillKeeps()) this.pickUp(this.makeItem('elite'));
-    this.events.push({ type: 'quest', index: k });
   }
 
   // ---------------------------------------------------------------- xp
@@ -10387,7 +10415,7 @@ export class World {
         }
       }
     }
-    if (this.player.pendingLevels > 0 && this.state === 'running' && this.phase !== 'fight') { if (this.heroes.length === 1) this.openDraft(); else this.openDraftAll(); }
+    if (this.picksWaiting() && this.state === 'running' && this.phase !== 'fight') { if (this.heroes.length === 1) this.openDraft(); else this.openDraftAll(); }
   }
 
   /** Co-op gems: a gem flies to the first hero who pulls it, moving once per tick. */
@@ -10416,7 +10444,7 @@ export class World {
         }
       }
     });
-    if (this.state === 'running' && this.phase !== 'fight' && this.heroes.some((_, i) => this.heroPlayer(i).pendingLevels > 0)) this.openDraftAll();
+    if (this.state === 'running' && this.phase !== 'fight' && this.heroes.some((_, i) => this.heroPlayer(i).pendingLevels > 0 || !!this.heroPlayer(i).relicPick)) this.openDraftAll();
   }
 
   private gainXp(v: number): void {
@@ -10436,14 +10464,14 @@ export class World {
     const at = this.acting;
     for (let i = 0; i < this.heroes.length; i++) {
       this.use(i);
-      if (this.player.pendingLevels > 0 && this.choices.length === 0) this.choices = this.rollDraft();
+      if (this.picksWaiting() && this.choices.length === 0) this.choices = this.nextCards();
     }
     this.use(at);
     this.state = 'draft';
   }
 
   private openDraft(): void {
-    this.choices = this.rollDraft();
+    this.choices = this.nextCards();
     this.state = 'draft';
   }
 

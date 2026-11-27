@@ -18,7 +18,7 @@ export const POOLS = ['enemies', 'orbs', 'gems', 'zones', 'telegraphs', 'strikes
  * Small arrays of plain data sent whole. A new array on World must go here, in POOLS, or in
  * NOT_SENT (tests/netsync-coverage.test.ts fails otherwise): the Hoard's embers once missed it.
  */
-export const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route', 'coalEmbers', 'pillars', 'rafts', 'colDmg', 'regentDecree', 'stones', 'lava', 'flareVents', 'driftEmbers', 'islands', 'kmEggs', 'kmRings', 'slagPatches', 'lightMotes'] as const;
+export const ARRAYS = ['omens', 'vents', 'gates', 'paths', 'route', 'coalEmbers', 'pillars', 'rafts', 'colDmg', 'regentDecree', 'stones', 'lava', 'flareVents', 'driftEmbers', 'islands', 'kmEggs', 'kmRings', 'slagPatches', 'lightMotes'] as const;
 /**
  * Plain objects on World a guest draws from, sent whole alongside ARRAYS (QA, 25 Nov: BOSSV2's kmHeat never reached
  * guests, so they saw no burning or safe quarters). A new plain object goes here or in NOT_SENT.
@@ -30,8 +30,6 @@ export const SENT_APART = ['heroes', 'strikeOwner', 'threat', 'events'] as const
 export const NOT_SENT: Record<string, string> = {
   head: 'spatial hash, rebuilt from enemies every step',
   next: 'spatial hash, rebuilt from enemies every step',
-  potions: 'only the host applies potions (hurtPlayer, abilityCooldown); fixed at the start',
-  potionSpent: 'only the host decides Rising Draught',
   // Per-hero fields of the hero swapped in: sent per hero through Snapshot.heroes (heroData).
   gear: 'per hero, fixed at the start from the start options',
   runDrops: 'per hero, sent in Snapshot.heroes',

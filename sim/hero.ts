@@ -16,7 +16,6 @@ import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
 import { ALT_OPTIONS, AltId, cleanAlts } from './content/classes';
 import { TREE, TreeNodeId, canTakeNode, isTreeNode } from './content/trees';
-import { PotionId, potionCost } from './content/potions';
 import type { SetId } from './content/sets';
 import { RunSummary } from './world';
 import {
@@ -78,8 +77,6 @@ export interface HeroProfile {
    * before this field have none: their progress belongs to the selected class.
    */
   roster?: Partial<Record<ClassId, Character>>;
-  /** A potion brewed and waiting for the next delve (R8 Alchemy). */
-  potion?: PotionId;
   /** P1: this week's quests (shared by every class, like the daily bounty). */
   weekly?: WeeklyState;
   /** Titles earned (P1 weekly quests give one for finishing all three). */
@@ -125,7 +122,7 @@ export function altsOn(cls: ClassId, h: Pick<HeroProfile, 'alt' | 'alts' | 'leve
 }
 
 /** P5: embers are not here. One purse is shared by every class (see shareEmbers and economy.md). */
-export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion', 'keys', 'keyBest', 'stance', 'alt', 'alts'] as const;
+export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'keys', 'keyBest', 'stance', 'alt', 'alts'] as const;
 export type Character = Pick<HeroProfile, (typeof CHARACTER_KEYS)[number]>;
 
 function freshCharacter(): Character {
@@ -446,7 +443,9 @@ export function applyRun(
   runDrops: Item[] = [], runEquipped: string[] = [],
 ): RunRewards {
   const xpMult = loadoutFor(hero).xpMult;
-  const heroXp = Math.round(heroXpForRun(s) * xpMult);
+  let heroXp = Math.round(heroXpForRun(s) * xpMult);
+  // QA M5, 27 Nov: a tutorial win ended 2-11 XP short of level 2. The first win always reaches it.
+  if (s.victory && hero.wins === 0 && hero.level === 1) heroXp = Math.max(heroXp, heroXpToNext(1) - hero.xp);
   const loot = rollLoot(seed, s, hero, eliteKilled, runDrops);
   const known = collectionOf(hero);
   // P6: a save from before achievements starts from what it records, read before this run counts.
@@ -824,37 +823,3 @@ export function newerHero(a: HeroProfile, b: HeroProfile): HeroProfile {
   return a.nextItemId >= b.nextItemId ? a : b;
 }
 
-/** Why a potion can't be brewed right now, or null if it can. */
-export function brewBlocker(hero: HeroProfile, id: PotionId): string | null {
-  if (hero.potion === id) return 'Already brewed for your next delve';
-  const cost = potionCost(id, hero.maxTier);
-  if (hero.embers < cost) return `Needs ${cost} embers`;
-  return null;
-}
-
-/**
- * Brews a potion for the next delve. Only one waits at a time: brewing a
- * different one pours the old one away (no refund), so the choice matters.
- */
-export function brewPotion(hero: HeroProfile, id: PotionId): boolean {
-  if (brewBlocker(hero, id)) return false;
-  hero.embers -= potionCost(id, hero.maxTier);
-  hero.potion = id;
-  return true;
-}
-
-/** Takes the waiting potion for a delve that's starting (it's used up either way). */
-/**
- * Whether a brewed potion does anything in this dungeon. Rising Draught is solo only: in a group
- * dungeon or the raid the party picks a fallen hero up, and a Rising Draught on the tank made a
- * group dungeon nearly unlosable (docs/design/potions.md). It stays brewed for the next solo delve.
- */
-export function potionWorksIn(id: PotionId, dungeon: DungeonId | undefined): boolean {
-  return id !== 'risingDraught' || DUNGEONS[dungeon ?? 'kiln'].style === 'solo';
-}
-
-export function takePotion(hero: HeroProfile): PotionId | undefined {
-  const p = hero.potion;
-  hero.potion = undefined;
-  return p;
-}
