@@ -146,3 +146,59 @@ describe('melee answers: Aunt Ebb (the Wrackline)', () => {
     expect(w.player.hp).toBeGreaterThanOrEqual(hp);
   });
 });
+
+describe('melee answers: the Iron Uncle (the Hammerdeep)', () => {
+  type O = Q & { ondrelClock(dt: number): void; finishCast(i: number): void; gripT: number; choirT: number; anvilT: number; ondrelStage: number };
+  const party = [{ cls: 'duskblade' as const, name: 'a' }, { cls: 'lumen' as const, name: 'b' }];
+  function uncle(omens: string[] = []): { w: World; q: O; b: number } {
+    const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 4, omens: omens as never, cls: 'duskblade', party });
+    const q = w as unknown as O;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('ondrel', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    for (let k = 0; k < w.heroes.length; k++) { const p = w.heroData(k).player; p.x = k === 0 ? 50 : 0; p.y = k === 0 ? 0 : 400; }
+    return { w, q, b };
+  }
+
+  it('never hurts by touch: a melee hero standing against him takes nothing between his casts and his Grip', () => {
+    const { w, q, b } = uncle();
+    const e = w.enemies[b];
+    const p = w.heroData(0).player;
+    const hp = p.hp;
+    for (let n = 0; n < 30 * 3; n++) {
+      e.abilityT = 99; e.touchCd = 0; e.x = 0; e.y = 0; q.gripT = 99; q.choirT = 99; q.anvilT = 99;
+      p.x = 50; p.y = 0;
+      for (const t of w.telegraphs) t.alive = false;
+      for (const o of w.enemies) if (o.alive && o.kind !== 'ondrel') o.alive = false;
+      w.step([{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }]);
+    }
+    expect(p.hp).toBeGreaterThanOrEqual(hp);
+  });
+
+  it('his Hammer Sweep is still his when it lands, with or without Quickened (parryable, named on a loss)', () => {
+    for (const omens of [[], ['quickened']]) {
+      const { w, q, b } = uncle(omens);
+      const e = w.enemies[b];
+      e.abilityT = 0; e.x = 0; e.y = 0;
+      q.runAbilities(b, 0.01);
+      const t = w.telegraphs.find((x) => x.alive && x.shape === 'cone')!;
+      expect(t.owner).toBe(b);
+      // Run the cast out: it ends as (or before) the cone lands, and the cone must stay his.
+      while (e.castId) q.runAbilities(b, 1 / 30);
+      expect(t.alive && t.owner).toBe(b);
+    }
+  });
+
+  it('a cast ending leaves his other marks his: the stage-3 slag bursts', () => {
+    const { w, q, b } = uncle();
+    const e = w.enemies[b];
+    (w as unknown as { slagPatches: { x: number; y: number; tick: number; glow: number }[] }).slagPatches = [{ x: 200, y: 0, tick: 0.5, glow: 0 }];
+    q.ondrelStage = 2; e.hp = e.maxHp * 0.1;
+    q.ondrelClock(0.01);
+    const burst = w.telegraphs.find((x) => x.alive && x.x === 200)!;
+    expect(burst.owner).toBe(b);
+    e.castId = 'choir'; e.castName = 'Choir of Iron';
+    q.finishCast(b);
+    expect(burst.owner).toBe(b);
+  });
+});

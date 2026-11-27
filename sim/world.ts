@@ -6691,7 +6691,8 @@ export class World {
       if (e.def.rank !== 'normal' && e.lungeW <= 0 && e.lungeD <= 0) this.runAbilities(i, dt); // no Snap mid-lunge
 
       // CP3 remake: the remade Kiln Mother (kmStage > 0) never hurts by touch; every blow of hers is a red mark first.
-      // CP4 (melee answers): nor do Maelra, the Glass Heir, the Banked Queen and Aunt Ebb. Their touch only ever landed on melee, whose job is to stand there.
+      // CP4 (melee answers): nor do Maelra, the Glass Heir, the Banked Queen, Aunt Ebb and the Iron Uncle. Their touch only ever landed on
+      // whoever stood in reach, whose job is to stand there. The Iron Uncle's Slag Grip on his target stays: the tank's blow, the healer's to clear.
       if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !((this.kmStage > 0 || this.kmOpen > 0) && e.kind === 'kilnMother') && !NO_TOUCH.has(e.kind)) {
         e.touchCd = 0.6;
         const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1)
@@ -6857,7 +6858,9 @@ export class World {
     e.castName = '';
     // Let it land. CP4 (melee answers): the Glass Heir's Lens Sweep cast ends as its cone lands, so the cone stays hers
     // (a Bulwark can parry it, and a loss names her); unowned, about half of them were "red marks on the floor".
-    if (id !== 'lensSweep') for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1;
+    // The Iron Uncle keeps every mark of his (Hammer Sweep ends with its cone, and any cast ending used to disown the
+    // stage-3 slag bursts and the Homeward Hammer's way back): none of his casts can be stopped, so only his death clears them.
+    if (id !== 'lensSweep' && e.kind !== 'ondrel') for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1;
     if (id === 'cataclysm') {
       const p = this.player;
       // The opening: un-Quenched, it lands as one light ring (FIRST_DELVE.boss.rippleDamage).
@@ -10948,7 +10951,7 @@ export function firstClearRarity(tier: number): Rarity {
 export const RAID_LOOT = { epic: 1, extra: 1 };
 
 /** CP4 (melee answers, docs/design/melee-answers.md): bosses that never hurt by touch; every blow of theirs is warned first. */
-export const NO_TOUCH: ReadonlySet<string> = new Set(['maelra', 'lensmother', 'nhevra', 'hessa']);
+export const NO_TOUCH: ReadonlySet<string> = new Set(['maelra', 'lensmother', 'nhevra', 'hessa', 'ondrel']);
 
 /** The Glarewell's tuning, kept together so balance changes are data changes. */
 export const GLARE = {
