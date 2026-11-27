@@ -28,14 +28,14 @@
    "median": {
     "trash": 5,
     "named": 22,
-    "boss": 67
+    "boss": 50
    },
    "n": {
     "trash": 15,
     "named": 9,
     "boss": 6
    },
-   "delve": 141
+   "delve": 123
   },
   {
    "place": "kiln",
@@ -46,14 +46,14 @@
    "median": {
     "trash": 7,
     "named": 23,
-    "boss": 86
+    "boss": 58
    },
    "n": {
     "trash": 15,
     "named": 9,
     "boss": 6
    },
-   "delve": 162
+   "delve": 135
   },
   {
    "place": "kiln",
@@ -118,14 +118,14 @@
    "median": {
     "trash": 9,
     "named": 25,
-    "boss": 82
+    "boss": 52
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 192
+   "delve": 162
   },
   {
    "place": "foundry",
@@ -136,14 +136,14 @@
    "median": {
     "trash": 13,
     "named": 27,
-    "boss": 90
+    "boss": 55
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 225
+   "delve": 188
   },
   {
    "place": "foundry",
@@ -294,36 +294,36 @@
    "tier": 7,
    "cls": "duskblade",
    "seeds": 6,
-   "wins": 4,
+   "wins": 5,
    "median": {
     "trash": 14,
     "named": 43,
-    "boss": 145
+    "boss": 90
    },
    "n": {
     "trash": 8,
     "named": 15,
-    "boss": 4
+    "boss": 5
    },
-   "delve": 308
+   "delve": 243
   },
   {
    "place": "glarewell",
    "tier": 7,
    "cls": "bulwark",
    "seeds": 6,
-   "wins": 2,
+   "wins": 6,
    "median": {
     "trash": 14,
     "named": 35,
-    "boss": 150
+    "boss": 91
    },
    "n": {
     "trash": 8,
     "named": 16,
-    "boss": 2
+    "boss": 6
    },
-   "delve": 323
+   "delve": 238
   },
   {
    "place": "glarewell",
@@ -384,18 +384,18 @@
    "tier": 10,
    "cls": "duskblade",
    "seeds": 6,
-   "wins": 5,
+   "wins": 6,
    "median": {
     "trash": 15,
     "named": 31,
-    "boss": 94
+    "boss": 58
    },
    "n": {
     "trash": 8,
     "named": 16,
-    "boss": 5
+    "boss": 6
    },
-   "delve": 228
+   "delve": 181
   },
   {
    "place": "coldmarrow",
@@ -406,14 +406,14 @@
    "median": {
     "trash": 13,
     "named": 28,
-    "boss": 86
+    "boss": 54
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 203
+   "delve": 172
   },
   {
    "place": "coldmarrow",
@@ -478,14 +478,14 @@
    "median": {
     "trash": 16,
     "named": 40,
-    "boss": 134
+    "boss": 80
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 298
+   "delve": 245
   },
   {
    "place": "wrackline",
@@ -496,14 +496,14 @@
    "median": {
     "trash": 21,
     "named": 50,
-    "boss": 209
+    "boss": 98
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 407
+   "delve": 299
   },
   {
    "place": "wrackline",
