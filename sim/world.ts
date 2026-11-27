@@ -113,6 +113,15 @@ export const GRIT_CUT = { perStack: 0.07, fromTier: 4 };
  * character levels get it, so it only reaches the first delve and the first tiers a new character plays.
  */
 export const UNLOCK_AID = { dmg: 0.1, cut: 0.1, until: 4 };
+/**
+ * CP4 item 4, melee boss kills (classes, 27 Nov 2026): a solo Cutwick or Bulwark hits a boss this much harder. Their
+ * boss fights ran ~2x as long as the Emberwright's and Slagbinder's at the same gear (matrix setup, Foundry 4: Cutwick
+ * 125 vs Emberwright 246 boss damage a second, same gear dmgMult 1.37 vs 1.33). The gap is not gear or tier: the ranged
+ * kits multiply their own damage (Overheat's x2 and Quickcast/extra orbs; the cannon), the swing and shield don't, and it
+ * only shows against a boss's big health pool (trash and named fights are in budget). Solo only: group bosses are tuned
+ * for the party.
+ */
+export const MELEE_BOSS: Partial<Record<ClassId, number>> = { duskblade: 1.6, bulwark: 1.7 };
 /** A hero's level is kept for unlocks while it still has a locked slot or UNLOCK_AID; past that it plays as unset. */
 const UNLOCK_LEVEL_KEPT = Math.max(MAX_UNLOCK, UNLOCK_AID.until);
 /**
@@ -7742,6 +7751,7 @@ export class World {
     if (e.kind === 'kilnMother' && this.time < this.kmClock.vuln) dmg *= KILN_V2.stunTaken;
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
+    if (e.def.rank === 'boss' && this.heroes.length === 1) dmg *= MELEE_BOSS[this.cls] ?? 1;
     if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage') + TREE.torrentDmg * this.tree('torrent') + TREE.ablazeDmg * this.tree('ablaze');
     // Steadfast (Duskblade tree keystone): harder hits while the Duskblade stays above half health.
     // Glow (Emberwright tree keystone) works the same way.
