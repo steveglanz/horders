@@ -202,3 +202,35 @@ describe('melee answers: the Iron Uncle (the Hammerdeep)', () => {
     expect(burst.owner).toBe(b);
   });
 });
+
+describe('melee answers: Cousin Fork (the Ashvents)', () => {
+  type Y = Q & { twinVentT: number; scatterT: number; bellowT: number; ysSplit(i: number): void };
+  const party = [{ cls: 'duskblade' as const, name: 'a' }, { cls: 'lumen' as const, name: 'b' }];
+
+  it('never hurts by touch, nor do her two flames: a melee hero standing against her takes nothing between her casts', () => {
+    for (const split of [false, true]) {
+      const w = new World({ seed: 3, dungeon: 'ashvents', tier: 7, omens: [], cls: 'duskblade', party });
+      const q = w as unknown as Y;
+      for (const e of w.enemies) e.alive = false;
+      const b = q.spawn('ysmeret', 0, 0);
+      q.bossIndex = b; q.bossSpawned = true;
+      if (split) q.ysSplit(b);
+      const p = w.heroData(0).player;
+      const hp = p.hp;
+      for (let n = 0; n < 30 * 3; n++) {
+        q.twinVentT = 99; q.scatterT = 99; q.bellowT = 99;
+        for (const e of w.enemies) {
+          if (!e.alive) continue;
+          if (e.kind !== 'ysmeret') { e.alive = false; continue; }
+          e.abilityT = 99; e.touchCd = 0; e.castId = '';
+        }
+        const f = w.enemies[b];
+        p.x = f.x + 50; p.y = f.y;
+        for (let k = 1; k < w.heroes.length; k++) { const o = w.heroData(k).player; o.x = f.x; o.y = f.y + 120; }
+        for (const t of w.telegraphs) t.alive = false;
+        w.step([{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }]);
+      }
+      expect(p.hp).toBeGreaterThanOrEqual(hp);
+    }
+  });
+});
