@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { YSMERETV2, OSKELV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, ALT_KIT, versionLive } from './world';
+import { YSMERETV2, OSKELV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, PARRY, SLAG_KIT, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, ALT_KIT, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_BY_ID, AltId } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -905,8 +905,54 @@ const KM_WAIT_R = 110;
 export const BOT_ROLL = { lead: 0.2 };
 const NOROLL = typeof process !== 'undefined' && process.env?.NOROLL === '1';
 
+/**
+ * 1.0 CP2 signature verbs for bots. Parry: a Bulwark raises its shield (holds E) when a red mark it stands in lands
+ * within `parryLead` s. Charged shot: a gunner charges (holds Q) at a big foe while nothing red is on it and it is above
+ * `chargeHp` health, and lets go at full charge. Light motes: a hurt hero (not the tank) walks to a mote within
+ * `moteReach` while under `moteHp` health. NOVERBS=1 turns all three off for measuring.
+ */
+export const BOT_VERBS = { parryLead: 0.2, chargeHp: 0.5, moteHp: 0.5, moteReach: 200 };
+const NOVERBS = typeof process !== 'undefined' && process.env?.NOVERBS === '1';
+
+function botVerbs(w: World, inp: Input, skill: number): Input {
+  const p = w.player;
+  if (NOVERBS || p.hp <= 0 || w.phase !== 'fight') return inp;
+  const attentive = (w.tick % 20) / 20 < skill;
+  const slot = w.holdVerbSlot;
+  if (slot === 1 && w.cls === 'bulwark') {
+    // Keep the shield up through the window once raised for a mark; raise it for one about to land.
+    const raised = w.shieldRaised && (p.holdT ?? 0) < PARRY.window && w.tellLanding(PARRY.window);
+    if (raised || (attentive && w.tellLanding(BOT_VERBS.parryLead))) return { ...inp, hold: 1 };
+    return inp;
+  }
+  if (slot === 0 && w.cls === 'slagbinder') {
+    const c = w.chargeLevel;
+    const safe = p.hp > p.maxHp * BOT_VERBS.chargeHp && !w.markedAt(p.x, p.y);
+    if (c >= 0) return c < 1 && safe ? { ...inp, hold: 0, cast: inp.cast === 0 ? undefined : inp.cast } : inp;
+    if (attentive && safe) {
+      const t = w.bladeTarget(SLAG_KIT.cannonRange);
+      if (t >= 0 && w.enemies[t].def.rank !== 'normal') return { ...inp, hold: 0, cast: inp.cast === 0 ? undefined : inp.cast };
+    }
+    return inp;
+  }
+  // Light motes: walk over one when hurt, if it is close and not inside a red mark.
+  if (w.cls !== 'bulwark' && p.hp < p.maxHp * BOT_VERBS.moteHp && w.lightMotes.length && attentive) {
+    let best = BOT_VERBS.moteReach * BOT_VERBS.moteReach, bx = 0, by = 0, found = false;
+    for (const m of w.lightMotes) {
+      const d2 = (m.x - p.x) ** 2 + (m.y - p.y) ** 2;
+      if (d2 < best && !w.markedAt(m.x, m.y)) { best = d2; bx = m.x; by = m.y; found = true; }
+    }
+    if (found && !w.markedAt(p.x, p.y)) {
+      const d = Math.max(1, Math.sqrt(best));
+      return { ...inp, x: (bx - p.x) / d, y: (by - p.y) / d };
+    }
+  }
+  return inp;
+}
+
 export function botInput(w: World, skill = 1): Input {
-  const inp = botMove(w, skill);
+  const inp = botVerbs(w, botMove(w, skill), skill);
+  if (inp.hold === 1) return inp; // a raised shield takes the mark instead of a roll
   if (NOROLL || !w.rollReady || w.player.hp <= 0 || (w.tick % 20) / 20 >= skill) return inp;
   const t = w.redLanding(BOT_ROLL.lead);
   if (!t) return inp;

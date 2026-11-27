@@ -152,6 +152,23 @@ export const SOUNDS = {
     { wave: 'square', f: 2600, f2: 3400, dur: 0.04, vol: 0.12, lp: 7000 },
     { wave: 'square', f: 2200, f2: 3000, dur: 0.04, delay: 0.06, vol: 0.12, lp: 7000 },
   ],
+  /** 1.0 CP2 Parry (Bulwark): iron on iron, a bright ring over a deep anvil thud. */
+  shieldParry: join(clang(900, 0.6, 0.55), [{ wave: 'sine', f: 90, f2: 55, dur: 0.22, vol: 0.3 }]),
+  /** 1.0 CP2 light motes (Lumen): a small glass bell when a hero takes a mote. */
+  lightMote: [
+    { wave: 'sine', f: 1760, f2: 1760, dur: 0.22, vol: 0.12 },
+    { wave: 'sine', f: 2640, f2: 2640, dur: 0.18, delay: 0.05, vol: 0.06 },
+  ],
+  /** 1.0 CP2 charged shot (Slagbinder): a heavy cannon thump with a long hiss. */
+  chargedShot: join(whoosh(3000, 700, 0.5, 0.3), [
+    { wave: 'sine', f: 70, f2: 35, dur: 0.35, vol: 0.4 },
+    { wave: 'noise', f: 0, dur: 0.15, vol: 0.35, lp: 2500, lp2: 400 },
+  ]),
+  /** 1.0 CP2 charged shot on a Brittle foe: the clay cracks apart. */
+  shatter: [
+    { wave: 'noise', f: 0, dur: 0.25, vol: 0.45, lp: 7000, lp2: 1200 },
+    { wave: 'square', f: 1400, f2: 600, dur: 0.12, vol: 0.1, lp: 5000 },
+  ],
   /** 1.0 CP2 dodge roll (every class): a low cloth tumble and a soft landing thump. */
   dodgeRoll: join(whoosh(1400, 500, 0.26, 0.24), [
     { wave: 'sine', f: 120, f2: 70, dur: 0.12, delay: 0.22, vol: 0.22 },

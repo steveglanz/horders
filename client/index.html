@@ -202,6 +202,8 @@
   .ab.hot { border-color: #8fd8ff; box-shadow: 0 0 14px rgba(120,200,255,0.9); }
   /* 1.0 CP2 grey box: the dodge roll, a plain iron button after the four abilities (style.ts iron, no class colour). */
   .ab.roll { --ac: #8a929c; border-color: rgba(138,146,156,0.6); }
+  /* 1.0 CP2 hold verbs (Parry, charged shot): a small hold mark at the top right of the button that can be held. */
+  .ab.holdable::after { content: ''; position: absolute; right: 6px; top: 6px; width: 7px; height: 7px; border-radius: 50%; border: 2px solid var(--ac, var(--ember)); opacity: 0.8; }
   .ab.flash { animation: abflash 0.25s; }
   @keyframes abflash { from { transform: scale(0.9); } to { transform: scale(1); } }
 

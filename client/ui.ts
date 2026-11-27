@@ -57,6 +57,9 @@ export interface RunHandlers {
   onPause: () => void;
   onStick: (x: number, y: number) => void;
   onCast: (slot: number) => void;
+  /** 1.0 CP2 hold verbs: an ability button went down / came up (the scene decides tap or hold). */
+  onPress?: (slot: number) => void;
+  onRelease?: (slot: number) => void;
 }
 
 /** How many pieces of each verb set a hero wears. */
@@ -139,13 +142,23 @@ export class Hud {
       b.className = i === INTERRUPT_SLOT ? 'ab kick' : 'ab';
       b.setAttribute('aria-label', `${a.name} (${a.key})`);
       b.dataset.tipTouch = 'off';
-      b.title = `${a.name} (${a.key})${a.cost ? ` · ${a.cost} ${def.resource}` : ''}: ${a.text}`;
+      b.title = `${a.name} (${a.key})${a.cost ? ` · ${a.cost} ${def.resource}` : ''}: ${a.text}${i === w.holdVerbSlot && def.verb ? ` Hold ${a.key}: ${def.verb.name}.` : ''}`;
+      if (i === w.holdVerbSlot) b.classList.add('holdable');
       b.innerHTML = `${glyph(icons[i], 30)}<span class="k">${a.key}</span><span class="n">${a.name}</span><span class="cd"></span>`;
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.handlers?.onCast(i);
+        // Keep the finger's up on this button even if it slides off, so a held Parry or charge always ends.
+        try { b.setPointerCapture(e.pointerId); } catch { /* old browsers */ }
+        if (this.handlers?.onPress) this.handlers.onPress(i);
+        else this.handlers?.onCast(i);
       });
+      const up = (e: PointerEvent) => {
+        e.preventDefault();
+        this.handlers?.onRelease?.(i);
+      };
+      b.addEventListener('pointerup', up);
+      b.addEventListener('pointercancel', up);
       // SLOT_UNLOCK: a slot this character hasn't unlocked stays off the bar (keeps slot indexes).
       b.hidden = !w.unlocked(i);
       bar.appendChild(b);

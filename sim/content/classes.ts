@@ -24,7 +24,7 @@ export interface ClassDef {
   abilities: AbilityDef[];
   /**
    * 1.0 CP2 grey box: the class's signature verb (vision.md section 6 item 7), shown in the pause menu's ability list
-   * and the run's tips. Built so far: Overheat (OVERHEAT) and Snip (id backstab, BACKSTAB; renamed from Backstab, a WoW Rogue ability) in sim/world.ts.
+   * and the run's tips. Built: Overheat (OVERHEAT), Snip (id backstab, BACKSTAB; renamed from Backstab, a WoW Rogue ability), Parry (PARRY), Light motes (LIGHT_MOTE) and Charged shot (CHARGE) in sim/world.ts.
    */
   verb?: { name: string; text: string };
 }
@@ -71,14 +71,17 @@ export const CLASSES: Record<ClassId, ClassDef> = {
   bulwark: {
     id: 'bulwark', name: 'Bulwark', role: 'Tank', blurb: 'Shield and armor. Soak the hits, hit back.',
     resource: 'Resolve', baseHp: 160, speed: 128, interruptRange: 420, kick: true, abilities: BULWARK_ABILITIES,
+    verb: { name: 'Parry', text: 'Hold E to raise your shield: you move slower and blows land lighter. Raise it just as a red mark lands or a big foe strikes and you parry: no damage, the attacker staggers and your Resolve fills. A quick tap is still Charge.' },
   },
   lumen: {
     id: 'lumen', name: 'Lumen', role: 'Healer', blurb: 'Light that mends. Overhealing turns into damage.',
     resource: 'Oil', baseHp: 100, speed: 138, interruptRange: 480, kick: false, abilities: LUMEN_ABILITIES,
+    verb: { name: 'Light motes', text: 'Every third Sunmote hit drops a mote of light by the foe. Walk over one when you are hurt to heal; your allies can take them too.' },
   },
   slagbinder: {
     id: 'slagbinder', name: 'Slagbinder', role: 'Ranged gunner', blurb: 'A slow slag cannon that hits hard and pierces. Brittle foes break.',
     resource: 'Slag', baseHp: 150, speed: 134, interruptRange: 380, kick: false, abilities: SLAGBINDER_ABILITIES,
+    verb: { name: 'Charged shot', text: 'Hold Q to charge the cannon (it stops firing and you move slower), then let go for one heavy shot that pierces everything in line. Fully charged, it shatters a Brittle foe. A quick tap is still Molten Plating.' },
   },
 };
 
