@@ -147,7 +147,7 @@ export const SOUNDS = {
   overheatScorch: join(whoosh(6000, 2500, 0.45, 0.3), [
     { wave: 'saw', f: 180, f2: 90, dur: 0.25, vol: 0.18, lp: 2200 },
   ]),
-  /** 1.0 CP2 Backstab: a quick shear snip under the crit. */
+  /** 1.0 CP2 Snip (id backstab): a quick shear snip under the crit. */
   backstab: [
     { wave: 'square', f: 2600, f2: 3400, dur: 0.04, vol: 0.12, lp: 7000 },
     { wave: 'square', f: 2200, f2: 3000, dur: 0.04, delay: 0.06, vol: 0.12, lp: 7000 },

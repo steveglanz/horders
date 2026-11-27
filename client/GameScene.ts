@@ -1280,7 +1280,7 @@ export class GameScene extends Phaser.Scene {
           if (ev.hero === w.acting) this.floatText(ev.x, ev.y - 34, 'Overheat!', '#ffe2a0', 16);
           break;
         case 'backstab':
-          if (ev.hero === w.acting) this.floatText(ev.x, ev.y - 40, 'Backstab', '#d9ae82', 13);
+          if (ev.hero === w.acting) this.floatText(ev.x, ev.y - 40, 'Snip', '#d9ae82', 13);
           break;
         case 'roll': {
           // Grey box (1.0 CP2): a streak in the hero's cloth colour along the roll, and a puff of floor dust where it starts.

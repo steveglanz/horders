@@ -24,7 +24,7 @@ export interface ClassDef {
   abilities: AbilityDef[];
   /**
    * 1.0 CP2 grey box: the class's signature verb (vision.md section 6 item 7), shown in the pause menu's ability list
-   * and the run's tips. Built so far: Overheat (OVERHEAT) and Backstab (BACKSTAB) in sim/world.ts.
+   * and the run's tips. Built so far: Overheat (OVERHEAT) and Snip (id backstab, BACKSTAB; renamed from Backstab, a WoW Rogue ability) in sim/world.ts.
    */
   verb?: { name: string; text: string };
 }
@@ -66,7 +66,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
   duskblade: {
     id: 'duskblade', name: 'Cutwick', role: 'Melee striker', blurb: 'Twin blades, bleeds, dashes.',
     resource: 'Momentum', baseHp: 190, speed: 152, interruptRange: 210, kick: true, abilities: DUSKBLADE_ABILITIES,
-    verb: { name: 'Backstab', text: 'Your hits from behind always crit, and a kill from behind readies Rending Dash. Dash through a pack to get behind it.' },
+    verb: { name: 'Snip', text: 'Your hits from behind always crit, and a kill from behind readies Rending Dash. Dash through a pack to get behind it.' },
   },
   bulwark: {
     id: 'bulwark', name: 'Bulwark', role: 'Tank', blurb: 'Shield and armor. Soak the hits, hit back.',

@@ -113,7 +113,7 @@ export const ROLL = { dist: 120, time: 0.3, guard: 0.3, cd: 3 };
  */
 export const OVERHEAT = { from: 80, mult: 2, scorch: 0.04, vent: 55 };
 /**
- * 1.0 CP2 signature verb, Cutwick (duskblade) Backstab: its direct hits on a foe from behind (outside `front` radians of
+ * 1.0 CP2 signature verb, Cutwick (duskblade) Snip (id backstab; "Backstab" is a WoW Rogue ability, rename-map section 4): its direct hits on a foe from behind (outside `front` radians of
  * the way the foe faces) always crit, and a killing blow from behind readies Rending Dash at once. Foes face the way
  * they move, else their target, turning at `turn` rad/s (`bossTurn` for bosses), so a dash through a pack lands behind it.
  */

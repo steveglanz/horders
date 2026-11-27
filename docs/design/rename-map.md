@@ -80,6 +80,8 @@ One word, one meaning (vision rule 5). Rows marked *roadmap* are already decided
 | Mythics, weapon effects, verb sets | **Treasures** (above) | *Roadmap* merge, new name |
 | Embers, Quench, Grit, Omens, Delver's Keys, the Forge, Relics, Blueprints, Fusions, Notice Board | **keep** | Plain words that already fit the world |
 | Rarities Common to Mythic | **keep** | Steve's ladder (#860, #862) |
+| Cutwick signature verb "Backstab" (vision, roadmap) | **Snip** | **Backstab is a core WoW Rogue ability** [20]. A lamp-snuffer snips wicks with shears from behind the flame; one plain word that matches the class's sound (shears, snips). Code id stays `backstab` (coordinator ruling under the WoW name audit, 27 Nov 11:15Z) |
+| Emberwright signature verb "Overheat" | **keep** | Plain English word; in WoW only as minor NPC spells, not a player ability [21] |
 
 ## 5. Sparks (the in-run cards)
 
@@ -152,3 +154,5 @@ Only the game's title (section 8). Recommendation: keep "Horders" in every build
 17. [Ember Games Inc. trademarks](https://trademarks.justia.com/owners/ember-games-inc-2264420), [Ember Entertainment trademarks](https://trademark.justia.com/owners/ember-entertainment-inc-2249719).
 18. "Kilnward" and "Kilnward" OR "Kiln Ward" game: no exact hit; [games.gg: Kiln](https://games.gg/ja/kiln/), [gamepressure: Kiln](https://www.gamepressure.com/games/kiln/z07144).
 19. "Hearthless" game app: only Hearthstone pages ([App Store](https://apps.apple.com/US/app/id625257520)).
+20. [wowhead: Backstab (Rogue)](https://www.wowhead.com/forever/tw/spell=53); "Snip" ability wowhead/warcraft.wiki.gg: no WoW ability named Snip (only Snipe, Sniper Shot, Wing Clip); Blizzard's Hearthstone has the card "SN1P-SN4P" ([playhearthstone](https://playhearthstone.com/en-gb/cards/56223-sn1p-snp)), a stylised robot name, and League of Legends has "Snip Snip!" ([mobafire](https://www.mobafire.com/league-of-legends/ability/snip-snip-1000)); kept, as a plain English word (Steve's rule, 21 Nov).
+21. [wowhead: Overheat (NPC spell 154950)](https://www.wowhead.com/ko/spell=154950/과열), [warcraft.wiki.gg: Lord Overheat](https://warcraft.wiki.gg/wiki/Lord_Overheat) (an NPC).

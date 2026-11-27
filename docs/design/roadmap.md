@@ -54,7 +54,7 @@ How this plan was made: our audit of main 75a7550 (screens, content, playtest da
 - A **dodge roll for every class**, on a **dodge button by default**, with flick-the-stick as an option. Bots learn "roll on red".
 - **Fight budgets become a merge gate** (pillar 3). A visible **enrage at 90 s** replaces losing to Burnout.
 - Every boss attack gets a melee answer; the **60% floor** fixes the melee walls (today Duskblade and Bulwark win 0/40 in the Coldmarrow at tier 10).
-- **One signature verb per class:** Emberwright Overheat, Duskblade Backstab, Bulwark Parry, Lumen light motes, Slagbinder charged shot.
+- **One signature verb per class:** Emberwright Overheat, Cutwick Snip (was Backstab, a WoW Rogue ability; rename-map section 4), Bulwark Parry, Lumen light motes, Slagbinder charged shot.
 - **Interrupts stay on some classes** (Steve's call, 25 Nov; #841). The plan's proposal to give every class one was overruled; instead the stun-vs-interrupt difference must be readable on the button and in the fight.
 - **Foes built from 8 jobs** (charger, spitter, shielder, caster, mender, bomber, swarmling, brute), each with one tell; each place re-glazes 4-5 jobs and adds one twist foe. **No two places share a trash list** (today 7 of 12 do, sim/content/dungeon.ts:211-249).
 - Delves of **5 rooms with one fork**, 6-8 minutes.

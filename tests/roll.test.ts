@@ -153,7 +153,8 @@ describe('signature verbs (1.0 CP2 grey box)', () => {
 
   it('names each built verb in the class tip, with a sound for each', () => {
     expect(CLASS_DEFS.emberwright.verb?.name).toBe('Overheat');
-    expect(CLASS_DEFS.duskblade.verb?.name).toBe('Backstab');
+    // Not 'Backstab', a WoW Rogue ability (rename-map section 4).
+    expect(CLASS_DEFS.duskblade.verb?.name).toBe('Snip');
     expect(cueFor({ type: 'overheat', x: 0, y: 0, hero: 0 }, { cls: 'emberwright', acting: 0 })?.id).toBe('overheatScorch');
     expect(cueFor({ type: 'backstab', x: 0, y: 0, hero: 0 }, { cls: 'duskblade', acting: 0 })?.id).toBe('backstab');
   });
