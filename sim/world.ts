@@ -9917,6 +9917,9 @@ export class World {
       this.pickUp(item);
       return;
     }
+    // M5 QA, 27 Nov: a foe that dies pressed against a Halls wall can leave its bag just past it, where a bot never
+    // reaches it (Hoard t4 seed 2 stood there forever). Bags land inside the map, a hero's width from the wall.
+    if (this.hallsOn) { const q = { x, y }; clampHalls(this.halls!, q, PLAYER_RADIUS); x = q.x; y = q.y; }
     Object.assign(d, { alive: true, x, y, item });
     this.events.push({ type: 'drop', x, y, rarity: item.rarity });
   }
