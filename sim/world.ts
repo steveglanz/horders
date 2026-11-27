@@ -114,14 +114,17 @@ export const GRIT_CUT = { perStack: 0.07, fromTier: 4 };
  */
 export const UNLOCK_AID = { dmg: 0.1, cut: 0.1, until: 4 };
 /**
- * CP4 item 4, melee boss kills (classes, 27 Nov 2026): a solo Cutwick or Bulwark hits a boss this much harder. Their
- * boss fights ran ~2x as long as the Emberwright's and Slagbinder's at the same gear (matrix setup, Foundry 4: Cutwick
- * 125 vs Emberwright 246 boss damage a second, same gear dmgMult 1.37 vs 1.33). The gap is not gear or tier: the ranged
- * kits multiply their own damage (Overheat's x2 and Quickcast/extra orbs; the cannon), the swing and shield don't, and it
- * only shows against a boss's big health pool (trash and named fights are in budget). Solo only: group bosses are tuned
- * for the party.
+ * CP4 item 4, solo boss kills (classes, 27 Nov 2026): a solo hero's damage to a boss is scaled by class so every class's
+ * boss fight lands near the 60-90 s budget (docs/design/fight-budgets.md). Cutwick x1.6 and Bulwark x1.7 (#913): their
+ * fights ran ~2x the Emberwright's at the same gear (Foundry 4: Cutwick 125 vs Emberwright 246 boss damage a second,
+ * same gear dmgMult 1.37 vs 1.33); the ranged kits multiply their own damage (Overheat's x2, Quickcast/extra orbs, the
+ * cannon), the swing and shield don't, and it only shows against a boss's big health pool. Lumen x1.75: its boss fights
+ * were as long as melee's (gate seeds 1-6, K1/F4/G7/C10/W13: 80/87/168/120/115 s -> 51/52/95/68/63). Slagbinder
+ * x0.55: the cannon killed bosses under the 60 s floor (39/29/47/30/30 -> 52/56/82/50/51); a lower cut pushes the Glass
+ * Heir over 90 s (x0.5 gave Glarewell 97 s on seeds 1-20, x0.55 88 s). Trash and named fights keep full damage.
+ * Solo only: group bosses are tuned for the party.
  */
-export const MELEE_BOSS: Partial<Record<ClassId, number>> = { duskblade: 1.6, bulwark: 1.7 };
+export const SOLO_BOSS: Partial<Record<ClassId, number>> = { duskblade: 1.6, bulwark: 1.7, lumen: 1.75, slagbinder: 0.55 };
 /** A hero's level is kept for unlocks while it still has a locked slot or UNLOCK_AID; past that it plays as unset. */
 const UNLOCK_LEVEL_KEPT = Math.max(MAX_UNLOCK, UNLOCK_AID.until);
 /**
@@ -7751,7 +7754,7 @@ export class World {
     if (e.kind === 'kilnMother' && this.time < this.kmClock.vuln) dmg *= KILN_V2.stunTaken;
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
-    if (e.def.rank === 'boss' && this.heroes.length === 1) dmg *= MELEE_BOSS[this.cls] ?? 1;
+    if (e.def.rank === 'boss' && this.heroes.length === 1) dmg *= SOLO_BOSS[this.cls] ?? 1;
     if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage') + TREE.torrentDmg * this.tree('torrent') + TREE.ablazeDmg * this.tree('ablaze');
     // Steadfast (Duskblade tree keystone): harder hits while the Duskblade stays above half health.
     // Glow (Emberwright tree keystone) works the same way.

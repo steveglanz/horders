@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, COLD, MELEE_BOSS } from '../sim/world';
+import { World, COLD, SOLO_BOSS } from '../sim/world';
 import { DUNGEONS, BOUNTY_DUNGEON_IDS } from '../sim/content/dungeon';
 
 type Inner = {
@@ -121,7 +121,7 @@ describe('the Coldmarrow (C1)', () => {
     // While the river is open she takes more damage.
     const before = e.hp;
     inner.damageEnemy(b, 100, false);
-    expect(before - e.hp).toBeCloseTo(100 * (1 + COLD.thinIceExposed) * (MELEE_BOSS[w.cls] ?? 1), 3);
+    expect(before - e.hp).toBeCloseTo(100 * (1 + COLD.thinIceExposed) * (SOLO_BOSS[w.cls] ?? 1), 3);
     // The cracks close again.
     inner.coldClock(COLD.crackOpen);
     expect(w.cracks.some((c) => c.alive)).toBe(false);
