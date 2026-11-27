@@ -8,8 +8,10 @@ import { RELICS } from '../sim/content/relics';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { CLOTH } from './style';
-import { ROLL, ROLL_SLOT, ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OSKELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, BOIL_TAUNT, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { CLOTH, MASTER } from './style';
+/** style.ts hex to a Phaser colour number. */
+const hexNum = (h: string): number => Number.parseInt(h.slice(1), 16);
+import { ROLL, ROLL_SLOT, HOLD, CHARGE, PARRY, ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OSKELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, BOIL_TAUNT, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
 import { inLoop, roomLoops } from './hallsshape';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP, worldBossLabel } from '../sim/content/dungeon';
@@ -688,12 +690,17 @@ export class GameScene extends Phaser.Scene {
     const kb = this.input.keyboard!;
     this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,ONE,TWO,THREE,FOUR,Q,E,R,F,P,ESC') as Record<string, Phaser.Input.Keyboard.Key>;
     // Number keys pick talents during a draft and fire abilities otherwise.
-    kb.on('keydown-ONE', () => (this.world.state === 'draft' ? this.pick(0) : this.cast(0)));
-    kb.on('keydown-TWO', () => (this.world.state === 'draft' ? this.pick(1) : this.cast(1)));
+    kb.on('keydown-ONE', () => (this.world.state === 'draft' ? this.pick(0) : this.press(0)));
+    kb.on('keydown-TWO', () => (this.world.state === 'draft' ? this.pick(1) : this.press(1)));
+    kb.on('keyup-ONE', () => this.release(0));
+    kb.on('keyup-TWO', () => this.release(1));
     kb.on('keydown-THREE', () => (this.world.state === 'draft' ? this.pick(2) : this.cast(2)));
     kb.on('keydown-FOUR', () => this.cast(3));
-    kb.on('keydown-Q', () => this.cast(0));
-    kb.on('keydown-E', () => this.cast(1));
+    // 1.0 CP2 hold verbs: Q (Slagbinder charged shot) and E (Bulwark Parry) can be held; a tap still casts.
+    kb.on('keydown-Q', () => this.press(0));
+    kb.on('keydown-E', () => this.press(1));
+    kb.on('keyup-Q', () => this.release(0));
+    kb.on('keyup-E', () => this.release(1));
     kb.on('keydown-R', () => this.cast(2));
     kb.on('keydown-F', () => this.cast(3));
     kb.on('keydown-SPACE', () => this.cast(ROLL_SLOT));
@@ -756,6 +763,8 @@ export class GameScene extends Phaser.Scene {
       onPause: () => this.togglePause(),
       onStick: (x, y) => { this.stickVec.x = x; this.stickVec.y = y; },
       onCast: (slot) => this.cast(slot),
+      onPress: (slot) => this.press(slot),
+      onRelease: (slot) => this.release(slot),
     });
     // Phones: the HUD fades the party frames while a boss, elite or the Craw stands under them.
     // In 3D the tilted camera puts a foe somewhere else on screen than the 2D view would (Hoard raid phone pass, 25 Nov:
@@ -939,9 +948,39 @@ export class GameScene extends Phaser.Scene {
     this.queued = { slot, until: this.time.now + 350 };
   }
 
+  /** 1.0 CP2 hold verbs (HOLD): the ability button held down, and when it went down (scene ms). */
+  private holding: { slot: number; at: number } | null = null;
+
+  /** An ability key or button went down: a hold verb starts holding (the cast waits for the release), anything else casts. */
+  press(slot: number): void {
+    const w = this.world;
+    if (slot !== w.holdVerbSlot || this.paused || w.state !== 'running') {
+      this.cast(slot);
+      return;
+    }
+    if (this.holding?.slot === slot) return; // key repeat
+    this.holding = { slot, at: this.time.now };
+    if (this.coop?.role === 'guest') this.coop.sendHold(slot, true);
+  }
+
+  /** The key or button came up: a short press (under HOLD.tap) was a tap, so cast the ability. */
+  release(slot: number): void {
+    const h = this.holding;
+    if (!h || h.slot !== slot) return;
+    this.dropHold();
+    if (this.time.now - h.at < HOLD.tap * 1000) this.cast(slot);
+  }
+
+  private dropHold(): void {
+    if (!this.holding) return;
+    if (this.coop?.role === 'guest') this.coop.sendHold(this.holding.slot, false);
+    this.holding = null;
+  }
+
   togglePause(force?: boolean): void {
     if (this.world.state === 'ended') return;
     this.paused = force ?? !this.paused;
+    if (this.paused) this.dropHold();
     this.hud.setPaused(this.paused);
   }
 
@@ -999,6 +1038,7 @@ export class GameScene extends Phaser.Scene {
       this.acc += Math.min(deltaMs / 1000, 0.25) * this.warp;
       while (this.acc >= TICK && w.state === 'running') {
         const input = this.autopilot ? botInput(w) : this.readInput();
+        if (!this.autopilot && this.holding) input.hold = this.holding.slot;
         if (!this.autopilot && this.queued) {
           if (this.time.now > this.queued.until) this.queued = null;
           else if (this.queued.slot === ROLL_SLOT) input.roll = true;
@@ -1076,6 +1116,40 @@ export class GameScene extends Phaser.Scene {
     const sum = this.frameTimes.reduce((a, b) => a + b, 0);
     const sorted = [...this.frameTimes].sort((a, b) => a - b);
     return { avg: 1000 / (sum / n), p95ms: sorted[Math.floor(n * 0.95)] };
+  }
+
+  /**
+   * 1.0 CP2 grey box for the hold verbs and light motes, drawn on the floor graphics (so the floor bridge carries them
+   * into 3D): motes as small bone-white lights, a raised Bulwark shield as an iron arc ahead of it (white-hot while the
+   * parry window is open), and a charging cannon as a line that fills toward full charge. style.ts colours only.
+   */
+  private verbDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    for (const m of w.lightMotes) {
+      const fade = Math.min(1, m.t / 1.5);
+      const bob = Math.sin(now / 220 + m.x) * 2;
+      g.fillStyle(hexNum(MASTER.fire[4]), 0.25 * fade).fillCircle(m.x, m.y + bob, 13);
+      g.fillStyle(hexNum(MASTER.hearth[1]), 0.95 * fade).fillCircle(m.x, m.y + bob, 6);
+    }
+    for (let h = 0; h < w.heroes.length; h++) {
+      const q = w.heroData(h).player;
+      if (q.hp <= 0 || (q.holdSlot ?? -1) < 0) continue;
+      const cls = w.heroes[h].cls;
+      if (cls === 'bulwark' && q.holdSlot === 1) {
+        const open = q.parryOpen && (q.holdT ?? 0) <= PARRY.window;
+        g.lineStyle(open ? 7 : 5, hexNum(open ? MASTER.fire[4] : MASTER.iron[3]), open ? 1 : 0.8)
+          .beginPath().arc(q.x, q.y, 34, q.facing - 1.0, q.facing + 1.0, false).strokePath();
+      } else if (cls === 'slagbinder' && q.holdSlot === 0) {
+        const c = Math.min(1, (q.holdT ?? 0) / CHARGE.time + 1e-6);
+        // Aim the way the shot will go: at the acting gunner's target, else the way the hero faces.
+        const ti = h === w.acting ? w.bladeTarget(SLAG_KIT.cannonRange) : -1;
+        const t = ti >= 0 ? Math.atan2(w.enemies[ti].y - q.y, w.enemies[ti].x - q.x) : q.facing;
+        const L = 60 + 120 * c;
+        g.lineStyle(2 + 4 * c, hexNum(c >= 1 ? MASTER.fire[4] : MASTER.fire[2]), 0.4 + 0.5 * c)
+          .lineBetween(q.x, q.y, q.x + Math.cos(t) * L, q.y + Math.sin(t) * L);
+        g.lineStyle(2, hexNum(MASTER.fire[3]), 0.8).strokeCircle(q.x, q.y, 30 - 12 * c);
+      }
+    }
   }
 
   private addShape(s: Omit<Shape, 'max'>): void {
@@ -1282,6 +1356,28 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'backstab':
           if (ev.hero === w.acting) this.floatText(ev.x, ev.y - 40, 'Snip', '#d9ae82', 13);
+          break;
+        case 'shieldParry':
+          // Grey box: a white-hot ring off the raised shield (style.ts fire[4], iron[3]).
+          this.floatText(ev.x, ev.y - 40, 'Parry!', MASTER.fire[4], 20);
+          this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: 60, angle: 0, color: hexNum(MASTER.fire[4]), life: 0.35 });
+          this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: 36, angle: 0, color: hexNum(MASTER.iron[3]), life: 0.25 });
+          break;
+        case 'lightMote':
+          this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: 16, angle: 0, color: hexNum(MASTER.hearth[1]), life: 0.25 });
+          break;
+        case 'lightMoteTaken':
+          this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: 30, angle: 0, color: hexNum(MASTER.hearth[1]), life: 0.3 });
+          break;
+        case 'chargedShot':
+          // A wider, brighter streak over the usual tracer: the fuller the charge, the hotter.
+          this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: hexNum(ev.c >= 1 ? MASTER.fire[4] : MASTER.fire[3]), life: 0.2 + 0.2 * ev.c });
+          if (ev.hero === w.acting && ev.c >= 1) this.floatText(ev.x1, ev.y1 - 44, 'Charged!', MASTER.fire[4], 14);
+          break;
+        case 'shatter':
+          this.floatText(ev.x, ev.y - 30, 'Shatter!', MASTER.clay[3], 18);
+          this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: CHARGE.shatterR, angle: 0, color: hexNum(MASTER.clay[3]), life: 0.4 });
+          this.burst(ev.x, ev.y, 14);
           break;
         case 'roll': {
           // Grey box (1.0 CP2): a streak in the hero's cloth colour along the roll, and a puff of floor dust where it starts.
@@ -2733,6 +2829,7 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(DANGER, 0.05 + f * 0.08).fillCircle(e.x, e.y, 60 + f * 500);
       }
     }
+    this.verbDraw(g, now);
     for (let k = this.shapes.length - 1; k >= 0; k--) {
       const s = this.shapes[k];
       s.life -= dt;

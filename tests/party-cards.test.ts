@@ -60,7 +60,7 @@ describe('party cards (Season 2)', () => {
     expect((Object.values(TALENTS)).filter((d) => d.party).map((d) => d.id).sort()).toEqual([...PARTY].sort());
   });
 
-  it('solo drafts never offer them; party drafts do once the capstone is taken', () => {
+  it('1.0 CP2 Sparks: no draft offers them (solo or party); they wait for Blueprints', () => {
     const solo = new Set<string>();
     const duo = new Set<string>();
     for (const cls of CLASSES) {
@@ -74,7 +74,7 @@ describe('party cards (Season 2)', () => {
       }
     }
     expect(PARTY.filter((id) => solo.has(id))).toEqual([]);
-    expect(PARTY.filter((id) => !duo.has(id))).toEqual([]);
+    expect(PARTY.filter((id) => duo.has(id))).toEqual([]);
   });
 
   it('Lee Side: a hero close to the Bulwark takes 5% less per rank', () => {

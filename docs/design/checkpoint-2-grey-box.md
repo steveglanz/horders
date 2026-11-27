@@ -55,7 +55,7 @@ Short corridors, no side rooms, no skippable pulls in this slice. The grey box u
 ## How it passes
 
 **The fun test** (both, on the public build with the event log):
-1. **3 of 5 cold testers** finish a delve and **start another one unprompted**. A cold tester has never seen the game, records their screen and thinks aloud, uncoached (script and recording how-to: design queue item 5). Steve plays it too, but he can't be one of the five.
+1. **3 of 5 cold testers** finish a delve and **start another one unprompted**. A cold tester has never seen the game, records their screen and thinks aloud, uncoached (script and recording how-to: [cold-testers.md](cold-testers.md)). Steve plays it too, but he can't be one of the five.
 2. **30% or more of web players start a second run.** Counted from the event log: of anonymous players whose first run ended (won or lost), the share who start a second run within 24 hours. It counts once at least **50 first-time players** have played (judgment, to keep 5-player noise out).
 
 **Gates that must already hold** (bots, before any human sees it):

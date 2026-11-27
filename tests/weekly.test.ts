@@ -83,7 +83,8 @@ describe('weekly quests (P1)', () => {
   });
 
   it('a bot delve counts its interrupts', () => {
-    const w = new World({ seed: 2, omens: [], week: 2900 });
+    // Seed 3: with the CP2 Sparks (27 Nov) the seed-2 bot run ends faster and meets no cast it kicks (4 of seeds 1-5 do).
+    const w = new World({ seed: 3, omens: [], week: 2900 });
     let seen = 0;
     while (w.state !== 'ended' && w.time < 900) {
       if (w.state === 'draft') { w.choose(botChoose(w)); continue; }

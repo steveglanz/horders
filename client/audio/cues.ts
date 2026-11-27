@@ -493,6 +493,11 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     }
     case 'overheat': return mine(ev.hero) ? { id: 'overheatScorch' } : null;
     case 'backstab': return mine(ev.hero) ? { id: 'backstab', jitter: 0.1 } : null;
+    case 'shieldParry': return { id: 'shieldParry', jitter: 0.05, vol: mine(ev.hero) ? 1 : 0.6 };
+    case 'lightMote': return null; // a mote dropping is silent: only taking one rings
+    case 'lightMoteTaken': return mine(ev.hero) ? { id: 'lightMote', jitter: 0.08 } : null;
+    case 'chargedShot': return { id: 'chargedShot', vol: mine(ev.hero) ? 1 : 0.6 };
+    case 'shatter': return { id: 'shatter', jitter: 0.1 };
     case 'roll': return mine(ev.hero) ? { id: 'dodgeRoll', jitter: 0.06 } : { id: 'dodgeRoll', jitter: 0.06, vol: 0.5 };
     case 'blink': return { id: c.cls === 'lumen' ? 'lumenStep' : 'emberBlink' };
     case 'dash':
