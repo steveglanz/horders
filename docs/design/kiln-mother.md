@@ -28,7 +28,7 @@ Her signatures (one per run, rolled from the seed, so a second run can differ):
 
 ### Rules checked
 
-- **Phases of 20 to 30 s:** every stage median is 18-28 s for both classes except Cutwick's stage 3 at tier 1 (35 s).
+- **Phases of 20 to 30 s:** every stage median is 17-29 s for both classes.
 - **Melee answers (vision section 6 item 6):** every move above has a spot within melee reach or can be rolled through. Cones show for at least 0.96 s; the Ripple's wind-up is 1 s.
 - **One new mechanic a stage:** eggs, then the kiln, then her signature. The old random triad of basic attacks (circles, a long cone, Ashling rings) is one basic attack now, and the Ashlings come only from eggs.
 - **Stage 2 is timed by the kiln, not by damage.** The bellows used to come all at once, so a ranged class broke them in 13 s and a melee one in 19 s. One at a time, the stage is about 3 heat steps for every class, which closes the class gap in fight length.
@@ -62,7 +62,7 @@ The hero-falls line is sent as a `bossSay` event as the run ends; the end screen
 
 | What | Was | Now |
 |---|---|---|
-| Health share at tiers 1/2/3 (`KILN_BOSS_HP`, on top of tier scaling) | 0.65 / 1 / 1 | 2.0 / 1.6 / 1.3 |
+| Health share at tiers 1/2/3 (`KILN_BOSS_HP`, on top of tier scaling) | 0.65 / 1 / 1 | 1.7 / 1.6 / 1.3 |
 | Stage 2 at (`stage2At`) | 65% | 60% |
 | Heat step (`heatEvery`) | 6 s | 9 s |
 | Bellows | 3 at once | `bellowsN` 3, one per heat step |
@@ -79,14 +79,14 @@ Tool: `HALLS=1 TIER=t CLS=c SEEDS=1..20 REACT=0.3 FORGET=0.2 STEPERR=0.5 npx tsx
 
 | Class | Tier | Before: wins, boss median (range) | After: wins, boss median (range) | Stages after (s) | Won fights past 90 s |
 |---|---|---|---|---|---|
-| Emberwright | 1 | 20/20, 25 s (20-50) | 20/20, 60 s (43-102) | 20/22/20 | 3 |
+| Emberwright | 1 | 20/20, 25 s (20-50) | 20/20, 57 s (41-102) | 17/22/20 | 1 |
 | Emberwright | 2 | 20/20, 35 s (23-79) | 20/20, 63 s (41-99) | 18/23/20 | 2 |
 | Emberwright | 3 | 17/20, 47 s (25-101) | 18/20, 62 s (41-99) | 18/23/20 | 3 |
-| Cutwick | 1 | 20/20, 35 s (25-42) | 20/20, 86 s (64-98) | 28/23/35 | 5 |
+| Cutwick | 1 | 20/20, 35 s (25-42) | 20/20, 77 s (56-86) | 24/23/29 | 0 |
 | Cutwick | 2 | 20/20, 55 s (43-70) | 20/20, 79 s (71-93) | 26/24/29 | 1 |
 | Cutwick | 3 | 20/20, 61 s (38-77) | 20/20, 81 s (56-95) | 26/25/28 | 4 |
 
-Both free classes now sit inside 60-90 s at every tier 1-3, with wins the same or better. The other three classes (10 seeds, tiers 1 and 3, a flag only): Bulwark 10/10 and 9/10 at 92-95 s, Lumen 10/10 at 93-102 s, Slagbinder 10/10 at 40-42 s. Those are Checkpoint 4 work (classes: every class kills her in 60-90 s), and the Slagbinder's 7-8 s third stage says its burst in the stun window is the outlier.
+Tier 1 is 1.7, not 2.0, because of the fight-budget gate (tools/matrix.ts, Kiln t1, seeds 1-6). At 2.0 the Lumen took 98 s, over the 90 s ceiling. At 1.7 the gate reads Emberwright 51, Cutwick 79, Bulwark 78, Lumen 86 and Slagbinder 39 s. The cost is the Emberwright at tier 1, which sits at a 57 s median, just under 60 (floors aren't gated). Cutwick is inside 60-90 s at every tier. The Emberwright is inside at tiers 2-3 and 3 s short at tier 1. Wins are the same or better. Closing the class gap (Emberwright and Slagbinder fast, Lumen and Bulwark slow) is the classes team's Checkpoint 4 work. The other three classes (10 seeds, tiers 1 and 3, a flag only): Bulwark 10/10 and 9/10 at 92-95 s, Lumen 10/10 at 93-102 s, Slagbinder 10/10 at 40-42 s. Those are Checkpoint 4 work (classes: every class kills her in 60-90 s), and the Slagbinder's 7-8 s third stage says its burst in the stun window is the outlier.
 
 ## Not done here
 

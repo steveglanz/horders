@@ -11021,7 +11021,7 @@ export const KILN_T1 = { bossHp: 0.65 };
  * tier scaling, so the fight runs 60-90 s at average skill for the Emberwright and Cutwick at tiers 1 to 3. Tiers not
  * listed get 1.
  */
-export const KILN_BOSS_HP: Record<number, number> = { 1: 2.0, 2: 1.6, 3: 1.3 };
+export const KILN_BOSS_HP: Record<number, number> = { 1: 1.7, 2: 1.6, 3: 1.3 };
 
 export const KILN_V2 = {
   /** Stage 2 at this share of her health. */
