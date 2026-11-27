@@ -6691,7 +6691,7 @@ export class World {
       if (e.def.rank !== 'normal' && e.lungeW <= 0 && e.lungeD <= 0) this.runAbilities(i, dt); // no Snap mid-lunge
 
       // CP3 remake: the remade Kiln Mother (kmStage > 0) never hurts by touch; every blow of hers is a red mark first.
-      // CP4 (melee answers): nor do Maelra and the Glass Heir. Their touch only ever landed on melee, whose job is to stand there.
+      // CP4 (melee answers): nor do Maelra, the Glass Heir and the Banked Queen. Their touch only ever landed on melee, whose job is to stand there.
       if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !((this.kmStage > 0 || this.kmOpen > 0) && e.kind === 'kilnMother') && !NO_TOUCH.has(e.kind)) {
         e.touchCd = 0.6;
         const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1)
@@ -10947,8 +10947,8 @@ export function firstClearRarity(tier: number): Rarity {
  */
 export const RAID_LOOT = { epic: 1, extra: 1 };
 
-/** CP4 (melee answers, docs/design/melee-answers.md): bosses that never hurt by touch; every blow of theirs is a red mark first. */
-export const NO_TOUCH: ReadonlySet<string> = new Set(['maelra', 'lensmother']);
+/** CP4 (melee answers, docs/design/melee-answers.md): bosses that never hurt by touch; every blow of theirs is warned first. */
+export const NO_TOUCH: ReadonlySet<string> = new Set(['maelra', 'lensmother', 'nhevra']);
 
 /** The Glarewell's tuning, kept together so balance changes are data changes. */
 export const GLARE = {

@@ -42,7 +42,7 @@ Emberwright 26%/min on main). Melee's Foundry 7 gap is **not** her attacks:
   same gap shows on the Kiln Mother at tier 7 (Cutwick 109 s, Emberwright 37 s, 8 seeds). That is class damage scaling
   with gear and tier, a fight-budget question for the classes queue, not a melee-answer one.
 
-## The Glass Heir (Lensmother, the Glarewell): this PR
+## The Glass Heir (Lensmother, the Glarewell): done (PR #912)
 
 | Attack | Warning | Melee answer | Status |
 |---|---|---|---|
@@ -76,8 +76,36 @@ scaling gap #911 found, not her attacks.
   it waits for design and visuals (and Steve's OK on the line). In the Carried Light version the light is at her, so
   that answer would not exist there.
 
+## The Banked Queen (Nhevra, the Coldmarrow): this PR
+
+| Attack | Warning | Melee answer | Status |
+|---|---|---|---|
+| Touch (20 x tier, every 0.6 s against her) | none | none: it only ever hit melee (Cutwick 20%, Bulwark 9% max hp a run, ranged 1-4%) | **removed** |
+| Long Night (every 30 s, 40 s in phase 2, halved when late), hits for 60% max hp x (1 - warmth) | 3 s blue cast, not stoppable | keep your coal bright (kill frost-touched foes and Snuffers, hit named foes); where you stand doesn't matter, so melee loses nothing by staying in reach | unchanged |
+| Snuff (every 11 s), every coal dims 0.2 | 2.2 s blue cast, Quenchable | Kick (Bulwark, Cutwick, Emberwright); no damage | unchanged |
+| Snuffer Tide (every 24 s), 2 Snuffers from the room's edge | always visible | kill them as they come (a kill gives the light back) | unchanged |
+| Thin Ice (phase 2 base version), 2 cracks 260 apart centred on her | 2.5 s | stay in her strip: it is 180 px wide round her and she holds still while it is cracked, and she takes 25% more while it is open | unchanged (already a melee answer) |
+| Emberdrift (phase 2 version), coals drain 2.5x, 3 embers on a 280 px ring | always visible | step out for an ember when your coal is low, then back | unchanged (every class walks for them) |
+| Creeping Rime (phase 2 version), r85 patch, held 85 px off her edge, creeps round her toward the nearest hero at 48 px/s | always visible | step round her to the far side: it turns round her at about 0.4 rad/s, a hero at melee reach (128-152 px/s at about 80 px) 1.6 or more | unchanged |
+
+Measured (scratch copy of tools/matrix.ts's run with damage by cause, Coldmarrow 10, tools/heroes/matrix hero-t10 n=0,
+average skill reactBot(0.3, 1, forget 0.2, stepErr 0.5), Halls, client Omens, seeds 1-20, main vs this PR):
+
+| Class | Wins main | Wins PR | Boss damage taken, % max hp per run (main / PR) |
+|---|---|---|---|
+| Cutwick | 18 | 19 | 91 / 73 (touch 20 / 0; Long Night 44 / 46) |
+| Bulwark | 20 | 20 | 40 / 31 (touch 9 / 0) |
+| Emberwright | 18 | 18 | 53 / 49 (touch 4 / 0) |
+| Lumen | 17 | 18 | 120 / 109 (touch 14 / 0) |
+| Slagbinder | 19 | 19 | 16 / 14 (touch 1 / 0) |
+
+Boss-fight medians did not move (Cutwick 94 s, Bulwark 84 s, Emberwright 58 s, Lumen 98 s, Slagbinder 28 s). Merge gate
+(CHECK=1, Coldmarrow, seeds 1-6): pass. The "red marks on the floor" in her fight (Cutwick 13-15% a run) are not hers:
+in 6 Cutwick runs every unowned mark came from the Omens (Volatile Ground r70, Kindled Dead r90). Her casts start no
+red marks, so the Quickened owner bug from #912 can't happen here. Lumen's extra cost is the cold itself (Frozen 17%,
+Snuffers 18%), a coal question, not a melee one.
+
 ## Still to audit (one PR each)
 
-- The Banked Queen (Nhevra, the Coldmarrow)
 - Aunt Ebb (Hessa, the Wrackline)
 - The Iron Uncle (Ondrel, the Hammerdeep) and the other group and raid bosses after the launch places
