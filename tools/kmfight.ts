@@ -4,9 +4,12 @@
 //
 //   CLS=emberwright TIER=1 SEEDS=1,2,3 REACT=0.3 FORGET=0.2 STEPERR=0.5 npx tsx tools/kmfight.ts
 //   TUNE=KILN_V2.stage2At=0.7 ...   overrides an exported tuning number, as in tools/balance.ts
+//   FIRST=1 ULVL=1 plays the opening's short Kiln Mother; FD_BOSSHP=2 overrides FIRST_DELVE.bossHp; LAG=0.3 SKILL=0.5 is
+//   the novice reference (laggedBot, as in tools/balance.ts). Blue casts started / Quenched are counted per fight.
 import * as WORLD from '../sim/world';
 import { World } from '../sim/world';
-import { botChoose, botInput, reactBot } from '../sim/bot';
+import { botChoose, botInput, laggedBot, reactBot } from '../sim/bot';
+import { FIRST_DELVE } from '../sim/content/firstdelve';
 import type { ClassId } from '../sim/content/emberwright';
 
 for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
@@ -33,7 +36,9 @@ proto.hurtPlayer = function (this: World, amount: number, src = -1, ...rest: unk
   return r;
 };
 
+if (process.env.FD_BOSSHP) FIRST_DELVE.bossHp = Number(process.env.FD_BOSSHP);
 const react = Number(process.env.REACT ?? 0);
+const lagTicks = Math.round(Number(process.env.LAG ?? 0) * 30);
 const skill = Number(process.env.SKILL ?? 1);
 const seeds = (process.env.SEEDS ?? '1,2,3,4,5,6,7,8').split(',').map(Number);
 const cls = (process.env.CLS ?? 'emberwright') as ClassId;
@@ -44,7 +49,8 @@ const total: Record<string, number> = {};
 const fell: Record<string, number> = {};
 for (const seed of seeds) {
   const w = new World({ seed, dungeon: 'kiln', tier, cls, halls: process.env.HALLS !== '0', firstDelve: process.env.FIRST === '1', unlockLevel: process.env.ULVL ? Number(process.env.ULVL) : undefined });
-  const drive = react ? reactBot(react, skill, { forget: Number(process.env.FORGET ?? 0), stepErr: Number(process.env.STEPERR ?? 0), salt: seed }) : (x: World) => botInput(x, skill);
+  const drive = react ? reactBot(react, skill, { forget: Number(process.env.FORGET ?? 0), stepErr: Number(process.env.STEPERR ?? 0), salt: seed }) : lagTicks ? laggedBot(lagTicks, skill) : (x: World) => botInput(x, skill);
+  let casts = 0, quenched = 0;
   let bossAt = 0, s2At = 0, s3At = 0, lastCause = '';
   inBoss = false;
   hits = {};
@@ -53,6 +59,8 @@ for (const seed of seeds) {
     w.step(drive(w));
     for (const ev of w.events) {
       if (ev.type === 'bossSpawn') { bossAt = w.time; inBoss = true; }
+      if (bossAt && ev.type === 'castStart' && ev.id === 'cataclysm') casts++;
+      if (bossAt && ev.type === 'interrupt' && ev.name === 'Kiln Ripple') quenched++;
       if (ev.type === 'phase' && ev.phase === 2 && bossAt && !s2At) s2At = w.time;
       if (ev.type === 'castDone' && (ev.id === 'kmFallen' || ev.id === 'kmOut') && !s3At) s3At = w.time;
       if (ev.type === 'phase' && ev.phase === 3 && bossAt && !s3At) s3At = w.time;
@@ -75,7 +83,7 @@ for (const seed of seeds) {
   }
   for (const [k, v] of Object.entries(hits)) total[k] = (total[k] ?? 0) + v;
   const f = (a: number, b: number) => (a && b ? (b - a).toFixed(0) : '-');
-  console.log(`seed ${seed}: ${s.victory ? 'WIN ' : 'LOSS'} fight=${bossAt ? (end - bossAt).toFixed(0) : '-'}s stages ${f(bossAt, s2At)}/${f(s2At, s3At)}/${s3At ? f(s3At, end) : '-'} hp=${w.player.hp.toFixed(0)}`);
+  console.log(`seed ${seed}: ${s.victory ? 'WIN ' : 'LOSS'} fight=${bossAt ? (end - bossAt).toFixed(0) : '-'}s stages ${f(bossAt, s2At)}/${f(s2At, s3At)}/${s3At ? f(s3At, end) : '-'} hp=${w.player.hp.toFixed(0)}${casts ? ` blue casts ${quenched}/${casts} stopped` : ''}${s.floorSaves ? ` floor saves ${s.floorSaves}` : ''}`);
 }
 console.log(`${cls} t${tier}: wins ${all.wins}/${seeds.length}, boss ${all.bossWins}/${all.bossTries}; won-fight median ${med(all.fight).toFixed(0)} s (${Math.min(...all.fight).toFixed(0)}-${Math.max(...all.fight).toFixed(0)}), stages ${med(all.s1).toFixed(0)}/${med(all.s2).toFixed(0)}/${med(all.s3).toFixed(0)} s, past 90 s ${all.boil}`);
 console.log('  boss damage taken, % max hp per run:', Object.entries(total).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${((100 * v) / seeds.length).toFixed(0)}`).join(', '));

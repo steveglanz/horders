@@ -104,6 +104,45 @@ describe('the opening run', () => {
   });
 });
 
+describe("the opening's short Kiln Mother", () => {
+  it('fights in two stages: Swipes, then Swipes and one blue cast to Quench; nothing else, no Boil-over, her three lines', () => {
+    const w = opening({ seed: 2 });
+    let bossAt = 0;
+    const casts = new Set<string>(), lines: string[] = [], phases: number[] = [], spawns = new Set<string>();
+    let boil = false;
+    while (w.state !== 'ended' && w.time < 500) {
+      if (w.state === 'draft') { w.choose(botChoose(w)); continue; }
+      w.step(botInput(w));
+      for (const ev of w.events) {
+        if (ev.type === 'bossSpawn') bossAt = w.time;
+        if (!bossAt) continue;
+        if (ev.type === 'castStart') casts.add(ev.id);
+        if (ev.type === 'bossSay') lines.push(ev.line);
+        if (ev.type === 'phase') phases.push(ev.phase);
+        if (ev.type === 'boilOver') boil = true;
+      }
+      if (bossAt) for (const e of w.enemies) if (e.alive && e.kind !== 'kilnMother') spawns.add(e.kind);
+      if (bossAt && w.kmOpen === 0) throw new Error('the opening fight is off');
+    }
+    expect(w.summary().victory).toBe(true);
+    expect(bossAt).toBeGreaterThan(0);
+    expect([...casts].sort()).toEqual(['cataclysm', 'kmSwipe']);
+    expect(phases).toEqual([2]);
+    expect(lines).toEqual([FIRST_DELVE.says.enter, FIRST_DELVE.says.stage2, FIRST_DELVE.says.sheFalls]);
+    expect(boil).toBe(false);
+    expect(w.bossEnraged).toBe(false);
+    expect([...spawns]).toEqual([]);
+    expect(w.boilAfter('kilnMother')).toBeUndefined();
+  });
+
+  it('only the opening plays it: the second delve meets the remade fight', () => {
+    const w = new World({ seed: 2, dungeon: 'kiln', tier: 1, cls: 'emberwright', halls: true });
+    inner(w).spawn('kilnMother', 0, 0);
+    expect(w.kmOpen).toBe(0);
+    expect(w.boilAfter('kilnMother')).toBeDefined();
+  });
+});
+
 describe('the opening coach', () => {
   const button = () => ({ hidden: false, classList: { contains: () => false }, querySelector: () => null }) as unknown as HTMLElement;
   it('teaches move, cast, then the roll on the first red and Quench on the first blue cast', () => {
