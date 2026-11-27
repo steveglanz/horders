@@ -1665,6 +1665,12 @@ export class World {
     return this.tier === 1 ? KILN_T1.bossHp : 1;
   }
 
+  /** PLACE_HP: this dungeon's own health share for its foes or its boss (1 off the table, and in a stress run). */
+  private placeHp(boss: boolean): number {
+    const t = PLACE_HP[this.dungeonId];
+    return !t || this.stress ? 1 : boss ? t.boss : t.foes;
+  }
+
   /** Halls: walking on the map (not yet through the boss door). */
   get hallsOn(): boolean {
     return !!this.halls && !this.halls.done;
@@ -4047,7 +4053,7 @@ export class World {
     if (this.threat.length) this.threat[idx] = newThreat();
     e.x = e.px = x;
     e.y = e.py = y;
-    e.maxHp = e.hp = def.hp * scale * (kind === 'kilnMother' ? this.kilnT1BossHp() : 1);
+    e.maxHp = e.hp = def.hp * scale * (kind === 'kilnMother' ? this.kilnT1BossHp() : 1) * this.placeHp(def.rank === 'boss');
     e.touchCd = 0;
     e.orbitCd = 0;
     e.brittleUntil = 0;
@@ -11167,6 +11173,13 @@ export const KILN_T1 = { bossHp: 0.65 };
  * listed get 1.
  */
 export const KILN_BOSS_HP: Record<number, number> = { 1: 1.7, 2: 1.6, 3: 1.3 };
+/**
+ * CP4 pacing (design, 27 Nov 2026): a place's own health share, on top of the tier's, for every foe but its boss
+ * (`foes`: trash, named and hard fights, the rare, adds) and for its boss. The Glarewell is the first place past tier 4
+ * (unlock 7, a tier-6 hero), and its Shades, Lensbearers, Brandkeepers and Twin Lamps ran over the 30/45 s trash and
+ * named budgets for the Emberwright and the Lumen, and the Glass Heir over 90 s for the Lumen and both melee classes.
+ */
+export const PLACE_HP: Partial<Record<DungeonId, { foes: number; boss: number }>> = { glarewell: { foes: 0.6, boss: 0.85 } };
 
 export const KILN_V2 = {
   /** Stage 2 at this share of her health. */
