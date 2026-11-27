@@ -19,7 +19,133 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | ✅ built | design | ✅ Visuals: potion icons (#35) and the brewing look (#163) |
 | R12 | Group dungeons: the Hammerdeep needs a tank and a healer; the others are labelled solo friendly | 🔨 built #51 ([group-dungeons.md](group-dungeons.md)); retune after the bot fixes | design | ✅ built #51 ([group-dungeons.md](group-dungeons.md)); retuned with bot revives in #173. The Hammerdeep drops the Deepguard set (verb "stay close"), the Ashvents the Ventwalker set ("split up") |
 
-## 1.0: the road to launch (plan of record, 25 Nov 2026)
+## 1.0: the road to launch (plan of record, rebuilt 27 Nov 2026)
+
+Steve (27 Nov 2026, 08:42Z): "There should be more than that on the 1.0 checklist. I feel like we are very far from having a polished game, with engaging and balanced gameplay, fully flushed out classes and maps and dungeons and art. We have a great start, but we're not anywhere near where I would try to charge for our game." And at 08:45Z: "People will not pay for something that looks like it was thrown together, has no cohesive feel and concepts. And people also have a negative bias towards what they call 'AI slop'. So we can't throw anything on there without it being thought through."
+
+So 1.0 is no longer "finish and ship". It is: **one cohesive world, a game that feels great in the hand, five classes worth mastering, a dozen places that each feel like a place, and a first hour that sells it.** Store steps stay, at the end. The first plan (M1 to M10, 25 Nov) is kept below as history; its done items (everything on, trees, pacing walls, redraws, Capacitor shell) are the base this plan builds on.
+
+### Audit (27 Nov, main 75a7550): what a paying player would see
+Checked by building main and shooting every screen at 390x844 (`tools/uxaudit.cjs`), the 3D room sheets in qa/3d-rooms, the average-player playtest (qa/playtest/average.md) and the content files. Strengths are real: 5 classes with trees, 12 dungeons and raids with authored bosses, co-op with roles, Halls maps, a clean dark UI kit. The gaps:
+
+**Cohesion and identity (the biggest gap)**
+- There is no world. No file in `sim/` or `client/` mentions lore or a story (grep, 0 files), and docs/design has no setting document. A player never learns who the heroes are, what the Hoard is, why they delve or what embers mean. Names and themes grew one feature at a time (forge, drowned foundry, observatory, frozen deep, quay), so nothing ties them together.
+- Two systems are both called "talents": the in-run level-up draft ("Choose a talent") and the permanent tree on the Hero tab. Players will confuse them.
+- Vocabulary sprawl. By tier 6 the hub shows Bounty, Key, Weekly, Seen, Season, Omens, Potion and Vent Floor chips, and the Hero tab adds Collection (60) and Achievements (19). Add embers, Heat, Grit, Quench, Echoes, verb sets, weapon effects, Mythics and the world boss. Each works, but together they read as bolted on, not designed.
+- Generated-sounding names. Gear is `RARITY_PREFIX + SLOT_NAMES` (sim/content/items.ts:107-132): "Titanheart Hauberk", "Tidebreaker Coil", "Rimeburnt Focus". This is exactly the pattern players call AI slop.
+- The 3D look mixes 2D billboard sprites (small heroes with "Hero 2" name tags) over 3D floors, with each dungeon washed in one strong colour (qa/3d-rooms/rooms-sheet-0.png). Heroes are about 30 px tall on a 390 px wide phone. The hub dungeon cards have no art at all, only a gradient and text (13-01-hub.jpg).
+- Sound effects are synthesized in code (client/audio/synth.ts, sounds.ts); music is Suno. Both are fine as a base, but nothing checks that they share one palette, and synthesized effects can read cheap next to the music.
+
+**Feel**
+- Trash is tiny on a phone (cinderhounds are a few pixels, 13-08-hud.jpg); hits have little weight. Screen shake exists in 4 files, hit-stop in 1. No feel pass has ever been done as its own task.
+- Boss fights still run long for some classes (Slagbinder wins average 581 s vs Duskblade 323 s, average.md; Kiln t1 Slagbinder boss 56 s), and the scripted audit run (`tools/uxaudit.cjs`, an Emberwright at tier 6) lost the Kiln Mother to Burnout after 6:08 ("the fight ran too long").
+
+**Classes**
+- Melee falls apart at average skill in the later solo dungeons: Coldmarrow t10 Duskblade and Bulwark 0/40, Glarewell t8 Bulwark 6/40, while ranged win 29-39/40 (average.md). M3 eased two cones, but the class spread at average skill was never re-measured across every dungeon.
+- Ability options lean on skill (Bulwark Muster 24/40 vs Anvil Skin 6/40 at average skill) and nothing steers players.
+- Classes have one hero sprite each; no class has its own look in the hub, intro or end screen.
+
+**Dungeons and maps**
+- Seven of twelve places share one trash pool. The Hammerdeep, Ashvents, Pressworks and all four raids draw their openers from the same Kiln and Foundry packs (warpack, glass, crawlers, riftfall, glassSpitters, spitters; named anvilguard, bellwarden, spitterBrute), sim/content/dungeon.ts:211-249. The Pressworks' list is the Hammerdeep's. Only the boss differs.
+- A new player sees only the Kiln for tiers 1-3 (Foundry and Hammerdeep open at tier 4, dungeon.ts:186-214), while the hub shows twelve dots.
+- Rooms in one dungeon look alike (one floor, one wall, one colour); there are no landmark rooms or set pieces.
+
+**Onboarding, UI and progression**
+- No title screen, no hook, no "who am I" moment: the first screen is the delve picker. The tutorial Kiln (#859) teaches moving and fighting, not the world or roles.
+- Gear tiles are text only (no item icons, 13-06a-tab-hero.jpg); the end screen is half empty (13-13-end-full.jpg); a loss shows four numbers and no lesson beyond one line.
+- No mapped progression curve: nobody has written what a player does and wants at hour 1, 5, 20 and 50, so the many meta systems compete instead of handing off.
+
+### How this plan works
+- **Tracks, not one queue.** Nine tracks (A to I). Each item is one short thread with a done-when bar. Teams take the top open item in their track; the order of tracks is the order of priority when threads are scarce.
+- **Gate:** track A (world, art direction, vocabulary) comes first. Any new art, sound, names or text waits for A1 and A2, so nothing new is thrown on before the direction is set. Feel, balance and measurement work (B, C, parts of F and H) doesn't wait.
+- **The cohesion test, for every PR from now on:** does it fit the world bible (A1), the art and sound guides (A2, G1) and the glossary (A3)? A PR that adds a player-facing name, icon, colour, sound or line of text says which guide it follows. Nothing generic: every name, item and line is written for this world.
+- **Content lock, revisited.** Still no new dungeon, raid, class or mode for 1.0 (the Arena waits). Allowed now: new trash foes and packs so each place has its own (D2), landmark rooms (D1), and cutting or merging systems (A3).
+- Unchanged: no switches (Steve 25 Nov), keep it simple and still a mini WoW, store-safe always, nothing paid before the end, Steve only when truly needed.
+
+### Track A: one world, one look (first, gates new art and text)
+| # | Item | Owner | Done when |
+|---|---|---|---|
+| A1 | **World bible.** One short doc: the setting (built from what exists: the Kiln, the Hoard, embers, the Furnace Regent), who the heroes are and why they delve, what embers and the Hoard are, the tone (grim-warm, a little wry, never jokey), the factions behind each dungeon, naming rules (sounds, word shapes, banned generic words), and one line placing every class, dungeon, boss and foe | design | docs/design/world.md merged; every dungeon, raid, boss, class and foe kind has its one line; naming rules have a do and don't list |
+| A2 | **Art direction guide and target shots.** Palette per dungeon inside one master palette, shape language (menacing foes, readable heroes), hero and foe scale on a phone, camera, lighting, UI style, icon style. Decide one rendering approach (keep billboard sprites and make them sharper and bigger, or move heroes and foes to low-poly models) and show 2-3 directions as mocks of one Kiln room and the hub | visuals | docs/art/direction.md merged with mocks; **Steve picks one direction** (one card, the only Steve step in A); every later art PR cites it |
+| A3 | **Vocabulary and systems pass.** One glossary of every player-facing term. Rename the in-run draft so it isn't "talents" (e.g. Boons). Merge or cut meta systems so the hub shows at most 4 meta entries by tier 6 (e.g. Seen + Collection + Achievements become one book; Bounty + Weekly become one "Today" card). Replace the gear name generator with hand-written names per dungeon and rarity | design, engineering | docs/design/glossary.md merged; no term is used for two things; hub chip count at tier 6 is 4 or fewer; no gear name comes from prefix + slot alone |
+| A4 | **Slop sweep.** Walk every screen, tooltip, blurb and icon and list anything generic, inconsistent or placeholder (mixed icon styles, Unicode stars and keys as icons, generic names, filler text, odd colours). Fix each in small PRs against A1-A3 | design, visuals | a sweep list in docs/ux/slop-sweep.md with every line fixed or cut |
+| A5 | **The name.** Check "Horders" against both stores and the web for clashes and readability (players may read it as "hoarders" misspelled); keep it or pick a final name before any listing work | design | a short note with the searches; the name is settled (a card to Steve only if we recommend a change) |
+
+### Track B: game feel
+| # | Item | Owner | Done when |
+|---|---|---|---|
+| B1 | **Hit feel.** Hit-stop on big hits and kills, hit flashes, small knockback on trash, death bursts, screen shake with a setting to turn it down, haptics on big hits (phones) | engineering, visuals | before/after clips of the same fight; a "Screen shake" setting; frame rate unchanged on the cost bar |
+| B2 | **Readable on a phone.** Heroes and foes big enough to read at 320 px wide; class silhouettes tell apart at a glance; no "Hero 2" name tags in solo, short names in co-op; foes never hide under the HUD (the boss-under-buttons bug, average.md) | visuals, mobile | at 320x568 every hero and foe is at least 40 px tall (set in A2); a shot sheet of all five classes and every foe family |
+| B3 | **One telegraph language.** Every danger uses the same shapes and colours (red floor = move, gold = stand, blue cast bar = Quench, lane = step aside) across all 12 places | design, visuals | docs/art/telegraphs.md; a sweep shot of every boss and elite telegraph matches it |
+| B4 | **Controls.** Joystick dead zone and feel, targeting that picks what the player expects, ability buttons that press, glow when ready and shake when not | mobile, engineering | 5 short phone checks pass on iPhone (Steve's) and a 320 px emulator; no mis-tap reported in the QA pass |
+| B5 | **Fight lengths.** Targets: trash pack 5-15 s, elite 20-45 s, dungeon boss 60-120 s, raid boss 2-4 min, run 8-12 min. Measure all 12 bosses for every class at average skill and pull the long ones in | design | a table of boss length by class; no class over the target by more than 30% |
+| B6 | **Frame rate and loading.** 60 fps on Steve's iPhone 15 Pro Max, 30+ on a mid Android, level load under 5 s | engineering, QA | numbers logged for each dungeon in qa.md |
+
+### Track C: classes worth mastering
+| # | Item | Owner | Done when |
+|---|---|---|---|
+| C1 | **Average-skill spread.** Re-measure every class at average skill at each dungeon's entry tier and its tier + 3, solo dungeons first; fix the melee walls (Coldmarrow, Glarewell) | classes, design | every class within 10 wins of 20 of the best class at each point, smallest grid that answers it |
+| C2 | **Each class its own fantasy.** A one-paragraph identity per class tied to the world (A1); its own colour, sound family and hit effects; its abilities look and sound like one kit | classes, visuals, sound | docs/design/classes/<class>.md; a shot and sound sheet per class |
+| C3 | **Choices that matter.** No ability option or talent picked by the bots' best builds over 70% of the time; options that need skill say so; the tree shows a suggested build for new players | classes | a pick-rate table from bot runs; a "Suggested" button on the tree |
+| C4 | **Teach the role.** First time a player picks the Bulwark or Lumen, a short role intro (hold threat, keep allies up) | classes, design | intro shown once per class; shots at 320x568 |
+| C5 | **Bots that play their role.** Bot tank holds threat, bot healer keeps the party up, in every group dungeon and raid | engineering, classes | bot-filled parties clear each group dungeon at its entry tier at the same rate as a human-like average party (within 3 of 20) |
+
+### Track D: places that feel like places
+| # | Item | Owner | Done when |
+|---|---|---|---|
+| D1 | **Landmark rooms.** Each of the 12 places gets 1-2 set-piece rooms that tell its story (from A1) and break up the look: a different floor, props, light, one piece of quiet motion | visuals, design | a shot of each landmark; still under the cost bar (96) |
+| D2 | **Own trash for the group dungeons and raids.** Each of the 7 places sharing the Kiln/Foundry pool gets 2-3 packs of its own (new foes allowed, each with a 3D tell and a sound) | design, visuals, sound | no two group places share more than 2 opener packs; Pressworks and Hammerdeep lists differ |
+| D3 | **Boss moments.** Each boss gets an entrance (name card plus a beat of motion), clear phase changes and a death moment; the room is its own space | visuals, sound, design | a clip per boss; every boss passes the telegraph check (B3) |
+| D4 | **Early variety.** A new player sees a second place before tier 4 (for example the Foundry from tier 2 or 3) | design | first 3 tiers offer 2 places; tier 1-3 novice wins unchanged |
+| D5 | **Room variety per dungeon.** At least 3 map templates per solo dungeon with distinct room shapes, and packs that use the room (pillars, water, light) | design, engineering | template count per dungeon in docs/design; QA stuck checks pass on each |
+
+### Track E: first hour and UI
+| # | Item | Owner | Done when |
+|---|---|---|---|
+| E1 | **Title and first five minutes.** A title screen with key art, a two-line hook from the world bible, class pick with a portrait per class, then the tutorial Kiln. New systems appear one at a time as they unlock, each with one line | design, visuals, engineering | a fresh-player clip from launch to the first Kiln win; no meta chip shows before it means something |
+| E2 | **Hub with art.** Dungeon cards with their own art, the hero shown in the hub, at most 4 meta entries (A3), a clear "what next" | visuals, engineering | hub shots at 320x568 and 390x844 match the A2 mocks |
+| E3 | **Loot you can see.** An icon for every item slot and rarity, a compare view (better or worse at a glance), set and Mythic effects readable on the card | visuals, engineering | every gear tile has an icon; compare shown on pickup |
+| E4 | **End of run.** Victory and loss screens that fill the space well: loot reveal, XP, what killed you and one tip, next goal | engineering, design | shots for win, loss and no-loot runs at both phone sizes |
+| E5 | **Settings and access.** Text size, colour-blind safe telegraphs (shape as well as colour), shake and flash off, music and sound sliders, left-handed buttons | mobile, engineering | each setting works in a run; colour-blind sim shots of three bosses |
+
+### Track F: progression and retention
+| # | Item | Owner | Done when |
+|---|---|---|---|
+| F1 | **The progression map.** Write what a player does and wants at minute 10, hour 1, 5, 20 and 50, and which system carries each stage; cut what doesn't carry a stage (feeds A3) | design | docs/design/progression.md merged |
+| F2 | **Measured curve.** Bot-measured time to each level, tier and dungeon unlock, and first Epic, Legendary, Mythic; fix dead stretches | design | a table against F1's targets; no stretch over 2x its target |
+| F3 | **Upgrades that feel like upgrades.** A new item changes something visible (numbers that move, effects you notice); sets and Mythics change how you play | design, classes | a 30-minute bot run shows an upgrade at least every 2-3 runs at each stage |
+| F4 | **One endgame loop.** Keys, season, world boss and raids form one clear "what do I do at max tier" path in the hub | design | one hub entry for the endgame; F1 stage 20-50 h points to it |
+| F5 | **Saves you can trust.** Cloud save, link codes and resets tested on both phones, including app updates | QA, engineering | checklist passes in qa.md |
+
+### Track G: sound
+| # | Item | Owner | Done when |
+|---|---|---|---|
+| G1 | **Sound direction.** One palette (materials: iron, ember, stone, water, glass) for effects and music, written down; music themes per dungeon checked to sound like one game | sound | docs/audio/direction.md; a listening file per dungeon |
+| G2 | **Effects pass.** Replace synthesized effects that read cheap next to the music, hit sounds with weight, UI sounds as one set | sound | before/after listening file; distance test still passes |
+| G3 | **Mix.** Loudness matched across tracks, music ducks under big moments, boss music transitions without gaps | sound | measured loudness per track within 2 LU |
+
+### Track H: quality and outside eyes
+| # | Item | Owner | Done when |
+|---|---|---|---|
+| H1 | **Full QA pass** (was M5): every dungeon at tiers 1, 4, 8 and every raid, solo and co-op with Quick join and bots, a new-player session | QA | 0 stuck runs and no open blocker in qa.md. Run once now for bugs, and again after tracks A-E land |
+| H2 | **Error reports.** Catch client errors into our own Supabase table (no outside service), and say so in the privacy page | engineering | errors visible in a table; privacy page updated |
+| H3 | **Fresh eyes.** 5 or more players who have never seen the game play the first hour on their phones; we watch where they stop, get lost or smile | QA, design; Steve finds the players | notes from each session; top 10 fixes done |
+| H4 | **Steve's own playthrough** (was M9's play check) | Steve, QA | Steve says it feels like a game worth paying for |
+
+### Track I: ship (last; unchanged steps from M6, M8, M9, M10)
+| # | Item | Owner | Done when |
+|---|---|---|---|
+| I1 | Store pages in the game (was M6): contact email on privacy and delete pages, both live | engineering; Steve sends the email | pages live with the address |
+| I2 | Real-phone checks (was M8): every item in [app-stores.md](app-stores.md#check-on-a-device-not-proven) on an Android phone and in iPhone Safari | QA, mobile, sound; Steve installs builds | each item passes or is fixed and re-checked |
+| I3 | Price and business model: paid up front, free with one unlock, or IAP; written up with store rules, decided by Steve once H4 is close | design; Steve decides | one card to Steve with a recommendation |
+| I4 | Listing (was M9 prep): name (A5), descriptions, **screenshots and a trailer from the final look**, age rating, privacy labels, Data safety | design, visuals | docs/store/ ready; screenshots taken after tracks A, D and E land |
+| I5 | Accounts and release (was M10): Apple and Google accounts (Steve, paid), TestFlight, Play closed test (12 testers, 14 days), review | Steve; engineering, QA | both stores show Horders 1.0 live; the same build on the site |
+
+**Order when threads are scarce:** A1, A3 and C1 now (no art needed); A2 next (Steve picks a direction); then B1, B2, B5, E1 and F1; then D, E2-E5, G; then H1 again, H3, H4; then I. The Android installable build (I2 prep) and a first QA bug pass (H1) can keep running. **Store listing work (I4) waits** until the final look exists, so screenshots aren't made twice.
+
+**Steve-only steps**, in order: pick one art direction (A2); send the Horders contact email (I1, nothing waits on it); install test builds (I2); help find 5 fresh players (H3); play the whole game (H4); pick the price model (I3); then, last, open and pay for the store accounts and submit (I5). Nothing paid before I5.
+
+## 1.0 first plan (25 Nov 2026, kept as history)
 
 Steve (25 Nov 2026, 22:24Z): "Ideally we have a roadmap and you would continue building towards our 1.0 launch and release on app stores." 1.0 is one build that goes live on the site and on both stores. The milestones run in this order, and each team's next tasks are in the "1.0 queue" of its brief (`/mnt/project-files/horders/teams/<team>.md`), so a fresh short thread can pick one up.
 
