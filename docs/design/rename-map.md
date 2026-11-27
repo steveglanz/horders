@@ -90,7 +90,8 @@ The roadmap starts Sparks at 8 per class (3 that change behavior), chosen at Che
 | Today | Rule it breaks | Do |
 |---|---|---|
 | Clinker Heart, Lantern Heart | banned "-heart" | rename if kept |
-| Phoenix Lance | "phoenix" is stock fantasy, and doesn't fit fire stolen from a furnace | rename if kept |
+| Phoenix Lance | "phoenix" is stock fantasy, and doesn't fit fire stolen from a furnace | **Long Poker** (CP2 Sparks, 27 Nov; id stays `phoenixLance`). Searched "Long Poker" on wowhead/warcraft wiki: no match (card-game addons only). "Hot Poker" dropped: wowhead item 7682's Chinese name reads as a branding iron, too close to call |
+| Heavy Lob (Slagbinder) | the gunner fires a cannon, it no longer lobs | **Packed Shot** (CP2 Sparks, 27 Nov; id stays `heavyLob`). Searched "Packed Shot" on wowhead/warcraft: no match |
 | Shadow Slip | banned "shadow-" (kept on 21 Nov under the old rule; the new list bans it) | rename if kept |
 | Hot Blood, Warm Hearth | fine: ordinary phrases | keep |
 | Cards named after WoW abilities that Steve kept on 21 Nov (Combustion, Conflagration, Momentum, Execution, Hamstring, Charge, Kick, Blink) | Steve's ruling stands | keep unless Steve asks to revisit; never add more |

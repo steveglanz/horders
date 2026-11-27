@@ -23,16 +23,18 @@ function world(cls: ClassId): { w: World; inner: Inner } {
 }
 
 describe('capstone choices (C5)', () => {
-  it('an unlocked branch offers both its capstones first, and taking one closes the other', () => {
+  it('1.0 CP2 Sparks: catching one play-changing Spark closes the other two', () => {
     const { w, inner } = world('duskblade');
-    inner.talents = { quickBlades: 3 };
+    inner.talents = { quickBlades: 1 };
     const ids = w.rollDraft().map((o) => o.id);
-    expect(ids.slice(0, 2).sort()).toEqual(['bladeStorm', 'killingRhythm']);
     expect(ids).toHaveLength(3);
+    expect(ids.filter((id) => TALENTS[id].capstone)).toHaveLength(1);
     inner.talents.killingRhythm = 1;
-    const next = w.rollDraft().map((o) => o.id);
-    expect(next).not.toContain('bladeStorm');
-    expect(next.filter((id) => TALENTS[id].capstone)).toHaveLength(0);
+    for (let k = 0; k < 4; k++) {
+      const next = w.rollDraft().map((o) => o.id);
+      expect(next.filter((id) => TALENTS[id].capstone)).toHaveLength(0);
+      inner.talents.quickBlades = (inner.talents.quickBlades ?? 0) + 1;
+    }
   });
 
   it('every branch of the Emberwright and Duskblade has two capstones', () => {

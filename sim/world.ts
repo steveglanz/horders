@@ -11,7 +11,7 @@ import { fillLootShare } from './content/botfill';
 import { NAMED, NAMED_TITLES, AFFIXES, Affix, BROOD_KIND, C2_AFFIXES } from './content/named';
 import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
-import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId, Situation } from './content/emberwright';
+import { ABILITIES, AbilityDef, Branch, GCD, MAX_HEAT, SPARKS, TALENTS, TalentDef, TalentId, ClassId, Situation } from './content/emberwright';
 import { ALT_BY_ID, ALT_OPTIONS, AltId, AltOption, CLASSES, ClassDef, MAX_UNLOCK, SLAG_GUNNER, cleanAlts, slotOpen } from './content/classes';
 import { Loadout, PointId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { TREE, TreeNodeId } from './content/trees';
@@ -10457,28 +10457,36 @@ export class World {
   }
 
   /**
-   * Offer one talent from each branch, so every pick is a build direction.
-   * An unlocked branch offers all its capstones (taking one closes the rest). A branch with nothing left
-   * gives its card to another branch, then to the general fallbacks.
+   * 1.0 CP2 Sparks (SPARKS in sim/content/emberwright.ts): offer 3 of the class's 8 Sparks, one from each branch where it
+   * can. Until the hero catches a play-changing Spark, one card is always one of the three, taking turns draft by draft
+   * (from a start set by the seed), so passing on one shows you the next; catching one closes the other two. A branch with nothing left gives its card to another branch, then to the
+   * general fallbacks. Sparks for a slot that is locked or swapped for an ability option are never offered.
    */
+  /** Whether the acting hero can be offered this card: its slot (if any) is unlocked and not swapped for an option. */
+  canDraft(id: TalentId): boolean {
+    const d = TALENTS[id];
+    return d.ability === undefined || (!this.isAlt(d.ability) && this.unlocked(d.ability));
+  }
+
   rollDraft(): DraftOption[] {
     const out: DraftOption[] = [];
+    const sp = SPARKS[this.cls];
+    const ok = (id: TalentId) => this.canDraft(id);
+    const changed = sp.change.some((id) => this.rank(id) > 0);
+    const change = changed ? [] : sp.change.filter(ok);
+    const plain = sp.plain.filter((id) => ok(id) && this.rank(id) < TALENTS[id].maxRank);
+    let used: Branch | null = null;
+    if (change.length) {
+      // Picks made so far (ranks held) turn the wheel; the seed and hero pick where it starts.
+      const picks = Object.values(this.talents).reduce((a, r) => a + (r ?? 0), 0);
+      const n = change.length, id = change[((((this.seed | 0) + this.acting + picks) % n) + n) % n];
+      out.push({ id, nextRank: 1 });
+      used = TALENTS[id].branch;
+    }
     const spare: TalentId[] = [];
-    let capCards = 0;
-    // A hero with an ability option never drafts talents for the ability it replaced.
-    // (One talent can only upgrade one slot, so checking that slot is enough.)
-    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls && (d.ability === undefined || (!this.isAlt(d.ability) && this.unlocked(d.ability))) && (!d.party || this.heroes.length > 1) && (!d.where || this.situationAhead(d.where)));
     for (const b of this.branches) {
-      const caps = defs.filter((d) => d.branch === b && d.capstone);
-      const capped = caps.some((c) => this.rank(c.id) > 0);
-      const open = (deep: boolean) => defs.filter((d) => d.branch === b && !d.capstone && !!d.deep === deep && this.rank(d.id) < d.maxRank).map((d) => d.id);
-      // Deep cards (C5 round 2) join a branch once its capstone is taken.
-      const ids = capped ? [...open(false), ...open(true)] : open(false);
-      if (caps.length && caps.every((c) => this.rank(c.id) === 0) && this.branchRanks(b) >= CAPSTONE_RANKS) {
-        // The capstone choice: every capstone of the branch, side by side, ahead of the other cards.
-        out.splice(capCards, 0, ...caps.map((c) => ({ id: c.id, nextRank: 1 })));
-        capCards += caps.length;
-      } else if (ids.length) {
+      const ids = plain.filter((id) => TALENTS[id].branch === b);
+      if (b !== used && ids.length && out.length < 3) {
         const id = ids.splice(this.rng.int(ids.length), 1)[0];
         out.push({ id, nextRank: this.rank(id) + 1 });
       }
