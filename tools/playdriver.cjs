@@ -4,8 +4,9 @@
 //
 //   npm ci && npm run build                       (once; rebuild after every git pull)
 //   node tools/playdriver.cjs start [--view phone|se|p320|land|tablet|desk] [--fresh|--hero tools/heroes/hero-t6.json]
-//                                   [--out <dir>] [--port 7811] [--2d] [--live] [--query "localparty=1&seed=5"]
+//                                   [--out <dir>] [--port 7811] [--2d|--flat] [--live] [--query "localparty=1&seed=5"]
 //   --2d is much faster in a cloud container (headless 3D runs the game ~8x slower; move/wait still count game time).
+//   --flat is the QA debug view (?flat=1, client/flatart.ts): flat shapes, no art, no 3D; it keeps working once the 2D art is gone.
 //   node tools/playdriver.cjs look [name]        screenshot + what is on screen (overlays, buttons, HUD, nearby foes)
 //   node tools/playdriver.cjs tap "<button text>" | tap css:<selector> | tap xy:<x>,<y>
 //   node tools/playdriver.cjs move <up|down|left|right|up-left|...> <ms>   hold WASD for ms of GAME time (stops early on a draft or the end)
@@ -123,7 +124,7 @@ async function server() {
     if (u.pathname.endsWith('/strike_world_boss')) return json({ ok: true, name: 'Old Vorhulm', dealt: 4000, hp: 308000, max_hp: 500000, defeated: false });
     return json([], 200);
   });
-  const qs = '?' + [a['2d'] ? 'hd2d=0' : '', a.query && a.query !== true ? a.query : ''].filter(Boolean).join('&');
+  const qs = '?' + [a.flat ? 'flat=1' : a['2d'] ? 'hd2d=0' : '', a.query && a.query !== true ? a.query : ''].filter(Boolean).join('&');
   await page.goto(`http://127.0.0.1:${files.address().port}/${qs}`);
   await page.waitForTimeout(2000);
   const t0 = Date.now();
@@ -264,7 +265,7 @@ async function server() {
     });
   }).listen(port, '127.0.0.1');
   fs.writeFileSync(STATE_FILE(port), JSON.stringify({ pid: process.pid, out }));
-  fs.appendFileSync(actions, `# playdriver view=${a.view || 'phone'} ${a.fresh ? 'fresh player' : a.hero ? 'hero ' + a.hero : 'saved/default hero'} ${a['2d'] ? '2D' : '3D'} commit=${(() => { try { return require('child_process').execSync('git rev-parse --short HEAD').toString().trim(); } catch { return '?'; } })()}\n`);
+  fs.appendFileSync(actions, `# playdriver view=${a.view || 'phone'} ${a.fresh ? 'fresh player' : a.hero ? 'hero ' + a.hero : 'saved/default hero'} ${a.flat ? 'flat' : a['2d'] ? '2D' : '3D'} commit=${(() => { try { return require('child_process').execSync('git rev-parse --short HEAD').toString().trim(); } catch { return '?'; } })()}\n`);
 }
 
 if (process.argv[2] === '__serve') server().catch((e) => { console.error(e); process.exit(1); });

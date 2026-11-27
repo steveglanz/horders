@@ -97,12 +97,13 @@ export function webglAvailable(): boolean {
 
 /**
  * The 3D look is the baseline (Steve, 23 Nov 2026: "You can ditch non 3d, that should be our baseline").
- * It is off only when the player picked the 2D look (Settings, saves battery), with ?hd2d=0, or when the browser has
+ * It is off only when the player picked the 2D look (Settings, saves battery), with ?hd2d=0 or ?flat=1, or when the browser has
  * no WebGL. ?hd2d=1 turns it on whatever the setting says. If hd2d.js fails to load, the run plays in 2D (loadHd2d).
  * `look` is the saved setting (settings.ts display.look), read from storage so this file stays free of imports.
  */
 export function lookWanted(look: '3d' | '2d' = lookSetting()): boolean {
-  if (params.get('hd2d') === '0') return false;
+  // ?flat=1 is the QA debug view (client/flatart.ts): flat shapes in the 2D scene, never the 3D look.
+  if (params.get('hd2d') === '0' || params.get('flat') === '1') return false;
   if (!webglAvailable()) return false;
   if (params.has('hd2d')) return true;
   return look === '3d';
