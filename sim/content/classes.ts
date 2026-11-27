@@ -96,8 +96,10 @@ export const SLAG_GUNNER = true;
 /**
  * Ability unlocks (class progression brief, 25 Nov): a new character starts with its basic attack and Q and earns
  * the other buttons over its first levels. SLOT_UNLOCK[slot] is the character level that slot opens at.
+ * The interrupt/stun button F opens at level 1 for every class, so the opening can teach Quench (docs/design/opening.md,
+ * "Ruling: Quench in the opening"; classes grid 27 Nov). E opens at 2 and R at 3.
  */
-export const SLOT_UNLOCK = [1, 2, 3, 4];
+export const SLOT_UNLOCK = [1, 2, 3, 1];
 /** The level at which every slot is open. */
 export const MAX_UNLOCK = Math.max(...SLOT_UNLOCK);
 /** Whether a character of `level` has unlocked `slot` (no level means every slot, as tools and tests play). */

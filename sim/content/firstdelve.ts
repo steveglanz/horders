@@ -22,8 +22,8 @@ export const FIRST_DELVE = {
 /**
  * The first delve's coach line for each fight, in place of the fight's usual tip.
  * `quench` is the hero's interrupt (action slot 4, ringed in blue): Quench, Kick, Shield Toss, Hush or Clinker.
- * A new character has no interrupt yet (it unlocks at character level 4, SLOT_UNLOCK), so `quench` is left out and
- * the lines teach stepping out of the cast instead.
+ * F opens at character level 1 (SLOT_UNLOCK), so a new character has its interrupt or stun; with `quench` left out the
+ * lines teach stepping out of the cast instead.
  */
 export function coachLine(encounter: EncounterId, quench?: string): string | undefined {
   switch (encounter) {

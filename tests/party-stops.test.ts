@@ -16,14 +16,12 @@ function foe(main: ClassId, rest: ClassId[], kind: string, lvl?: number): { w: W
 }
 
 describe('foes adapt to the party: no stop-only casts nobody can stop (Steve, 26 Nov)', () => {
-  it('a level 1 hero (no F yet) never sees the Kiln Mother\'s Molten Cataclysm, nor is told to press F', () => {
+  it('F opens at level 1, so a level 1 stun hero solo faces the Kiln Mother\'s Molten Cataclysm and can stop it', () => {
     const { w, inner, i } = foe('lumen', [], 'kilnMother', 1);
-    expect(w.partyStops(w.enemies[i])).toBe(false);
-    expect(inner.startCast(i, 'cataclysm', 'Molten Cataclysm', 3, true)).toBe(false);
-    expect(w.enemies[i].castId).toBe('');
-    // A cast with a floor telegraph to step out of still comes, but F isn't offered.
-    expect(inner.startCast(i, 'groundPound', 'Ground Pound', 1.4, true)).toBe(true);
-    expect(w.canStop(w.enemies[i])).toBe(false);
+    expect(w.unlocked(3)).toBe(true);
+    expect(w.partyStops(w.enemies[i])).toBe(true);
+    expect(inner.startCast(i, 'cataclysm', 'Molten Cataclysm', 3, true)).toBe(true);
+    expect(w.canStop(w.enemies[i])).toBe(true);
   });
 
   it('once F is unlocked, a solo stun class faces every cast again', () => {
@@ -46,8 +44,8 @@ describe('foes adapt to the party: no stop-only casts nobody can stop (Steve, 26
     expect(inner.startCast(i, 'snuff', 'Snuff', 2, true)).toBe(true);
   });
 
-  it('a Bulwark whose F is still locked is no interrupter', () => {
-    const { w, i } = foe('bulwark', ['lumen'], 'ondrel', 3);
-    expect(w.partyStops(w.enemies[i])).toBe(false);
+  it('a level 1 Bulwark is already an interrupter (F opens at level 1)', () => {
+    const { w, i } = foe('bulwark', ['lumen'], 'ondrel', 1);
+    expect(w.partyStops(w.enemies[i])).toBe(true);
   });
 });
