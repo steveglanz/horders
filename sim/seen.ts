@@ -46,7 +46,7 @@ export const BOSS_VERSIONS: Record<DungeonId, readonly string[]> = {
 };
 
 /** The section names, in the order the hub lists them. */
-export const SEEN_KIND_NAME: Record<SeenKind, string> = { boss: 'Boss versions', echo: 'Echoes', foe: 'New foes', wave: 'Wave shapes', mark: 'Named foe traits', event: 'Arena events', stir: 'The dungeon stirs', heat: 'Heats' };
+export const SEEN_KIND_NAME: Record<SeenKind, string> = { boss: 'Boss versions', echo: 'Old Tricks', foe: 'New foes', wave: 'Wave shapes', mark: 'Named foe traits', event: 'Arena events', stir: 'The Hoard stirs', heat: "The Court's Moods" };
 
 export const seenKey = (dungeon: DungeonId, kind: SeenKind, id: string): SeenKey => `${dungeon}:${kind}:${id}`;
 
@@ -55,7 +55,7 @@ export function seenPool(dungeon: DungeonId): SeenEntry[] {
   const boss = DUNGEONS[dungeon].boss;
   const out: SeenEntry[] = BOSS_VERSIONS[dungeon].map((id) => ({ kind: 'boss' as const, id, name: BOSS_VERSION_NAME[id] ?? id, tip: `How ${ENCOUNTERS[boss].name.split(',')[0]} fights in this version` }));
   const who = ENCOUNTERS[boss].name.split(',')[0];
-  for (const v of echoesPossible(dungeon)) out.push({ kind: 'echo', id: v, name: BOSS_VERSION_NAME[v] ?? v, tip: `From tier ${ECHO.minTier}, ${who} can borrow this version's move late in the fight` });
+  for (const v of echoesPossible(dungeon)) out.push({ kind: 'echo', id: v, name: BOSS_VERSION_NAME[v] ?? v, tip: `From tier ${ECHO.minTier}, ${who} can fall back on this version's move late in the fight, an old trick` });
   for (const k of foesPossible(dungeon)) out.push({ kind: 'foe', id: k, name: ENEMIES[k].name, tip: ENEMIES[k].title ?? ENEMIES[k].name });
   for (const v of wavesPossible(dungeon)) out.push({ kind: 'wave', id: v, name: WAVE_SHAPE_INFO[v].name, tip: WAVE_SHAPE_INFO[v].tip });
   for (const a of AFFIXES) out.push({ kind: 'mark', id: a, name: a, tip: AFFIX_TIP[a] });

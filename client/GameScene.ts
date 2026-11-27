@@ -1531,7 +1531,7 @@ export class GameScene extends Phaser.Scene {
             if (ev.phase === 2 && w.bossVariant === 'glint') this.hud.banner('Phase 2: Glintfall', 'Light drops on every pillar. Step off your cover until it lands');
             else if (ev.phase === 2 && w.bossVariant === 'walk') this.hud.banner('Phase 2: Carried Light', 'She carries the light now. When a Glare starts, put a pillar between you and her');
             else if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
-            else if (w.bossEcho) this.hud.banner('Phase 3: The pillars fall', `She cracks a pillar every so often, and echoes ${BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho}`);
+            else if (w.bossEcho) this.hud.banner('Phase 3: The pillars fall', `She cracks a pillar every so often, and falls back on an old trick: ${BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho}`);
             else this.hud.banner('Phase 3: The pillars fall', 'She cracks a pillar every so often. Save the rest');
           } else if (w.dungeonId === 'crucible') {
             if (ev.phase === 2 && w.bossVariant === 'brim') this.hud.banner('Phase 2: The Brimming', 'The pit fills. Stand on the cooling islands, and move before they sink');
@@ -1566,7 +1566,7 @@ export class GameScene extends Phaser.Scene {
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
-          else if (w.bossEcho) this.hud.banner('Phase 3: The kiln cracks', `She casts faster, and echoes ${BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho}`);
+          else if (w.bossEcho) this.hud.banner('Phase 3: The kiln cracks', `She casts faster, and falls back on an old trick: ${BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho}`);
           else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           break;
         case 'soak':
@@ -1576,7 +1576,7 @@ export class GameScene extends Phaser.Scene {
           if (!ev.ok) this.floatText(ev.x, ev.y, ev.owner === -5 ? 'Tithe unpaid!' : 'Brand missed!', '#ff8aa5', 16);
           break;
         case 'eliteSpawn':
-          this.hud.banner('A Cinder Brute approaches', 'Interrupt its Ground Pound. Its death grants a bonus talent');
+          this.hud.banner('A Cinder Brute approaches', 'Interrupt its Ground Pound. Its death grants a bonus Spark');
           break;
         case 'rareSpawn':
           this.hud.banner('Rare: The Taster', 'Interrupt its Gorge or it heals. Drops rare loot');
@@ -1762,7 +1762,7 @@ export class GameScene extends Phaser.Scene {
           const shaped = w.waveShape === 'pincer' || w.waveShape === 'ring' ? w.waveShape : undefined;
           // Phase 15 Y10: a stirred fight says so (a 'wave' reaction's wave line already says how they come).
           const stirTip = w.stir ? (w.stir === 'wave' ? STIR_INFO.wave.tip : STIR_INFO[w.stir].tip) : '';
-          const stirLine = w.stir ? ` The dungeon stirs.${w.stir === 'wave' ? '' : ` ${stirTip}`}` : '';
+          const stirLine = w.stir ? ` The Hoard stirs.${w.stir === 'wave' ? '' : ` ${stirTip}`}` : '';
           const ground = floor + stirLine + (shaped ? ` ${WAVE_SHAPE_INFO[shaped].tip}` : '');
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'kilnMother' && w.bossVariant === 'turning' ? TURNING_FIRE_TIP : ev.id === 'maelra' && w.bossVariant === 'seal' ? SEALED_VENTS_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
@@ -1796,7 +1796,7 @@ export class GameScene extends Phaser.Scene {
             // so neither is cut off (a tip, a floor line, the Heat and four Omens don't fit even 4 lines at 320 wide).
             // The Omens banner names them only (details in pause); a Heat on its own has room for its line.
             const next = omens
-              ? { title: w.omens.length === 1 ? 'Omen' : 'Omens', sub: `${w.omens.map((o) => OMENS[o].name).join(', ')}. Details in pause.${heatDef ? ` Today's Heat: ${heatDef.name}.` : ''}` }
+              ? { title: w.omens.length === 1 ? 'Omen' : 'Omens', sub: `${w.omens.map((o) => OMENS[o].name).join(', ')}. Details in pause.${heatDef ? ` The Court's Mood: ${heatDef.name}.` : ''}` }
               : { title: "Today's Heat", sub: `${heatDef!.name}: ${heatDef!.text}` };
             this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, namedNext ?? next);
           } else if (this.hud.compact && !coach && (shaped || w.stir)) {
@@ -1804,7 +1804,7 @@ export class GameScene extends Phaser.Scene {
             // in the Dark: 198 characters), and the wave line is the part cut off. Each gets its own banner right after,
             // the stir first (Y10), then the wave, then a named foe's (if one stepped out).
             const waveNext = shaped ? { title: WAVE_SHAPE_INFO[shaped].name, sub: WAVE_SHAPE_INFO[shaped].tip, next: namedNext } : namedNext;
-            const after = w.stir ? { title: 'The dungeon stirs', sub: stirTip, next: waveNext } : waveNext;
+            const after = w.stir ? { title: 'The Hoard stirs', sub: stirTip, next: waveNext } : waveNext;
             this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + floor, false, after);
           } else this.hud.banner(title, coach ?? (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground + heat + omens, !!coach, namedNext);
           break;
@@ -2535,7 +2535,7 @@ export class GameScene extends Phaser.Scene {
         gs.portal.setVisible(true).setPosition(gate.x, gate.y + gate.r * 0.35).setTint(col).setAlpha(0.65 + 0.25 * Math.sin(now / 200 + k));
       }
       const name = ENCOUNTERS[gate.encounter].name;
-      const label = gate.kind === 'named' ? `${name}\nHarder · better loot` : gate.kind === 'shrine' ? 'Shrine\nHeal · level · no loot' : name;
+      const label = gate.kind === 'named' ? `${name}\nHarder · better loot` : gate.kind === 'shrine' ? "Delver's Rest\nHeal · level · no loot" : name;
       setColorIf(txt.setVisible(true).setText(label), '#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 34);
     });
     let soakShown = false;

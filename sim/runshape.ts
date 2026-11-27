@@ -124,12 +124,12 @@ export function runShape(w: World): ShapeChip[] {
   // Phase 16 U3: the echo shows once it has gone off, so a run that ended before her last phase shows none.
   if (w.echoMet && w.bossEcho) {
     const e = BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho;
-    out.push({ kind: 'echo', label: `Echo: ${e}`, tip: `${name(w.dungeonDef.boss)} also borrowed ${e} late in the fight` });
+    out.push({ kind: 'echo', label: `Old trick: ${e}`, tip: `${name(w.dungeonDef.boss)} fell back on an old trick late in the fight: ${e}` });
   }
 
   if (w.heat) {
     const h = HEATS[w.heat as HeatId];
-    if (h) out.push({ kind: 'heat', label: `Heat: ${h.name}`, tip: h.text });
+    if (h) out.push({ kind: 'heat', label: `The Court's Mood: ${h.name}`, tip: h.text });
   }
   return out;
 }
