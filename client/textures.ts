@@ -8,6 +8,7 @@
  */
 import Phaser from 'phaser';
 import { BOT_GLYPH } from './icons';
+import { FLAT, flatMake, flatSheet } from './flatart';
 
 export const SPRITE_RES = 2;
 
@@ -21,7 +22,9 @@ export const FRAMES: Record<string, number> = {};
 function make(scene: Phaser.Scene, key: string, size: number, draw: Draw): void {
   const tex = scene.textures.createCanvas(key, size, size);
   if (!tex) return;
-  draw(tex.getContext(), size);
+  // ?flat=1 (QA debug view, client/flatart.ts): a flat shape instead of the art.
+  if (FLAT) flatMake(tex.getContext(), key, size);
+  else draw(tex.getContext(), size);
   tex.refresh();
 }
 
@@ -38,7 +41,8 @@ function sheet(scene: Phaser.Scene, key: string, s: number, frames: number, draw
     ctx.beginPath();
     ctx.rect(0, 0, s, s);
     ctx.clip();
-    draw(ctx, s, f);
+    if (FLAT) flatSheet(ctx, key, s);
+    else draw(ctx, s, f);
     ctx.restore();
     tex.add(String(f), 0, f * px, 0, px, px);
   }
@@ -5041,7 +5045,12 @@ export function buildTextures(scene: Phaser.Scene): void {
   make(scene, 'orb', 34, (ctx, s) => glow(ctx, s, '#ffd27a', 'rgba(255,110,30,0.6)'));
   // Fire bolt: a bright head with a tapering tail, pointing right.
   const bolt = scene.textures.createCanvas('bolt', 64, 24);
-  if (bolt) {
+  if (bolt && FLAT) {
+    const ctx = bolt.getContext();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(4, 8, 56, 8);
+    bolt.refresh();
+  } else if (bolt) {
     const ctx = bolt.getContext();
     const tail = ctx.createLinearGradient(0, 0, 52, 0);
     tail.addColorStop(0, 'rgba(255,80,20,0)');

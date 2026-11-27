@@ -20,6 +20,7 @@ import { CoopSession, HeroCard } from './net/coop';
 import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './net/lobby';
 import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
+import { showFlatBadge } from './flatart';
 import { hd2dMounted, hd2dWanted, loadHd2d, lookWanted, prefetchHd2d } from './hd2d/api';
 import { display, mountDisplayOptions, onDisplayChange } from './settings';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
@@ -42,6 +43,8 @@ installSoundControls();
 const params = new URLSearchParams(location.search);
 // CP2 feel kit test: ?feelstop=<ms> tries another hit-stop length for heavy hits (client/feel.ts).
 applyFeelParams(location.search);
+// ?flat=1: the QA debug view (client/flatart.ts) marks itself on screen.
+showFlatBadge();
 let stress = params.has('stress');
 installTips();
 const hud = new Hud();
