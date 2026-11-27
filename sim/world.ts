@@ -6,6 +6,7 @@
  * Determinism rules: fixed time step, every random number comes from `rng`,
  * no Date/Math.random/performance calls in here.
  */
+import { kilnTaunt, type KilnSay } from './content/kilnmother';
 import { Rng } from './rng';
 import { fillLootShare } from './content/botfill';
 import { NAMED, NAMED_TITLES, AFFIXES, Affix, BROOD_KIND, C2_AFFIXES } from './content/named';
@@ -732,6 +733,8 @@ export type SimEvent =
   | { type: 'bossEnrage' }
   /** Boil-over (1.0 CP2): the boss glows and taunts, and from now on hits harder every BOIL.every s. */
   | { type: 'boilOver' }
+  /** CP3 Kiln Mother remake: one of her taunts (sim/content/kilnmother.ts), once per moment per fight. */
+  | { type: 'bossSay'; say: KilnSay; line: string }
   /** C7: a fight has gone on too long (`warn`: 30 s left; otherwise the fire now takes everything). */
   | { type: 'emberTaken'; x: number; y: number }
   | { type: 'emberEaten'; x: number; y: number; fed: number }
@@ -1116,13 +1119,16 @@ export class World {
   kmStage = 0;
   /** BOSSV2: she's inside the kiln (stage 2; she can't be hit all through stage 2, the walk in too). */
   kmInKiln = false;
+  /** CP3 remake: which taunts she has said this fight, and the ones waiting to be said (at World.time). */
+  private kmSaid = new Set<KilnSay>();
+  private kmSayQ: { say: KilnSay; at: number }[] = [];
   /** BOSSV2 stage 1: ember eggs (hatch at t >= dur unless a hero touches one). */
   kmEggs: { x: number; y: number; t: number; dur: number; alive: boolean }[] = Array.from({ length: 4 }, () => ({ x: 0, y: 0, t: 0, dur: 0, alive: false }));
   /** BOSSV2 stage 2: the heated quarters. Quarter q is the angle q*90 deg +-45 round the arena's centre (0 = east, y down). */
   kmHeat = { safe: 0, warn: 0, on: false };
   /** BOSSV2 stage 3: eruption rings rolling out from her, each with two gaps [centre, width, centre, width] (radians). */
   kmRings: { x: number; y: number; r: number; w: number; gaps: number[]; alive: boolean; hit: number }[] = Array.from({ length: 3 }, () => ({ x: 0, y: 0, r: 0, w: 0, gaps: [0, 0, 0, 0], alive: false, hit: 0 }));
-  private kmClock = { swipe: 0, egg: 0, kiln: 0, heat: 0, tick: 0, rings: 0, ringNext: 0, vuln: 0 };
+  private kmClock = { swipe: 0, egg: 0, kiln: 0, heat: 0, tick: 0, rings: 0, ringNext: 0, vuln: 0, bellows: 0 };
   /** BOSSV2, for the bot: seconds until the kiln stage's safe quarter next steps, and the warning it then gets. */
   get kmStepIn(): { next: number; warn: number } { return { next: this.kmClock.heat, warn: this.kmShow(KILN_V2.heatWarn) }; }
   readonly partySize: number;
@@ -1599,8 +1605,11 @@ export class World {
    * share at tier 1, solo or not (KILN_T1); the first delve's own (FIRST_DELVE.bossHp) on top of its softer foes.
    */
   private kilnT1BossHp(): number {
-    if (this.stress || this.dungeonId !== 'kiln' || this.tier !== 1) return 1;
-    return this.firstDelve ? FIRST_DELVE.bossHp : KILN_T1.bossHp;
+    if (this.stress || this.dungeonId !== 'kiln') return 1;
+    if (this.firstDelve) return this.tier === 1 ? FIRST_DELVE.bossHp : 1;
+    // CP3 remake: the remade fight's share at tiers 1 to 3 (KILN_BOSS_HP), so it lasts 60-90 s at each.
+    if (this.bossV2) return KILN_BOSS_HP[this.tier] ?? 1;
+    return this.tier === 1 ? KILN_T1.bossHp : 1;
   }
 
   /** Halls: walking on the map (not yet through the boss door). */
@@ -6602,7 +6611,8 @@ export class World {
 
       if (e.def.rank !== 'normal' && e.lungeW <= 0 && e.lungeD <= 0) this.runAbilities(i, dt); // no Snap mid-lunge
 
-      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !(this.kmStage === 2 && e.kind === 'kilnMother')) {
+      // CP3 remake: the remade Kiln Mother (kmStage > 0) never hurts by touch; every blow of hers is a red mark first.
+      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !(this.kmStage > 0 && e.kind === 'kilnMother')) {
         e.touchCd = 0.6;
         const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1)
           * (e.kind === 'ysmeret' && this.ysStage === 2 ? YSMERETV2.melee : 1);
@@ -7274,9 +7284,10 @@ export class World {
       // Phase 16 U1: in her last phase every other signature is her echo's.
       let move: string = this.bossVariant;
       if (phase === 3 && this.bossEcho) {
-        if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+        if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); if (v2 && this.kmSaid.has('stage3')) this.kmSay('oldTricks'); }
         this.echoNext = !this.echoNext;
       }
+      if (v2) this.kmSay('stage3');
       if (phase >= 2 && move === 'turning') {
         this.startCast(i, 'turningFire', 'Turning Fire', KILN_TURN.first, false);
         // She's busy pouring: nothing else from her until the last cone lands.
@@ -7295,17 +7306,23 @@ export class World {
       if (phase >= 2 && move === 'draw') {
         // V3 Kiln Draw: she breathes in and pulls everyone toward her mouth, where the fire lands. Walk out against the pull.
         this.startCast(i, 'kilnDraw', 'Kiln Draw', KILN_DRAW.cast, false);
-        this.addTelegraph('circle', e.x, e.y, KILN_DRAW.radius, 0, 0, KILN_DRAW.cast, KILN_DRAW.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+        // CP3 remake (every boss attack has a melee answer): the fire comes out of her door-mouth, the half of the floor
+        // in front of her, facing the hero as she starts. Behind her is safe, in melee reach; the pull keeps you there.
+        if (v2) this.addTelegraph('cone', e.x, e.y, KILN_DRAW.frontReach, Math.atan2(p.y - e.y, p.x - e.x), KILN_DRAW.frontArc, KILN_DRAW.cast, KILN_DRAW.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+        else this.addTelegraph('circle', e.x, e.y, KILN_DRAW.radius, 0, 0, KILN_DRAW.cast, KILN_DRAW.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
         return;
       }
       // BOSSV2: Molten Cataclysm is eruption rings to walk through, not an interrupt.
       if (v2) {
+        // CP3 remake: a ringWarn s wind-up (a cast bar, not interruptible) before the first ring rolls, so a hero in
+        // melee reach has time to find a gap or roll (vision: 0.8 s or more of warning).
         this.kmClock.rings = KILN_V2.ringN;
-        this.kmClock.ringNext = 0;
-        this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'kmRings', name: 'Molten Cataclysm' });
+        this.kmClock.ringNext = KILN_V2.ringWarn;
+        this.startCast(i, 'kmRipple', 'Kiln Ripple', KILN_V2.ringWarn, false);
+        this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'kmRings', name: 'Kiln Ripple' });
         return;
       }
-      this.startCast(i, 'cataclysm', 'Molten Cataclysm', 3, true);
+      this.startCast(i, 'cataclysm', 'Kiln Ripple', 3, true);
       return;
     }
     // Kiln Brand: someone has to stand in the gold circle.
@@ -7314,7 +7331,9 @@ export class World {
       if (this.brandT <= 0) {
         this.brandT = 14;
         const a = this.rng.next() * Math.PI * 2;
-        this.addTelegraph('circle', p.x + Math.cos(a) * 150, p.y + Math.sin(a) * 150, 70, 0, 0, 4, 40, 'soak', -1);
+        // CP3 remake (melee answers): the gold circle lands at her side, so a melee hero can stand in it and keep hitting.
+        if (v2) this.addTelegraph('circle', e.x + Math.cos(a) * KILN_V2.brandOff, e.y + Math.sin(a) * KILN_V2.brandOff, 70, 0, 0, 4, KILN_V2.brandMiss, 'soak', -1);
+        else this.addTelegraph('circle', p.x + Math.cos(a) * 150, p.y + Math.sin(a) * 150, 70, 0, 0, 4, 40, 'soak', -1);
       }
     }
     if (e.abilityT > 0) return;
@@ -7322,6 +7341,20 @@ export class World {
     // (design, 25 Nov); her signature and Brand run on the stage 3 clocks above.
     const pace = v2 ? (frac > 0.3 ? 2 : 3) : phase;
     e.abilityT = this.bossEnraged ? 1.6 : pace === 3 ? 2.4 : 3.2;
+    if (v2) {
+      // CP3 remake: a longer fight hits less often (stage3Pace), so a glass cannon still lasts 60-90 s.
+      e.abilityT = this.bossEnraged ? 1.6 : KILN_V2.stage3Pace[pace === 3 ? 1 : 0];
+      // CP3 remake: one basic attack, not three. A hero in her reach gets the stage 1 Swipe (stand at her side or
+      // behind); a hero out of it gets a Lob, a red circle at their feet (step or roll out). No Ashling rings: her
+      // adds come from the eggs in stage 1.
+      const near = Math.hypot(p.x - e.x, p.y - e.y) < KILN_V2.swipeNear;
+      if (near) {
+        const show = this.kmShow(KILN_V2.swipeShow);
+        this.startCast(i, 'kmSwipe', 'Swipe', show, false);
+        this.addTelegraph('cone', e.x, e.y, KILN_V2.swipeReach, Math.atan2(p.y - e.y, p.x - e.x), KILN_V2.swipeArc, show, KILN_V2.swipeDamage * mult, 'hit', i);
+      } else this.addTelegraph('circle', p.x, p.y, 120, 0, 0, 1.3, KILN_V2.lobDamage * mult);
+      return;
+    }
     const roll = this.rng.int(3);
     if (roll === 0) {
       this.addTelegraph('circle', p.x, p.y, 120, 0, 0, 1.3, 35 * mult);
@@ -7345,10 +7378,20 @@ export class World {
   private kmStart(): void {
     this.kmStage = 1;
     this.kmInKiln = false;
-    this.kmClock = { swipe: KILN_V2.swipeEvery, egg: KILN_V2.eggFirst, kiln: 0, heat: 0, tick: 0, rings: 0, ringNext: 0, vuln: 0 };
+    this.kmClock = { swipe: KILN_V2.swipeEvery, egg: KILN_V2.eggFirst, kiln: 0, heat: 0, tick: 0, rings: 0, ringNext: 0, vuln: 0, bellows: 0 };
     this.kmHeat = { safe: 0, warn: 0, on: false };
     for (const g of this.kmEggs) g.alive = false;
     for (const r of this.kmRings) r.alive = false;
+    this.kmSaid.clear();
+    this.kmSayQ = [];
+    this.kmSay('enter', KILN_V2.sayDelay);
+  }
+
+  /** CP3 remake: queue one of her taunts, `delay` s from now (after the stage banner), once per fight. */
+  private kmSay(say: KilnSay, delay = 0): void {
+    if (this.kmSaid.has(say)) return;
+    this.kmSaid.add(say);
+    this.kmSayQ.push({ say, at: this.time + delay });
   }
 
   /** Where she stands in the kiln mouth (the north wall, KILN_V2.mouthIn inside it). */
@@ -7372,6 +7415,7 @@ export class World {
         this.kmStage = 2;
         this.bossPhase = 2;
         this.events.push({ type: 'phase', phase: 2 });
+        this.kmSay('stage2', KILN_V2.sayDelay);
         if (e.castId) this.cancelCast(i);
         return;
       }
@@ -7405,15 +7449,14 @@ export class World {
     // comes out on her own. Either way stage 3 starts.
     if (!this.kmInKiln) return;
     if (c.kiln === 0) {
-      for (const deg of K.bellowsAt) {
-        const a = (deg * Math.PI) / 180;
-        this.spawn('kilnBellows', Math.cos(a) * K.bellowsRing, Math.sin(a) * K.bellowsRing);
-      }
+      // CP3 remake: one bellows at a time, each in the cool quarter as it turns cool (kmTick), so the stage lasts about
+      // bellowsN heat steps for every class instead of ending as fast as a ranged class can shoot three.
+      c.bellows = 0;
       c.heat = 0;
       this.kmHeat.safe = 3; // the first step moves it to 0 (east)
     }
     c.kiln += dt;
-    const left = this.enemies.some((o) => o.alive && o.kind === 'kilnBellows');
+    const left = c.bellows < K.bellowsN || this.enemies.some((o) => o.alive && o.kind === 'kilnBellows');
     if (!left || c.kiln >= K.kilnMax) {
       for (let k = 0; k < this.enemies.length; k++) if (this.enemies[k].alive && this.enemies[k].kind === 'kilnBellows') this.despawn(k);
       this.kmInKiln = false;
@@ -7427,7 +7470,11 @@ export class World {
         e.stunT = K.stun;
         c.vuln = this.time + K.stun;
         this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'kmFallen', name: 'She Falls Out' });
-      } else this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'kmOut', name: 'Out of the Kiln' });
+        this.kmSay('fallen', KILN_V2.sayDelay);
+      } else {
+        this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'kmOut', name: 'Out of the Kiln' });
+        this.kmSay('kilnOut', KILN_V2.sayDelay);
+      }
     }
   }
 
@@ -7442,7 +7489,7 @@ export class World {
       this.eachHero(() => { if (dist2(this.player.x, this.player.y, g.x, g.y) < (K.eggR + PLAYER_RADIUS) ** 2) touched = true; });
       if (touched || !live) {
         g.alive = false;
-        if (touched) this.events.push({ type: 'castDone', x: g.x, y: g.y, id: 'kmEggStamped', name: '' });
+        if (touched) { this.events.push({ type: 'castDone', x: g.x, y: g.y, id: 'kmEggStamped', name: '' }); this.kmSay('eggStamp'); }
         continue;
       }
       g.t += dt;
@@ -7453,6 +7500,7 @@ export class World {
           this.spawn('ashling', g.x + Math.cos(a) * 20, g.y + Math.sin(a) * 20);
         }
         this.events.push({ type: 'castDone', x: g.x, y: g.y, id: 'kmEggHatch', name: 'Hatched' });
+        this.kmSay('eggHatch');
       }
     }
     // Heat: every heatEvery s the safe quarter steps clockwise; the other three are shown heatWarn s, then burn.
@@ -7464,6 +7512,11 @@ export class World {
         h.safe = (h.safe + 1) % 4;
         h.warn = this.kmShow(K.heatWarn);
         h.on = false;
+        if (c.bellows < K.bellowsN) {
+          c.bellows++;
+          const a = (h.safe * Math.PI) / 2;
+          this.spawn('kilnBellows', Math.cos(a) * K.bellowsRing, Math.sin(a) * K.bellowsRing);
+        }
       }
       if (h.warn > 0) {
         h.warn -= dt;
@@ -7508,8 +7561,25 @@ export class World {
         const a = Math.atan2(p.y - r.y, p.x - r.x);
         for (let k = 0; k < r.gaps.length; k += 2) if (Math.abs(angleDiff(a, r.gaps[k])) < r.gaps[k + 1] / 2) return;
         r.hit |= 1 << hi;
-        this.hurtPlayer(K.ringDamage * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, this.bossIndex, false, 'Molten Cataclysm');
+        this.hurtPlayer(K.ringDamage * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, this.bossIndex, false, 'Kiln Ripple');
       }, true);
+    }
+    this.kmTalk(live, boss);
+  }
+
+  /** CP3 remake: her taunts for the hero's state and the fight's end, then any queued line that is due. */
+  private kmTalk(live: boolean, boss: Enemy | undefined): void {
+    if (boss?.kind !== 'kilnMother') return;
+    let up = false, low = false;
+    this.eachHero(() => { if (this.player.hp > 0) { up = true; if (this.player.hp < this.player.maxHp * 0.3) low = true; } });
+    if (!live && !boss.alive) { this.kmSayQ = []; this.kmSay('sheFalls'); }
+    else if (!up) { this.kmSayQ = []; this.kmSay('heroFalls'); }
+    else if (low) this.kmSay('heroLow');
+    for (let k = 0; k < this.kmSayQ.length; k++) {
+      const q = this.kmSayQ[k];
+      if (q.at > this.time) continue;
+      this.events.push({ type: 'bossSay', say: q.say, line: kilnTaunt(q.say, this.seed) });
+      this.kmSayQ.splice(k--, 1);
     }
   }
 
@@ -10946,11 +11016,17 @@ export const KM_MOUTH = { x: 0, y: -522, w: 120 };
  */
 /** Steve, 26 Nov: the Kiln Mother at tier 1 has this share of her health, so the first boss a hero meets is short. */
 export const KILN_T1 = { bossHp: 0.65 };
+/**
+ * CP3 Kiln Mother remake (docs/design/kiln-mother.md): her health share by tier in the remade fight, on top of the usual
+ * tier scaling, so the fight runs 60-90 s at average skill for the Emberwright and Cutwick at tiers 1 to 3. Tiers not
+ * listed get 1.
+ */
+export const KILN_BOSS_HP: Record<number, number> = { 1: 1.7, 2: 1.6, 3: 1.3 };
 
 export const KILN_V2 = {
   /** Stage 2 at this share of her health. */
-  stage2At: 0.65,
-  swipeEvery: 6, swipeArc: (120 * Math.PI) / 180, swipeReach: 220, swipeShow: 1.2, swipeDamage: 30,
+  stage2At: 0.6,
+  swipeEvery: 6, swipeArc: (120 * Math.PI) / 180, swipeReach: 220, swipeShow: 1.2, swipeDamage: 24,
   eggFirst: 8, eggEvery: 14, eggN: 2, eggMin: 150, eggMax: 250, eggHatch: 6, eggR: 30, eggAshlings: 3,
   /** Eggs land within this spread (radians) of the far side from the nearest hero. Engineering's pick. */
   eggSpread: (90 * Math.PI) / 180,
@@ -10958,14 +11034,24 @@ export const KILN_V2 = {
   walkIn: 4,
   /** She stands this far inside the north wall (y = -480 in the 560 arena). */
   mouthIn: 80,
-  heatEvery: 6, heatWarn: 2.5, heatTick: 0.5, heatShare: 0.04,
-  bellowsRing: 380, bellowsAt: [210, 330, 90],
+  heatEvery: 9, heatWarn: 2.5, heatTick: 0.5, heatShare: 0.04,
+  /** CP3 remake: bellowsN bellows, one at each of the first bellowsN heat steps, in the quarter that just turned cool. */
+  bellowsRing: 380, bellowsN: 3,
   kilnMax: 40, stun: 8, stunTaken: 2,
   /** Fallen out, she lands this far in front of her kiln spot. Engineering's pick. */
   fallOut: 90,
   /** Stage 3: her first signature and first Kiln Brand come this many s in. Engineering's picks. */
   sigFirst: 4, brandFirst: 3,
-  ringN: 2, ringEvery: 1, ringSpeed: 140, ringW: 24, ringGap: (60 * Math.PI) / 180, ringDamage: 40,
+  /** CP3 remake: her taunts wait this many s after a stage starts, so the stage banner is read first. */
+  sayDelay: 2.5,
+  /** CP3 remake, stage 3: she Swipes a hero this close to her middle (melee range); anyone farther gets a Lob. */
+  swipeNear: 150,
+  /** CP3 remake, stage 3: s between her basic attacks above and below 30% health (were 3.2 and 2.4), the Lob's damage
+   * (was 35) and an empty Kiln Brand's (was 40). */
+  stage3Pace: [4, 3.2], lobDamage: 26, brandMiss: 30,
+  /** CP3 remake: Kiln Brand's gold circle lands this far from her middle (her radius 42 + 70 circle - a little), at her side. */
+  brandOff: 100,
+  ringN: 2, ringEvery: 1, ringWarn: 1, ringSpeed: 140, ringW: 24, ringGap: (60 * Math.PI) / 180, ringDamage: 30,
   gorgeQuiet: 3, gorgeHeal: 0.08,
 };
 
@@ -10985,8 +11071,11 @@ export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
  * at `first` s). Not interruptible: follow the fire round her, into the ground the last cone already burned.
  */
 export const KILN_TURN = { cones: 4, arc: (70 * Math.PI) / 180, first: 2.2, step: 0.7, reach: 900, damage: 40 };
-/** V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands in a `radius` circle on her. */
-export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
+/**
+ * V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands
+ * in a `radius` circle on her (old fight), or (CP3 remake) a `frontArc` cone `frontReach` long out of her mouth, so behind her is safe.
+ */
+export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45, frontReach: 330, frontArc: Math.PI };
 
 /** V8: Nhevra's phase-2 signature this run: Thin Ice (as before) or Emberdrift. */
 export type NhevraVariant = 'ice' | 'drift' | 'rime';

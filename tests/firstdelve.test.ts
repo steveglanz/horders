@@ -3,7 +3,7 @@ import { World } from '../sim/world';
 import { FIRST_DELVE, coachLine } from '../sim/content/firstdelve';
 import { genTutorial, hallsCheck, mainRooms, doorRoom } from '../sim/halls';
 import { botChoose, botInput } from '../sim/bot';
-import { KILN_T1 } from '../sim/world';
+import { KILN_BOSS_HP } from '../sim/world';
 
 const inner = (w: World) => w as unknown as { keyHp: number; keyDmg: number };
 
@@ -81,15 +81,16 @@ describe('L1: the first delve', () => {
     expect(w.halls!.done).toBe(true);
   });
 
-  it('the Kiln Mother is shorter at Kiln tier 1 only', () => {
+  it('the Kiln Mother\'s health: the remade fight\'s share by tier (KILN_BOSS_HP), the first delve\'s own', () => {
     const boss = (opts: Partial<ConstructorParameters<typeof World>[0]>) => {
       const w = new World({ seed: 3, dungeon: 'kiln', omens: [], cls: 'emberwright', ...opts });
       const x = w as unknown as { spawn(k: string, x: number, y: number): number; enemies: { maxHp: number }[] };
       return x.enemies[x.spawn('kilnMother', 0, 0)].maxHp;
     };
     const t1 = boss({ tier: 1 }), t2 = boss({ tier: 2 });
-    expect(t1).toBeCloseTo(3800 * KILN_T1.bossHp);
-    expect(t2).toBeCloseTo(3800 * 1.22);
+    expect(t1).toBeCloseTo(3800 * KILN_BOSS_HP[1]);
+    expect(t2).toBeCloseTo(3800 * 1.22 * KILN_BOSS_HP[2]);
+    expect(boss({ tier: 4 })).toBeCloseTo(3800 * 1.22 ** 3);
     expect(boss({ tier: 1, firstDelve: true })).toBeCloseTo(3800 * FIRST_DELVE.hp * FIRST_DELVE.bossHp);
   });
 });
