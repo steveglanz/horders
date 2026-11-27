@@ -106,7 +106,7 @@ Card names follow world.md: concrete, plain English, the trade's tools and mater
 | Hearthkeeper (set) | sim/content/sets.ts:39 | name now belongs to the Hearthkeeper | sets merge into Treasures |
 | Lockbreaker, Namebreaker (achievements) | sim/content/achievements.ts | banned "-breaker" | Journal (Checkpoint 6) |
 | Banked Heart, Phoenix Feather (items) | sim/content/items.ts | "-heart"; stock fantasy | items are rewritten by hand per place |
-| Every generated gear name (prefix + slot) | sim/content/items.ts:107-132 | rule 3 | *roadmap*: the generator is deleted |
+| Every generated gear name (prefix + slot) | sim/content/items.ts (RARITY_PREFIX, SLOT_NAMES) | rule 3 | **Kiln done 27 Nov** ([kiln-items.md](kiln-items.md)); other places at CP5, then the generator is deleted |
 | "the Cold Hearth" (Season 3 title) | sim/content/season.ts:62 | free now that the boss is the Banked Queen; seasons are off at launch | with Season 3 |
 
 ## 7. Foes (naming rule now, names with the job pass)

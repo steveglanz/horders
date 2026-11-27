@@ -11,7 +11,7 @@ import { BRANCH_NAMES, Branch, ClassId, MAX_HEAT, TALENTS, TalentId, isChangeSpa
 import { CLASSES, SLOT_UNLOCK, slotOpen } from '../sim/content/classes';
 import { ENCOUNTERS, worldBossLabel } from '../sim/content/dungeon';
 import { trailLabel } from '../sim/content/season';
-import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
+import { ITEM_LINES, Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
 import { ABILITY_GLYPH, ALT_GLYPH, BOT_GLYPH, botName, CLASS_ICON, isBotAlly, medalTile, talentTile, INTERRUPT_SLOT, ROLL_GLYPH, SET_COLOR, SET_ICON, glyph, HEAT_ICON, heatTile, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
@@ -87,7 +87,8 @@ export function itemHtml(it: Item, extra = '', worn?: Partial<Record<string, num
       + '</div>'
     : '';
   const slot = it.slot[0].toUpperCase() + it.slot.slice(1);
-  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · <span class="il">iLvl ${it.ilvl}</span> · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}${setHtml}</div>`;
+  const line = ITEM_LINES[it.name] ? `<div class="st"><i>${ITEM_LINES[it.name]}</i></div>` : '';
+  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}${line}<div class="st">${slot} · <span class="il">iLvl ${it.ilvl}</span> · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}${setHtml}</div>`;
 }
 
 /** Boil-over's countdown on the boss plate (1.0 CP2: no hidden timer): its last BOIL_SHOW s, in place of the phase line. */

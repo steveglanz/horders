@@ -19,7 +19,7 @@ import { TREE, TreeNodeId, canTakeNode, isTreeNode } from './content/trees';
 import type { SetId } from './content/sets';
 import { RunSummary } from './world';
 import {
-  Item, MythicId, mythicPool, WeaponFxId, weaponFxFor, RARITIES, RARITY, RARITY_PREFIX, Rarity, LOOT, LootSource, rarityOdds, fixRarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat, WEAPON_NAMES,
+  Item, MythicId, mythicPool, WeaponFxId, weaponFxFor, RARITIES, RARITY, Rarity, LOOT, LootSource, rarityOdds, fixRarity, SLOTS, SLOT_MAIN, STATS, Slot, Stat, itemName,
 } from './content/items';
 
 export type PassiveId = 'might' | 'fortitude' | 'insight' | 'alacrity';
@@ -356,12 +356,12 @@ export function bestKey(s: Pick<RunSummary, 'dungeon' | 'tier' | 'bounty' | 'key
 /** One random item for a drop from `source` (its loot table), at least `minRarity`. */
 export function rollDrop(
   rng: Rng, id: string, ilvl: number, luck: number, minRarity: Rarity = 'common', cls?: ClassId, tier = MYTHIC_FROM_TIER,
-  source: LootSource = 'trash',
+  source: LootSource = 'trash', place?: DungeonId,
 ): Item {
   let rarity = rollRarity(rng, luck, tier, source);
   if (RARITIES.indexOf(rarity) < RARITIES.indexOf(minRarity)) rarity = minRarity;
   const slot = SLOTS[rng.int(SLOTS.length)];
-  return makeItem(rng, id, slot, rarity, Math.max(1, ilvl + rng.int(3) - 1), cls);
+  return makeItem(rng, id, slot, rarity, Math.max(1, ilvl + rng.int(3) - 1), cls, place);
 }
 
 function rollRarity(rng: Rng, luck: number, tier: number, source: LootSource): Rarity {
@@ -378,7 +378,7 @@ function rollRarity(rng: Rng, luck: number, tier: number, source: LootSource): R
  * `cls` names the weapon for the class that found it, and picks a Mythic from that class's pool.
  * Other slots and every stat roll are the same for all classes.
  */
-export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl: number, cls?: ClassId): Item {
+export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl: number, cls?: ClassId, place?: DungeonId): Item {
   const main = SLOT_MAIN[slot];
   // A flat base keeps early drops meaningful; item level still scales them.
   const lvl = ilvl + 5;
@@ -388,13 +388,10 @@ export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl:
     const stat = pool.splice(rng.int(pool.length), 1)[0];
     stats.push({ stat, value: round1(STATS[stat].perLevel * lvl * rng.range(0.7, 1.2)) });
   }
-  const prefixes = RARITY_PREFIX[rarity];
-  const nouns = slot === 'weapon' && cls ? WEAPON_NAMES[cls] : SLOT_NAMES[slot];
-  const item: Item = {
-    id, slot, rarity, ilvl,
-    name: `${prefixes[rng.int(prefixes.length)]} ${nouns[rng.int(nouns.length)]}`,
-    stats,
-  };
+  // Two name rolls for every item (4 choices each), so a place's written names keep the run's rolls the same.
+  const a = rng.int(4);
+  const b = rng.int(4);
+  const item: Item = { id, slot, rarity, ilvl, name: itemName(slot, rarity, a, b, cls, place), stats };
   if (rarity === 'mythic') {
     // Class Mythics drop only for their own class; with no class, only the shared ones.
     const ids = mythicPool(cls);
@@ -434,7 +431,7 @@ export function rollLoot(
     if (epicUp(rarity)) gotEpic = true;
     const slot = SLOTS[rng.int(SLOTS.length)];
     const ilvl = Math.max(1, baseIlvl + rng.int(3) - 1);
-    items.push(makeItem(rng, `i${hero.nextItemId + runDrops.length + k}`, slot, rarity, ilvl, hero.cls ?? 'emberwright'));
+    items.push(makeItem(rng, `i${hero.nextItemId + runDrops.length + k}`, slot, rarity, ilvl, hero.cls ?? 'emberwright', s.dungeon));
   }
   pity = gotEpic ? 0 : pity + 1;
   return { items, pity };

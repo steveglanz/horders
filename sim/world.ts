@@ -10475,7 +10475,7 @@ export class World {
 
   /** One item from `source`'s loot table (LOOT), at least `min`. */
   private makeItem(source: LootSource, min: Rarity = 'common'): Item {
-    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min, this.cls, this.tier, source);
+    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min, this.cls, this.tier, source, this.dungeonId);
   }
 
   /**
@@ -10488,7 +10488,8 @@ export class World {
     if (!set || this.bounty !== undefined || this.stress || !SET_SLOTS.includes(item.slot) || item.rarity === 'mythic') return item;
     const r = new Rng((this.seed ^ 0x5e75) + this.nextItemId);
     if (!r.chance(SET_TUNING.dropChance)) return item;
-    const noun = item.name.split(' ').slice(1).join(' ');
+    // The last word is the thing itself ("Pot Helm" -> "Kilnbreaker Helm"), for prefix names and written ones.
+    const noun = item.name.split(' ').pop();
     return { ...item, set, name: `${SETS[set].name} ${noun}` };
   }
 
