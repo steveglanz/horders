@@ -11,6 +11,8 @@ Companion files:
 - [unlock-curve.md](unlock-curve.md): when each system lights up, and the trigger the code checks (1.0, Checkpoint 1).
 - [fight-budgets.md](fight-budgets.md): the fight-budget table and the 60% floor behind the merge gate (1.0, Checkpoint 1).
 - [checkpoint-2-grey-box.md](checkpoint-2-grey-box.md): the one definition of the Checkpoint 2 grey-box fun test.
+- [cold-testers.md](cold-testers.md): the two messages Steve sends cold testers (how to play and record, then the questions) and the scoring sheet (1.0, Checkpoint 2 on).
+- [pitch-clips.md](pitch-clips.md): the plan for three 15-second clips that test three pitch lines before the name is decided (1.0, Checkpoint 2).
 - [made-with-ai.md](made-with-ai.md): our honest answer to "was this made with AI?", and store disclosures.
 
 ## The game in one paragraph
