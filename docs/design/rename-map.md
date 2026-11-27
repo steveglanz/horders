@@ -2,9 +2,9 @@
 
 *Design, 27 Nov 2026. Goes with [world.md](world.md) (world bible and voice guide). Pillar 5: one world, one voice, honestly made.*
 
-**Status: proposed, waiting on Steve's yes.** Every player-facing name is Steve's to approve (roadmap, pillar 5). Nothing here is in the game yet.
+**Status: approved for the rename work (27 Nov 2026).** Steve said not to wait on him (27 Nov 06:00Z: "You don't need to wait on me for anything") and earlier let the teams settle open design questions (25 Nov 16:41Z), so the in-game rows in sections 1-4 are settled and queued for engineering. Steve can veto any row at any time. **The game's own title is not settled:** a Horders to Emberthief change is on Steve's to-do list (section 8) and is not applied.
 
-**How it gets applied.** Display names only: every id in code (`maelra`, `duskblade`, `hoard` and the rest) stays, so saves, bots, tests and netsync don't move. After Steve's yes, engineering applies the approved rows in one PR per group (places and bosses, classes, systems), each with the boss tips and help text that mention the old names. Foe and item names come later with their own passes (Checkpoint 3 for the Kiln, Checkpoint 5 for the rest), using the rules here.
+**How it gets applied.** Display names only: every id in code (`maelra`, `duskblade`, `hoard` and the rest) stays, so saves, bots, tests and netsync don't move. Engineering applies the rows in one PR per group (places and bosses, classes, systems), each with the boss tips and help text that mention the old names. Foe and item names come later with their own passes (Checkpoint 3 for the Kiln, Checkpoint 5 for the rest), using the rules here.
 
 **How each name was checked.** Rules: world.md naming rules and banned words, and the vision's naming rules (vision/vision.md section 3). Clashes: web searches on 27 Nov 2026 for each new proper name or coined word, against WoW (warcraft.wiki.gg, wowhead), Blizzard, Azeroth Survivors and other games. Steve's rule (21 Nov): ordinary English words that WoW happens to use may stay; proper names, coined words, places and WoW phrases get renamed. A search that finds nothing is not proof of nothing; the links are in the search log at the end.
 
@@ -56,7 +56,7 @@ Boss **move** names (Anvilfall, Slag Grip, Cataclysm, Decree and the rest) are c
 | Duskblade | **Cutwick** | Lamp-snuffer | **Duskblade is a Dungeons & Dragons 3.5 base class** (Player's Handbook II) [12]. "Cutwick" is a lamp-snuffer's trade (cutting wicks), a nod to a cutpurse, and ties the class to Wick | no game or WoW hit; only English place names [13] |
 | Slagbinder | **keep** | Foundry gunner | Trade-like compound, fits the cannon rework | no game class found [10] |
 
-Class resources: keep Heat, Momentum, Resolve and Slag. **Lumen's "Radiance" → "Oil"** (optional, Steve's pick): a lamp burns oil, which is concrete and a trade word, where "Radiance" is generic fantasy.
+Class resources: keep Heat, Momentum, Resolve and Slag. **Lumen's "Radiance" → "Oil"** (approved with the rest): a lamp burns oil, which is concrete and a trade word, where "Radiance" is generic fantasy.
 
 ## 4. Systems and words
 
@@ -129,7 +129,7 @@ Decision 3 in the roadmap: decided at the end of Checkpoint 2, after cold tester
 
 ## Waiting on Steve
 
-One card, one batch: yes or no per row of sections 1-4 (and Oil for Lumen). If he says no to a row, design brings one alternative, searched.
+Only the game's title (section 8). Recommendation: keep "Horders" in every build until the end of Checkpoint 2, then rename to **Emberthief** if the USPTO search, the in-store phone search and the domain check are clean, with Kilnward as the backup. A veto on any in-game row gets one searched alternative from design.
 
 ## Search log (27 Nov 2026)
 

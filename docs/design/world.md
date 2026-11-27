@@ -2,7 +2,7 @@
 
 *Design, 27 Nov 2026. Checkpoint 1 of the vision v2 plan ([roadmap.md](roadmap.md), "1.0: the road to launch"; [vision/vision.md](vision/vision.md) section 3). Pillar 5: one world, one voice, honestly made.*
 
-**Status: proposed.** Every player-facing name and line here waits for Steve's yes (roadmap, pillar 5). Until then nothing in this file changes the game. New names are in [rename-map.md](rename-map.md), with the searches behind them. Ids in code never change; only display text does.
+**Status: settled for the rename work (27 Nov 2026).** Steve said not to wait on him, so the names here are approved by design and queued; he can veto any of them. The game's title stays Horders until he decides (rename-map.md section 8). Sample lines are drafts: the line-writing pass shows Steve the first batch of about 50, without blocking on it. New names are in [rename-map.md](rename-map.md), with the searches behind them. Ids in code never change; only display text does.
 
 **How to use this file.** Any PR that adds or changes a name, a line of text, a foe, a place or a sound checks it against this page first and says so in the PR body. If something here and the roadmap disagree, the roadmap wins and this page gets fixed.
 
@@ -206,7 +206,7 @@ Vision rule 7, with the near-misses found so far. Search every new proper name o
 
 ### Sample lines (drafts for Steve, not final)
 
-These set the voice. Steve approves the first batch of about 50 before more are written (vision, risks).
+These set the voice. The first batch of about 50 goes to Steve to read (vision, risks); work doesn't stop for it.
 
 **The Kiln Mother**
 - Back again, little thief? You still smell of my kiln.
@@ -260,4 +260,4 @@ Everything else (Talents, Blueprints, Omens, Treasures, the Journal, Grit, Keys)
 - [ ] New names are in rename-map.md with their searches.
 - [ ] No banned word or banned shape; no Ember-, Cinder-, Ash- or Smolder- prefix.
 - [ ] The line is in one of the three voices and inside its length.
-- [ ] Steve has said yes to the batch it belongs to.
+- [ ] Steve has seen the batch it belongs to (he can veto; work doesn't wait).
