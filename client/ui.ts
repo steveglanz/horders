@@ -1068,6 +1068,9 @@ export class Hud {
         const fresh = w.classDef.abilities.filter((_, i) => slotOpen(i, hero.level) && !slotOpen(i, hero.level - rewards.levelsGained)).map((a) => `${a.name} (${a.key})`);
         notes.unshift(`<b>Hero level ${hero.level}!${fresh.length ? ` New ability: ${fresh.join(', ')}` : ''}</b>`);
       }
+      // 1.0 CP3 (vision.md, "What a loss pays"): every fight cleared sends embers home, and a loss keeps them all.
+      const carried = rewards.carriedEmbers ?? 0;
+      if (carried) notes.push(s.victory ? `<b>Carried home +${carried} embers</b>` : `<b>You fell, but kept the ${carried} ${carried === 1 ? 'ember' : 'embers'} you carried</b>`);
       if (!rewards.items.length) notes.push('No loot this time');
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
       for (const q of rewards.weeklyDone ?? []) notes.push(`<b>Weekly quest done: ${WEEKLY_QUESTS[q.id].name} +${q.embers} embers</b>`);
