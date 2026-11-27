@@ -316,6 +316,8 @@ export interface RunRewards {
   levelsGained: number;
   /** Every ember this run put in the purse, from all sources (the opening's end card: "You carried home N embers."). */
   embersGained?: number;
+  /** 1.0 CP3: embers carried up from the fights this run cleared, kept in full on a loss (runEmbers). */
+  carriedEmbers?: number;
   /** Embers paid by the daily bounty (0 if not a bounty, a loss, or already paid today). */
   bountyEmbers?: number;
   /** P1: weekly quests this run finished, the embers they paid, and the title for finishing the week. */
@@ -441,6 +443,22 @@ export function rollLoot(
 }
 
 /**
+ * 1.0 CP3 (vision.md section 9 and decision "What a loss pays": keep your embers). Every fight a run clears sends embers
+ * home, win or lose: `perFight` plus `perTier` a tier (rounded), and the boss counts as `boss` fights. A loss keeps every
+ * ember it carried; it only misses the fights it never cleared. A run quit before clearing a fight carries nothing, like
+ * the end chest (rollLoot), so quitting at once can't be farmed. Kept small next to salvage (economy.md, "Run embers").
+ */
+export const RUN_EMBERS = { perFight: 1, perTier: 0.25, boss: 2 };
+
+/** Embers a finished run carried home (0 for a run that cleared no fight). */
+export function runEmbers(s: Pick<RunSummary, 'victory' | 'fightsCleared' | 'tier'>): number {
+  const cleared = Math.max(0, s.fightsCleared ?? 0);
+  if (!s.victory && cleared === 0) return 0;
+  const per = Math.round(RUN_EMBERS.perFight + RUN_EMBERS.perTier * (s.tier ?? 1));
+  return per * (cleared + (s.victory ? RUN_EMBERS.boss : 0));
+}
+
+/**
  * Applies a finished run to the hero and returns what was earned.
  * `runDrops` are items picked up during the run (ids from `runItemIds`);
  * `runEquipped` are the ids the run auto-equipped as upgrades.
@@ -476,6 +494,8 @@ export function applyRun(
   for (const id of runEquipped) equip(hero, id);
   hero.nextItemId += runDrops.length;
   hero.runs++;
+  const carried = runEmbers(s);
+  hero.embers += carried;
   const maxTierBefore = hero.maxTier;
   let bountyEmbersPaid = 0;
   let key: Pick<RunRewards, 'keyFrom' | 'keyTo' | 'keyEmbers'> = {};
@@ -527,7 +547,7 @@ export function applyRun(
   const collection = applyCollection(hero, known);
   const season = s.week !== undefined ? applySeason(hero, s, weekly?.weeklyDone?.length ?? 0) : undefined;
   const achievements = applyAchievements(hero, s, deedsBefore);
-  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, embersGained: hero.embers - embersBefore, bountyEmbers: bountyEmbersPaid, ...(newBest ? { newBest } : {}), ...(bestBefore !== undefined ? { bestBefore } : {}), ...weekly, ...key, ...collection, ...season, ...achievements };
+  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, embersGained: hero.embers - embersBefore, carriedEmbers: carried, bountyEmbers: bountyEmbersPaid, ...(newBest ? { newBest } : {}), ...(bestBefore !== undefined ? { bestBefore } : {}), ...weekly, ...key, ...collection, ...season, ...achievements };
 }
 
 /**

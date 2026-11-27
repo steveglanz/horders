@@ -3,7 +3,7 @@ import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
-import { applyRun, newHero } from '../sim/hero';
+import { applyRun, newHero, runEmbers } from '../sim/hero';
 import { DUNGEONS } from '../sim/content/dungeon';
 
 function play(w: World, max = 600) {
@@ -69,7 +69,8 @@ describe('daily bounty', () => {
     const e0 = h.embers;
     const r1 = applyRun(h, 1, base, false);
     expect(r1.bountyEmbers).toBe(bountyEmbers(3));
-    expect(h.embers - e0).toBe(bountyEmbers(3));
+    // The bounty's pay comes on top of the embers every run carries home (runEmbers).
+    expect(h.embers - e0).toBe(bountyEmbers(3) + runEmbers(base));
     const r2 = applyRun(h, 2, base, false);
     expect(r2.bountyEmbers).toBe(0);
     applyRun(h, 3, { ...base, victory: false }, false);
