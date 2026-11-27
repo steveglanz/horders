@@ -610,6 +610,17 @@
   #endSub { margin-top: 4px; font-size: 14px; }
   /* The loss screen's "what hurt most" line (sim/hurtrecap.ts). */
   #endCause { margin-top: 6px; font-size: 13px; color: #ffd0d6; line-height: 1.35; }
+  /* 1.0 CP2 mastery card (sim/mastery.ts): how you played, one row of tiles, then the blow, the lesson and the best time. */
+  #endMastery { margin-top: 10px; padding: 8px 10px; border-radius: 12px; background: var(--card); border: 1px solid var(--card-line); text-align: left; font-size: 13px; line-height: 1.35; }
+  #endMastery:empty { display: none; }
+  #endMastery .m-tiles { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  #endMastery .m-tiles span { color: var(--muted); white-space: nowrap; }
+  #endMastery .m-tiles b { color: var(--text); font-variant-numeric: tabular-nums; }
+  #endMastery .m-tiles .clean b { color: #8fe3a1; }
+  #endMastery .m-blow { margin-top: 4px; color: #ffd0d6; }
+  #endMastery .m-lesson { margin-top: 4px; color: var(--text); }
+  #endMastery .m-best { margin-top: 4px; color: var(--muted); font-size: 12px; }
+  #endMastery .m-best.new { color: #ffc861; }
   #stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px; }
   #stats div { padding: 10px 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--card-line); }
   #stats b { display: block; font: 600 22px var(--serif); font-variant-numeric: tabular-nums; }
@@ -1620,6 +1631,7 @@
     <h2 id="endTitle"></h2>
     <div class="muted" id="endSub"></div>
     <div id="endCause" hidden></div>
+    <div id="endMastery" aria-label="How you played"></div>
     <div id="stats"></div>
     <div class="end-grid">
       <div class="end-col">
