@@ -6700,7 +6700,7 @@ export class World {
       if (e.def.rank !== 'normal' && e.lungeW <= 0 && e.lungeD <= 0) this.runAbilities(i, dt); // no Snap mid-lunge
 
       // CP3 remake: the remade Kiln Mother (kmStage > 0) never hurts by touch; every blow of hers is a red mark first.
-      // CP4 (melee answers): nor do Maelra, the Glass Heir, the Banked Queen, Aunt Ebb, the Iron Uncle and Cousin Fork (both her flames). Their
+      // CP4 (melee answers): nor do Maelra, the Glass Heir, the Banked Queen, Aunt Ebb, the Iron Uncle, Cousin Fork (both her flames) and Cousin Stamp. Their
       // touch only ever landed on whoever stood in reach, whose job is to stand there. The Iron Uncle's Slag Grip on his target stays: the tank's
       // blow, the healer's to clear; so does Cousin Fork's Bellow Slam.
       if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !((this.kmStage > 0 || this.kmOpen > 0) && e.kind === 'kilnMother') && !NO_TOUCH.has(e.kind)) {
@@ -6869,7 +6869,8 @@ export class World {
     // (a Bulwark can parry it, and a loss names her); unowned, about half of them were "red marks on the floor".
     // The Iron Uncle keeps every mark of his (Hammer Sweep ends with its cone, and any cast ending used to disown the
     // stage-3 slag bursts and the Homeward Hammer's way back): none of his casts can be stopped, so only his death clears them.
-    if (id !== 'lensSweep' && e.kind !== 'ondrel') for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1;
+    // Cousin Stamp too: his Stamp can't be stopped, and his Rivets, Die Cut and Punch Line land while it winds up.
+    if (id !== 'lensSweep' && e.kind !== 'ondrel' && e.kind !== 'oskel') for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1;
     if (id === 'cataclysm') {
       const p = this.player;
       // The opening: un-Quenched, it lands as one light ring (FIRST_DELVE.boss.rippleDamage).
@@ -9086,6 +9087,8 @@ export class World {
       if (this.osStage === 2) this.osFlipT = OSKELV2.flipWarn;
     }
     // Phase 16 U1: from `GROUP_ECHO.below` health, every other one on this timer is his echo's (the first one is).
+    // CP4 (melee answers): Rivets, Die Cut and Punch Line are his marks (owner i), so a Bulwark can parry them and a loss
+    // names him; unowned, they read "red marks on the floor". finishCast never disowns them (his Stamp can't be stopped).
     let move: string = this.bossVariant;
     if (this.rivetT <= 0 && this.bossEcho && e.hp <= e.maxHp * GROUP_ECHO.below) {
       if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
@@ -9098,7 +9101,7 @@ export class World {
       const plate = this.telegraphs.find((t) => t.alive && t.kind === 'soak' && t.owner === -3);
       const a = plate ? Math.atan2(plate.y - e.y, plate.x - e.x) + Math.PI : (this.cutCount * Math.PI) / 2 + ((this.seed & 3) * Math.PI) / 2;
       this.cutCount++;
-      this.addTelegraph('cone', e.x, e.y, ARENA * 2, a, Math.PI, DIECUT.fuse, DIECUT.damage, 'hit', -1); // scaled by tier as it lands
+      this.addTelegraph('cone', e.x, e.y, ARENA * 2, a, Math.PI, DIECUT.fuse, DIECUT.damage, 'hit', i); // scaled by tier as it lands
       this.events.push({ type: 'castStart', index: i, id: 'dieCut', name: 'Die Cut' });
     } else if (this.rivetT <= 0 && move === 'punch') {
       // Punch Line: marching rows of punches out from Oskel.
@@ -9119,7 +9122,7 @@ export class World {
           const d = PUNCH.gap * (n + 0.5);
           const x = e.x + Math.cos(a + s) * d, y = e.y + Math.sin(a + s) * d;
           if (x * x + y * y > (ARENA - PUNCH.r * 0.5) ** 2) break;
-          this.addTelegraph('circle', x, y, PUNCH.r + PUNCH.grow * n, 0, 0, PUNCH.first + PUNCH.step * n, PUNCH.damage, 'hit', -1); // scaled by tier as it lands
+          this.addTelegraph('circle', x, y, PUNCH.r + PUNCH.grow * n, 0, 0, PUNCH.first + PUNCH.step * n, PUNCH.damage, 'hit', i); // scaled by tier as it lands
         }
       }
       this.events.push({ type: 'castStart', index: i, id: 'punchLine', name: 'Punch Line' });
@@ -9127,7 +9130,7 @@ export class World {
       this.rivetT = OSKEL.rivetEvery;
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
-        if (q.hp > 0) this.addTelegraph('circle', q.x, q.y, OSKEL.rivetRadius, 0, 0, OSKEL.rivetFuse, OSKEL.rivet, 'hit', -1);
+        if (q.hp > 0) this.addTelegraph('circle', q.x, q.y, OSKEL.rivetRadius, 0, 0, OSKEL.rivetFuse, OSKEL.rivet, 'hit', i);
       }
       this.events.push({ type: 'castStart', index: i, id: 'rivets', name: 'Rivets' });
     }
@@ -10960,7 +10963,7 @@ export function firstClearRarity(tier: number): Rarity {
 export const RAID_LOOT = { epic: 1, extra: 1 };
 
 /** CP4 (melee answers, docs/design/melee-answers.md): bosses that never hurt by touch; every blow of theirs is warned first. */
-export const NO_TOUCH: ReadonlySet<string> = new Set(['maelra', 'lensmother', 'nhevra', 'hessa', 'ondrel', 'ysmeret']);
+export const NO_TOUCH: ReadonlySet<string> = new Set(['maelra', 'lensmother', 'nhevra', 'hessa', 'ondrel', 'ysmeret', 'oskel']);
 
 /** The Glarewell's tuning, kept together so balance changes are data changes. */
 export const GLARE = {

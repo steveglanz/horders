@@ -234,3 +234,47 @@ describe('melee answers: Cousin Fork (the Ashvents)', () => {
     }
   });
 });
+
+describe('melee answers: Cousin Stamp (the Pressworks)', () => {
+  type S = Q & { downT: number; rivetT: number; stampT: number; bossVariant: string; oskelClock(dt: number): void; finishCast(i: number): void };
+  const party = [{ cls: 'duskblade' as const, name: 'a' }, { cls: 'lumen' as const, name: 'b' }];
+  function stamp(variant = 'rivets'): { w: World; q: S; b: number } {
+    const w = new World({ seed: 3, dungeon: 'pressworks', tier: 10, omens: [], cls: 'duskblade', party });
+    const q = w as unknown as S;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('oskel', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true; q.bossVariant = variant;
+    for (let k = 0; k < w.heroes.length; k++) { const p = w.heroData(k).player; p.x = k === 0 ? 50 : 0; p.y = k === 0 ? 0 : 300; }
+    return { w, q, b };
+  }
+
+  it('never hurts by touch: a melee hero standing against him takes nothing between his marks', () => {
+    const { w, q, b } = stamp();
+    const e = w.enemies[b];
+    const p = w.heroData(0).player;
+    const hp = p.hp;
+    for (let n = 0; n < 30 * 3; n++) {
+      e.touchCd = 0; e.x = 0; e.y = 0; e.castId = ''; q.downT = 99; q.rivetT = 99; q.stampT = 99;
+      p.x = 50; p.y = 0;
+      for (const t of w.telegraphs) t.alive = false;
+      for (const o of w.enemies) if (o.alive && o.kind !== 'oskel') o.alive = false;
+      w.step([{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }]);
+    }
+    expect(p.hp).toBeGreaterThanOrEqual(hp);
+  });
+
+  it('his Rivets, Die Cut and Punch Line are his (parryable, named on a loss), and his Stamp ending leaves them his', () => {
+    for (const v of ['rivets', 'cut', 'punch']) {
+      const { w, q, b } = stamp(v);
+      q.downT = 99; q.stampT = 99; q.rivetT = 0;
+      q.oskelClock(0.01);
+      const marks = w.telegraphs.filter((t) => t.alive && t.kind === 'hit');
+      expect(marks.length, v).toBeGreaterThan(0);
+      for (const t of marks) expect(t.owner, v).toBe(b);
+      const e = w.enemies[b];
+      e.castId = 'stamp'; e.castName = 'Stamp';
+      q.finishCast(b);
+      for (const t of marks) expect(t.alive && t.owner, v).toBe(b);
+    }
+  });
+});
