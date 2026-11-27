@@ -93,3 +93,26 @@ export function showWake(root: HTMLElement, onGo: () => void): Wake {
   window.addEventListener('keydown', key, true);
   return { step: () => at, advance, close, open: () => live };
 }
+
+/**
+ * CP3 opening, PR 4 (opening.md beat 3:50, "Home"): the lines on the opening's end card. Game voice and the
+ * Hearthkeeper's, from the spec; only the opening's seven words (rule 5).
+ */
+export const HOME_LINES = {
+  sub: 'The hearth roars, and the Forge lights.',
+  embers: (n: number) => `You carried home ${n} ${n === 1 ? 'ember' : 'embers'}.`,
+  keeper: 'Bring more.',
+} as const;
+
+/** True for a won opening: its end screen is the Home card. (It can't be lost; a quit replays it instead.) */
+export function isHome(w: { firstDelve: boolean; victory: boolean }): boolean {
+  return w.firstDelve && w.victory;
+}
+
+/**
+ * After the opening, until the second delve, the hub shows only Delve and the Forge (opening.md, engineering 4):
+ * no class list, tier row, world boss or party. True while the save's only run is the won opening.
+ */
+export function homeHub(h: HeroProfile): boolean {
+  return savedRuns(h) === 1 && h.wins === 1 && (h.cls ?? 'emberwright') === 'emberwright';
+}

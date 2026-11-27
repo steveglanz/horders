@@ -23,6 +23,7 @@ import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, bestKey, equip, equippedItems, heroMaxLevel, heroXpToNext, lootUpgrades } from '../sim/hero';
 import { hurtRecap } from '../sim/hurtrecap';
 import { mastery } from '../sim/mastery';
+import { HOME_LINES, isHome } from './opening';
 
 /** X6: the run-shape chips' accents: the stone of the floors, the named Rare blue, the ember of an event, the boss's gold. */
 const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', door: '#ffc861', relic: '#5fe0c8', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', stir: '#c98bff', foe: '#ff6b8a', boss: '#ffc861', echo: '#ffe29a', heat: '#ff8a3d' };
@@ -1119,7 +1120,31 @@ export class Hud {
         return `<span class="chip" style="--branch:${BRANCH_COLOR[def.branch]}" title="${(def as { tip?: string }).tip ?? def.text}">${def.name}${def.maxRank > 1 && def.maxRank < 99 ? ' ' + s.talents[id] : def.maxRank >= 99 ? ' x' + s.talents[id] : ''}</span>`;
       })
       .join('');
+    this.homeCard(w, rewards);
     $('end').hidden = false;
+  }
+
+  /**
+   * CP3 opening, PR 4 (docs/design/opening.md beat 3:50, "Home"): a won opening ends on its own card, standing on the
+   * end screen until the Wick diorama lands. It shows the embers carried home, her one item, the two answers learned
+   * (Rolled N, Quenched N), the Hearthkeeper's "Bring more." and one button, Delve again. Everything else on the end
+   * screen (XP, stats, run chips, Sparks, the world boss, Main menu) is hidden by #end.home (rule 4, rule 5).
+   */
+  private homeCard(w: World, rewards?: RunRewards): void {
+    const home = isHome(w);
+    $('end').classList.toggle('home', home);
+    if (!home) return;
+    const n = rewards?.embersGained ?? 0;
+    const tiles = [`<span>Rolled <b>${w.player.rolls ?? 0}</b></span>`];
+    // The blue button's name for this class (Quench for the Emberwright, the only class in the opening).
+    if (slotOpen(3, w.player.unlockLevel)) tiles.push(`<span>${w.classDef.abilities[3].name}ed <b>${w.player.interrupts ?? 0}</b></span>`);
+    $('endTitle').textContent = 'Back in Wick';
+    $('endSub').textContent = HOME_LINES.sub;
+    $('endCause').hidden = true;
+    $('endMastery').innerHTML = `<div class="m-home">${HOME_LINES.embers(n)}</div>`
+      + `<div class="m-tiles">${tiles.join('')}</div>`
+      + `<div class="m-keeper">${HOME_LINES.keeper}</div>`;
+    $('rewards').querySelector('.eqUp')?.remove();
   }
 
   private setupStick(): void {

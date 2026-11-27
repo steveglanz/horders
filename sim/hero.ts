@@ -314,6 +314,8 @@ export interface RunRewards {
   heroXp: number;
   items: Item[];
   levelsGained: number;
+  /** Every ember this run put in the purse, from all sources (the opening's end card: "You carried home N embers."). */
+  embersGained?: number;
   /** Embers paid by the daily bounty (0 if not a bounty, a loss, or already paid today). */
   bountyEmbers?: number;
   /** P1: weekly quests this run finished, the embers they paid, and the title for finishing the week. */
@@ -415,7 +417,8 @@ export function rollLoot(
   if (!s.victory && s.fightsCleared === 0) return { items: [], pity: hero.pity };
   const rng = new Rng(seed ^ 0x9e3779b9);
   // Most loot now drops during the run; the end chest is a small top-up.
-  const count = runDrops.length ? (s.victory ? 1 : 0) : Math.min(7, 1 + Math.floor(s.time / 150) + (eliteKilled ? 1 : 0) + (s.victory ? 2 : 0));
+  // The opening (opening.md beat 3:50): a won opening gives one item, hers, and no end chest on top.
+  const count = s.firstDelve ? 0 : runDrops.length ? (s.victory ? 1 : 0) : Math.min(7, 1 + Math.floor(s.time / 150) + (eliteKilled ? 1 : 0) + (s.victory ? 2 : 0));
   const tier = s.tier ?? 1;
   const baseIlvl = hero.level + (s.victory ? 2 : 0) + (tier - 1);
   // A won run's chest rolls on the elite table, a lost one on the trash table (tier is in the tables).
@@ -466,6 +469,7 @@ export function applyRun(
   if (s.victory && hero.wins === 0 && hero.level === 1) heroXp = Math.max(heroXp, heroXpToNext(1) - hero.xp);
   const loot = rollLoot(seed, s, hero, eliteKilled, runDrops);
   const known = collectionOf(hero);
+  const embersBefore = hero.embers;
   // P6: a save from before achievements starts from what it records, read before this run counts.
   const deedsBefore = hero.deeds ?? backfillDeeds(hero);
   hero.inventory.push(...runDrops);
@@ -523,7 +527,7 @@ export function applyRun(
   const collection = applyCollection(hero, known);
   const season = s.week !== undefined ? applySeason(hero, s, weekly?.weeklyDone?.length ?? 0) : undefined;
   const achievements = applyAchievements(hero, s, deedsBefore);
-  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...(newBest ? { newBest } : {}), ...(bestBefore !== undefined ? { bestBefore } : {}), ...weekly, ...key, ...collection, ...season, ...achievements };
+  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, embersGained: hero.embers - embersBefore, bountyEmbers: bountyEmbersPaid, ...(newBest ? { newBest } : {}), ...(bestBefore !== undefined ? { bestBefore } : {}), ...weekly, ...key, ...collection, ...season, ...achievements };
 }
 
 /**

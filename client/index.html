@@ -628,6 +628,23 @@
   #endMastery .m-lesson { margin-top: 4px; color: var(--text); }
   #endMastery .m-best { margin-top: 4px; color: var(--muted); font-size: 12px; }
   #endMastery .m-best.new { color: #ffc861; }
+  /* CP3 opening, PR 4: the Home card (client/ui.ts homeCard). Embers, her item, Rolled and Quenched, "Bring more.", one button. */
+  #end.home :is(#endXp, #endBoss, #endShape, #endTalents, #stats, #endCause, #menuBtn, #lowerBtn) { display: none !important; }
+  #end.home .end-grid { grid-template-columns: 1fr; }
+  #end.home .end-col { display: none; }
+  /* CP3 opening, PR 4: the hub after the opening, until the second delve, is Delve and the Forge only (client/opening.ts homeHub). */
+  .hub.home1 :is(.hub-hero, [data-pane="group"], #heroStrip, #tiers, .hub-delve .sec-h) { display: none !important; }
+  .hub.home1 .hub-grid { grid-template-columns: 1fr; }
+  .hub.home1 { display: flex; flex-direction: column; min-height: 100%; }
+  .hub.home1 .hub-foot { margin-top: auto !important; justify-content: center; background: none; }
+  body.tabs .hub.home1[data-tab="delve"] .hub-foot { margin-top: auto !important; }
+  body.tabs #tabbar.home1:not([hidden]) { grid-template-columns: repeat(2, 1fr); }
+  #tabbar.home1 :is([data-tab="hero"], [data-tab="group"]) { display: none; }
+  #end.home #rewards { width: 100%; max-width: 440px; margin: 0 auto; }
+  #end.home #endMastery { text-align: center; padding: 12px 14px; }
+  #end.home #endMastery .m-home { font-size: 17px; font-weight: 700; color: #ffe2c2; }
+  #end.home #endMastery .m-tiles { justify-content: center; margin-top: 6px; }
+  #end.home #endMastery .m-keeper { margin-top: 8px; font-style: italic; color: #ffc861; }
   #stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px; }
   #stats div { padding: 10px 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--card-line); }
   #stats b { display: block; font: 600 22px var(--serif); font-variant-numeric: tabular-nums; }

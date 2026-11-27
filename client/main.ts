@@ -212,7 +212,8 @@ function finishRun(w: World) {
   const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, drops, equipped);
   // A win that opens the next tier moves the delve up to it, when you were on your top tier (a playtester's new player
   // replayed tier 1 five times: the tier was only picked at page load). A lower tier you chose to replay stays picked.
-  if (topTier(hero.maxTier) > topTier(topBefore) && hub.tier === topTier(topBefore)) hub.tier = topTier(hero.maxTier);
+  // The opening is the exception: its Delve again is delve 2, the normal Kiln tier 1 run (opening.md beat 4:10).
+  if (!summary.firstDelve && topTier(hero.maxTier) > topTier(topBefore) && hub.tier === topTier(topBefore)) hub.tier = topTier(hero.maxTier);
   // The hub opens on this tier next time (startTier), so a reload doesn't put you on the tier you haven't beaten yet.
   if (!lastBounty) hero.lastTier = hub.tier;
   // Phase 15 Y4: what this delve met goes in the Seen log; the end screen marks the first meetings.
