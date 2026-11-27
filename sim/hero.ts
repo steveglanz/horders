@@ -86,6 +86,8 @@ export interface HeroProfile {
   /** P3: Delver's Key level per solo dungeon, and the best key level beaten in each (for leaderboards). */
   keys?: Partial<Record<DungeonId, number>>;
   keyBest?: Partial<Record<DungeonId, number>>;
+  /** 1.0 CP2 mastery card: this character's fastest win, in seconds, per `dungeon:tier` (bestKey). */
+  bestClear?: Record<string, number>;
   /** Slagbinder stance (Anvil tanks, Bellows fills a damage slot); kept per character. Default Bellows. */
   stance?: 'anvil' | 'bellows';
   /** Old saves: the level-8 ability option was on. Read as `alts` holding that option. */
@@ -124,7 +126,7 @@ export function altsOn(cls: ClassId, h: Pick<HeroProfile, 'alt' | 'alts' | 'leve
 }
 
 /** P5: embers are not here. One purse is shared by every class (see shareEmbers and economy.md). */
-export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'lastTier', 'grit', 'keys', 'keyBest', 'stance', 'alt', 'alts'] as const;
+export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'lastTier', 'grit', 'keys', 'keyBest', 'bestClear', 'stance', 'alt', 'alts'] as const;
 export type Character = Pick<HeroProfile, (typeof CHARACTER_KEYS)[number]>;
 
 function freshCharacter(): Character {
@@ -332,6 +334,18 @@ export interface RunRewards {
   achievements?: Achievement[];
   /** Phase 15 Y4: Seen log keys this run met for the first time (set by the client from sim/seen.ts). */
   seenNew?: string[];
+  /** 1.0 CP2 mastery card: this win set a new best time (bestClear); `bestBefore` is the old one, if any. */
+  newBest?: boolean;
+  bestBefore?: number;
+}
+
+/**
+ * 1.0 CP2 mastery card: the best-time slot a run counts for, `dungeon:tier`, or '' when it sets none. Only a solo
+ * delve on the tier ladder counts: the daily bounty, Delver's Key runs, party runs and the tutorial first delve don't.
+ */
+export function bestKey(s: Pick<RunSummary, 'dungeon' | 'tier' | 'bounty' | 'keyLevel' | 'realHeroes' | 'firstDelve'>): string {
+  if (s.bounty !== undefined || s.keyLevel || s.realHeroes !== undefined || s.firstDelve) return '';
+  return `${s.dungeon ?? 'kiln'}:${s.tier ?? 1}`;
 }
 
 /** One random item for a drop from `source` (its loot table), at least `minRarity`. */
@@ -487,6 +501,10 @@ export function applyRun(
   }
   const weekly = s.week !== undefined ? applyWeekly(hero, s, maxTierBefore) : undefined;
   hero.bestTime = Math.max(hero.bestTime, s.time);
+  const bk = bestKey(s);
+  const bestBefore = bk ? hero.bestClear?.[bk] : undefined;
+  const newBest = !!bk && s.victory && (bestBefore === undefined || s.time < bestBefore);
+  if (newBest) hero.bestClear = { ...(hero.bestClear ?? {}), [bk]: Math.round(s.time * 10) / 10 };
   hero.pity = loot.pity;
   hero.nextItemId += loot.items.length;
   hero.inventory.push(...loot.items);
@@ -503,7 +521,7 @@ export function applyRun(
   const collection = applyCollection(hero, known);
   const season = s.week !== undefined ? applySeason(hero, s, weekly?.weeklyDone?.length ?? 0) : undefined;
   const achievements = applyAchievements(hero, s, deedsBefore);
-  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...weekly, ...key, ...collection, ...season, ...achievements };
+  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...(newBest ? { newBest } : {}), ...(bestBefore !== undefined ? { bestBefore } : {}), ...weekly, ...key, ...collection, ...season, ...achievements };
 }
 
 /**

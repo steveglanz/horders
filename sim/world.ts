@@ -543,6 +543,13 @@ export interface Player {
   slag?: number;
   /** P1 weekly quests: casts this hero interrupted this run. */
   interrupts?: number;
+  /**
+   * 1.0 CP2 mastery card (sim/mastery.ts): red blows aimed at this hero (it stood in the tell when it appeared, or when it
+   * landed) and the ones it walked or rolled out of; casts it could have Kicked (a kick class with F open) that went off.
+   */
+  tells?: number;
+  dodges?: number;
+  castsMissed?: number;
   sunderT?: number;
   /** Relay (verb set): seconds left of the damage bonus from a soak. */
   relayT?: number;
@@ -998,6 +1005,8 @@ export interface RunSummary {
   day?: number;
   interrupts?: number;
   namedKills?: number;
+  /** The hero's first delve (the tutorial Kiln): it sets no best time. */
+  firstDelve?: boolean;
   /** Real heroes in the party (bots left out), for a party run only. */
   realHeroes?: number;
 }
@@ -1366,6 +1375,9 @@ export class World {
   private namedAt = -2;
   /** Named elites felled this run (the whole party's). */
   namedKills = 0;
+  /** 1.0 CP2 mastery card: gold circles that landed this run, and the ones somebody stood in. */
+  soaks = 0;
+  soaksMade = 0;
   private namedTitle = 0;
   private namedAffix = 0;
   // The Coldmarrow (Nhevra): Snuff, Snuffer Tide, Long Night.
@@ -2140,6 +2152,7 @@ export class World {
       ...(this.keyLevel ? { keyLevel: this.keyLevel } : {}),
       interrupts: this.player.interrupts ?? 0,
       namedKills: this.namedKills,
+      ...(this.firstDelve ? { firstDelve: true } : {}),
       ...(this.heroes.length > 1 ? { realHeroes: this.heroes.length - this.fillBots } : {}),
     };
   }
@@ -6739,6 +6752,13 @@ export class World {
     const e = this.enemies[i];
     const id = e.castId;
     const name = e.castName;
+    // Mastery card: a cast a Kick could have stopped went off. (One whose caster died first counts for nothing.)
+    if (e.interruptible) {
+      for (let h = 0; h < this.heroes.length; h++) {
+        const q = this.heroPlayer(h);
+        if (q.hp > 0 && this.heroes[h].classDef.kick && slotOpen(3, q.unlockLevel)) q.castsMissed = (q.castsMissed ?? 0) + 1;
+      }
+    }
     e.castId = '';
     e.castName = '';
     for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1; // let it land
@@ -7694,6 +7714,16 @@ export class World {
       else if ((p.plantT ?? 0) > 0) p.plantT = (p.plantT ?? 0) - dt;
       p.planted = (p.plantT ?? 0) > 0;
     }
+  }
+
+  /**
+   * Mastery card: a red tell that landed. It counts when the hero stood in it as it appeared or as it landed; it is
+   * dodged when the hero walked out, or stood in it while a roll's guard was up (rolled through).
+   */
+  private countTell(p: Player, wasIn: boolean, inside: boolean): void {
+    if (!wasIn && !inside) return;
+    p.tells = (p.tells ?? 0) + 1;
+    if (!inside || ((p.rollT ?? 0) > 0 && p.shieldT > 0)) p.dodges = (p.dodges ?? 0) + 1;
   }
 
   /** Glarewarden: the hero stepped out of a marked attack before it landed. */
@@ -10134,6 +10164,8 @@ export class World {
       if (t.kind === 'soak') {
         const took = this.soakers(t);
         const ok = took.length > 0;
+        this.soaks++;
+        if (ok) this.soaksMade++;
         this.relaySoak(took);
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y, owner: t.owner });
         // Ventwalker (3): standing in the gold circle heals.
@@ -10170,6 +10202,7 @@ export class World {
       const inside = this.insideTelegraph(t);
       if (!inside && t.wasIn && t.kind === 'hit') this.dodged();
       if (inside && (p.rollT ?? 0) > 0 && p.shieldT > 0) p.rolled = (p.rolled ?? 0) + 1;
+      if (t.kind === 'hit' && p.hp > 0) this.countTell(p, !!t.wasIn, inside);
       // A smothered bloom lands on the shield: the Bulwark takes half.
       this.tellFrom = t.owner;
       if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (smother ? 0.5 : 1), -1, false, this.telegraphCause(t));
@@ -10193,6 +10226,8 @@ export class World {
         const took = this.soakers(t);
         // The Regent's Tithe (owner -5) is only made with TITHE.need heroes in it: one alone gets no Relayer, no Ventwalker heal.
         const ok = took.length >= (t.owner === -5 ? TITHE.need : 1);
+        this.soaks++;
+        if (ok) this.soaksMade++;
         if (ok) this.relaySoak(took);
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y, owner: t.owner });
         // Ventwalker (3): every wearer standing in the gold circle heals.
@@ -10255,6 +10290,7 @@ export class World {
         const inside = this.insideTelegraph(t);
         if (!inside && t.kind === 'hit' && (mask >> h) & 1) this.dodged();
         if (inside && (this.player.rollT ?? 0) > 0 && this.player.shieldT > 0) this.player.rolled = (this.player.rolled ?? 0) + 1;
+        if (t.kind === 'hit' && this.player.hp > 0) this.countTell(this.player, ((mask >> h) & 1) === 1, inside);
         // A smothered bloom lands on the shield: that Bulwark takes half.
         this.tellFrom = t.owner;
         if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (h === smother ? 0.5 : 1), -1, false, this.telegraphCause(t));

@@ -20,8 +20,9 @@ import { display } from './settings';
 import { roleOf } from './net/lobby';
 import { Coach } from './coach';
 import { HELP } from '../sim/content/help';
-import { HeroProfile, RunRewards, equip, equippedItems, heroMaxLevel, heroXpToNext, lootUpgrades } from '../sim/hero';
+import { HeroProfile, RunRewards, bestKey, equip, equippedItems, heroMaxLevel, heroXpToNext, lootUpgrades } from '../sim/hero';
 import { hurtRecap } from '../sim/hurtrecap';
+import { mastery } from '../sim/mastery';
 
 /** X6: the run-shape chips' accents: the stone of the floors, the named Rare blue, the ember of an event, the boss's gold. */
 const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', door: '#ffc861', relic: '#5fe0c8', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', stir: '#c98bff', foe: '#ff6b8a', boss: '#ffc861', echo: '#ffe29a', heat: '#ff8a3d' };
@@ -1076,9 +1077,21 @@ export class Hud {
         // names who did the damage ("Hurt most by Ashbuck"). The headline says where; the line below says who.
         : `You fell in fight ${Math.min(w.encounter + 1, w.route.filter((r) => r !== 'worldShadow').length)} of ${w.route.filter((r) => r !== 'worldShadow').length}. Your gear and levels carry into the next delve.`;
     // What took this hero's health in the fight they fell in, so a loss says what to watch for next time.
-    const cause = s.victory ? '' : hurtRecap(w.player);
+    // 1.0 CP2 mastery card. applyRun has already stored a new best, so the old one comes from the rewards.
+    const bk = hero ? bestKey(s) : '';
+    const card = mastery({
+      victory: s.victory, player: w.player, kick: w.classDef.kick && slotOpen(3, w.player.unlockLevel), fName: w.classDef.abilities[3].name,
+      soaks: w.soaks, soaksMade: w.soaksMade, time: s.time, place: w.dungeonDef.name.replace(/^The /, ''), tier: s.tier ?? 1,
+      timed: !!bk, bestBefore: rewards?.newBest ? rewards.bestBefore : bk ? hero?.bestClear?.[bk] : undefined, newBest: rewards?.newBest,
+    });
+    // The card names the blow that felled you, so the line above keeps only who hurt you most.
+    const cause = s.victory ? '' : card.blow ? hurtRecap(w.player).replace(/ Last blow: .*$/, '') : hurtRecap(w.player);
     $('endCause').textContent = cause;
     $('endCause').hidden = !cause;
+    $('endMastery').innerHTML = (card.tiles.length ? `<div class="m-tiles">${card.tiles.map((t) => `<span${t.clean ? ' class="clean"' : ''}>${t.label} <b>${t.value}</b></span>`).join('')}</div>` : '')
+      + (card.blow ? `<div class="m-blow">${card.blow}</div>` : '')
+      + `<div class="m-lesson">${card.lesson}</div>`
+      + (card.best ? `<div class="m-best${rewards?.newBest ? ' new' : ''}">${card.best}</div>` : '');
     $('stats').innerHTML = [
       ['Time', fmt(s.time)],
       ['Level', String(s.level)],
