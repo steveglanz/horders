@@ -42,7 +42,7 @@ Targets are game-clock times from the first tap. The rooms are today's tutorial 
 | 2:25 | **The Kiln Mother, short** | Rolls, Quenches | 75 s, two stages, below. Coach once: "Roll out of the red. Quench her blue cast." | Both answers at once |
 | 3:40 | **She falls** | Watches | *"Take it, then. I can always make more than you can carry."* She cracks and shatters. Her great ember rises to the hero | embers |
 | 3:50 | **Home** | Taps | Back in Wick: the hearth roars, and the Forge lights (building 1). The end card says "You carried home N embers." and one item from her (first-clear Rare). The Hearthkeeper: *"Bring more."* | the Forge |
-| 4:10 | **Delve again** | Taps | One button. It starts delve 2: the normal 5-room Kiln tier 1 run with its fork and, from this run, Relics (unlock-curve.md) | - |
+| 4:10 | **Delve again** | Taps | The Home card's one button, Home to the Forge, opens the hub of Delve and the Forge only (engineering, 27 Nov: the panel never saw the Forge when the card went straight into delve 2). Its Delve starts delve 2: the normal 5-room Kiln tier 1 run with its fork and, from this run, Relics (unlock-curve.md) | - |
 
 The play part (R0 to her fall) is about 3:25, against today's 1:15-1:55. A slower or newer player runs longer, and the times above are for the average-skill bot. The whole opening is capped by its rooms, not a clock: nothing ends it early.
 

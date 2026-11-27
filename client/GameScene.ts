@@ -1573,6 +1573,8 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
+          // The readable payoff (CP3 panel): a big pop mid-screen naming what was stopped; in the opening, the stagger too.
+          this.hud.interruptPop(w, ev.name, w.firstDelve && events.some((x) => x.type === 'staggered'));
           this.burst(ev.x, ev.y, 14);
           this.ring(ev.x, ev.y, 90, 0x8fd8ff, 0.4);
           // The skill moment of the game: a short freeze and a nudge of the camera.

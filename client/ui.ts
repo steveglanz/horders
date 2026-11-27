@@ -283,6 +283,7 @@ export class Hud {
     const now = performance.now();
     if (!force && now - this.lastTick < 100) return;
     this.lastTick = now;
+    if (this.popUntil >= 0 && w.time >= this.popUntil) this.hidePop();
     const p = w.player;
     $('hpFill').style.width = `${(100 * Math.max(0, p.hp)) / p.maxHp}%`;
     // G6: downed in a party, the health text says how to get back up and how far along it is.
@@ -819,6 +820,40 @@ export class Hud {
 
   private warnNext = false;
 
+  /** When the Quench pop goes away, in game seconds (w.time), or -1 while none shows. */
+  private popUntil = -1;
+
+  /**
+   * The payoff for stopping a cast (CP3 panel, 27 Nov: two testers Quenched and saw nothing they read as "interrupted";
+   * the floating text over the foe is small and gone in a second). A big "Interrupted!" mid-screen with what was
+   * stopped, held 1.4 s of game time so it lasts as long as the moment does (and a paused game keeps it up).
+   */
+  interruptPop(w: World, castName: string, staggered: boolean): void {
+    let el = document.getElementById('ipop');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'ipop';
+      el.setAttribute('role', 'status');
+      el.innerHTML = '<b>Interrupted!</b><span></span>';
+      document.body.appendChild(el);
+    }
+    const what = castName ? `${castName} stopped` : 'Cast stopped';
+    el.querySelector('span')!.textContent = staggered ? `${what}. Staggered: double damage` : what;
+    // Restart the pop-in animation when a second Quench lands while the first still shows.
+    const b = el.querySelector('b')!;
+    b.style.animation = 'none';
+    void b.offsetWidth;
+    b.style.animation = '';
+    el.hidden = false;
+    this.popUntil = w.time + 1.4;
+  }
+
+  private hidePop(): void {
+    const el = document.getElementById('ipop');
+    if (el) el.hidden = true;
+    this.popUntil = -1;
+  }
+
   banner(title: string, sub: string, full = false, next?: BannerNext): void {
     const warn = this.warnNext;
     this.warnNext = false;
@@ -965,6 +1000,7 @@ export class Hud {
   }
 
   hideRun(): void {
+    this.hidePop();
     // Quitting from the pause menu during a talent draft (Esc, or the app going
     // to the background) used to leave the draft over the hub and block every tap.
     this.hideDraft();
@@ -1127,7 +1163,7 @@ export class Hud {
   /**
    * CP3 opening, PR 4 (docs/design/opening.md beat 3:50, "Home"): a won opening ends on its own card, standing on the
    * end screen until the Wick diorama lands. It shows the embers carried home, her one item, the two answers learned
-   * (Rolled N, Quenched N), the Hearthkeeper's "Bring more." and one button, Delve again. Everything else on the end
+   * (Rolled N, Quenched N), the Hearthkeeper's "Bring more." and one button, Home to the Forge (main.ts: it opens the Delve-and-Forge hub, homeHub). Everything else on the end
    * screen (XP, stats, run chips, Sparks, the world boss, Main menu) is hidden by #end.home (rule 4, rule 5).
    */
   private homeCard(w: World, rewards?: RunRewards): void {
