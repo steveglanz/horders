@@ -21,7 +21,7 @@ import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './n
 import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
 import { showFlatBadge } from './flatart';
-import { opensOnWake, showWake, Wake } from './opening';
+import { homeHub, opensOnWake, showWake, Wake } from './opening';
 import { hd2dMounted, hd2dWanted, loadHd2d, lookWanted, prefetchHd2d } from './hd2d/api';
 import { display, mountDisplayOptions, onDisplayChange } from './settings';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
@@ -212,7 +212,7 @@ function finishRun(w: World) {
   const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, drops, equipped);
   // A win that opens the next tier moves the delve up to it, when you were on your top tier (a playtester's new player
   // replayed tier 1 five times: the tier was only picked at page load). A lower tier you chose to replay stays picked.
-  // The opening is the exception: its Delve again is delve 2, the normal Kiln tier 1 run (opening.md beat 4:10).
+  // The opening is the exception: the delve after it is delve 2, the normal Kiln tier 1 run (opening.md beat 4:10).
   if (!summary.firstDelve && topTier(hero.maxTier) > topTier(topBefore) && hub.tier === topTier(topBefore)) hub.tier = topTier(hero.maxTier);
   // The hub opens on this tier next time (startTier), so a reload doesn't put you on the tier you haven't beaten yet.
   if (!lastBounty) hero.lastTier = hub.tier;
@@ -501,7 +501,13 @@ el('deleteAcctBtn').addEventListener('click', async () => {
   }
   location.reload();
 });
-el('againBtn').addEventListener('click', () => startRun(lastBounty, lastKey));
+// After the opening, its Home card's one button goes home to Wick: the hub of Delve and the Forge only (homeHub), so
+// the player sees the Forge light and can spend the embers before delve 2 (CP3 panel, 27 Nov: Delve again skipped it,
+// and that hub only showed after a reload). From there Delve starts delve 2.
+el('againBtn').addEventListener('click', () => {
+  if (homeHub(hero) && el('end').classList.contains('home')) toHub();
+  else startRun(lastBounty, lastKey);
+});
 el('lowerBtn').addEventListener('click', (e) => {
   hub.tier = Math.max(1, Number((e.currentTarget as HTMLElement).dataset.t) || 1);
   hub.render();
@@ -517,7 +523,8 @@ hub.onKey = () => {
   stress = false;
   startRun(false, true);
 };
-el('menuBtn').addEventListener('click', () => {
+/** From the end screen back to the hub (Main menu, and the opening's Home card). */
+function toHub(): void {
   if (coop?.role === 'host') coop.endRun();
   syncLobby();
   game.scene.stop('game');
@@ -526,7 +533,8 @@ el('menuBtn').addEventListener('click', () => {
   hub.render();
   el('title').hidden = false;
   reloadForLook();
-});
+}
+el('menuBtn').addEventListener('click', toHub);
 el('quitBtn').addEventListener('click', () => {
   if (coop?.role === 'host') coop.endRun();
   syncLobby();
@@ -890,7 +898,7 @@ function coopButton(): void {
   // The end screen's "Delve again" did nothing for a guest: only the host starts delves.
   const again = el('againBtn') as HTMLButtonElement;
   again.disabled = coop?.role === 'guest';
-  again.textContent = coop?.role === 'guest' ? 'Waiting for the host' : 'Delve again';
+  again.textContent = coop?.role === 'guest' ? 'Waiting for the host' : homeHub(hero) ? 'Home to the Forge' : 'Delve again';
 }
 const hubRender = hub.render.bind(hub);
 hub.render = () => {

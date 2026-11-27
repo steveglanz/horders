@@ -2,7 +2,8 @@
 // A fresh save taps through the wake screen; the game bot plays the opening (warp 3) while this records the route, the
 // coach and banner lines as they show, the first draft line, the short Kiln Mother's lines and moves (PR 3), and the end; then a second fresh save quits mid-opening and
 // must land back on the wake screen with no run counted. PR 4 (Home): checks the end card, the hub after it (Delve and the Forge
-// only) and that Delve again starts a normal Kiln tier 1 run. node tools/openingcheck.cjs [outDir]   (after npm run build)
+// only, reached by the Home card's one button) and that its Delve starts a normal Kiln tier 1 run. Also: no coach line runs off the
+// screen, and a Quenched caster shows the Interrupted! pop with the stagger. node tools/openingcheck.cjs [outDir]   (after npm run build)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const out = path.resolve(process.argv[2] || 'docs/art/opening-cp3/run');
@@ -53,7 +54,16 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
   // Every coach line, however briefly it shows (the bot Quenches within a fraction of a second, between polls).
   await page.evaluate(() => {
     window.__coachSeen = [];
-    new MutationObserver(() => { const c = document.querySelector('#coach'); if (c && !c.hidden && c.textContent && !window.__coachSeen.includes(c.textContent.trim())) window.__coachSeen.push(c.textContent.trim()); })
+    // Lines that ran off the screen (the CP3 panel's clipped Roll and Quench lines), and the Quench pops shown.
+    window.__coachOff = [];
+    window.__pops = [];
+    new MutationObserver(() => {
+      const c = document.querySelector('#coach');
+      if (c && !c.hidden && c.textContent && !window.__coachSeen.includes(c.textContent.trim())) window.__coachSeen.push(c.textContent.trim());
+      if (c && !c.hidden && c.textContent) { const r = c.getBoundingClientRect(); if (r.left < 0 || r.right > innerWidth) window.__coachOff.push(`${c.dataset.kind}: ${Math.round(r.left)}..${Math.round(r.right)}`); }
+      const pop = document.querySelector('#ipop');
+      if (pop && !pop.hidden && !window.__pops.includes(pop.textContent)) window.__pops.push(pop.textContent);
+    })
       .observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
   });
   await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = false; s.warp = 3; });
@@ -65,13 +75,13 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
       const s = window.__ember.scene(); const w = s?.world;
       const q = (sel) => { const e = document.querySelector(sel); return e && !e.hidden && getComputedStyle(e).display !== 'none' ? e.textContent.trim() : ''; };
       const ban = document.querySelector('#banner');
-      return { state: w?.state, t: Math.round(w?.time ?? 0), coach: q('#coach'), kind: document.querySelector('#coach')?.dataset.kind ?? '', banner: ban?.classList.contains('show') ? `${q('#bannerTitle')} | ${q('#bannerSub')}` : '', draft: q('#draft') ? q('#draftLevel') : '', end: !document.querySelector('#end').hidden, hounds: w ? w.enemies.filter((e) => e.alive && e.kind === 'cinderhound').map((e) => e.def.size) : [], km: w?.kmOpen ?? 0, kmCast: w && w.bossIndex >= 0 && w.enemies[w.bossIndex]?.alive ? w.enemies[w.bossIndex].castId : '' };
+      return { state: w?.state, t: Math.round(w?.time ?? 0), coach: q('#coach'), kind: document.querySelector('#coach')?.dataset.kind ?? '', banner: ban?.classList.contains('show') ? `${q('#bannerTitle')} | ${q('#bannerSub')}` : '', draft: q('#draft') ? q('#draftLevel') : '', end: !document.querySelector('#end').hidden, hounds: w ? w.enemies.filter((e) => e.alive && e.kind === 'cinderhound').map((e) => e.def.size) : [], km: w?.kmOpen ?? 0, kmCast: w && w.bossIndex >= 0 && w.enemies[w.bossIndex]?.alive ? w.enemies[w.bossIndex].castId : '', pop: !!document.querySelector('#ipop') && !document.querySelector('#ipop').hidden };
     });
     for (const [k, v] of [['coach', st.coach], ['banner', st.banner], ['draft', st.draft]]) {
       if (v && !said.some((x) => x.k === k && x.v === v)) { said.push({ k, v, t: st.t }); console.log(`  t=${st.t}s ${k}: ${v}`); }
     }
     // PR 3: the short Kiln Mother's Swipe (stage 1) and blue cast (stage 2).
-    const key = st.draft ? 'draft' : st.km && st.kmCast === 'kmSwipe' ? 'boss-swipe' : st.km && st.kmCast === 'cataclysm' ? 'boss-cast' : st.kind === 'roll' || st.kind === 'quench' ? st.kind : st.hounds.length ? 'hounds' : '';
+    const key = st.pop ? 'interrupted' : st.draft ? 'draft' : st.km && st.kmCast === 'kmSwipe' ? 'boss-swipe' : st.km && st.kmCast === 'cataclysm' ? 'boss-cast' : st.kind === 'roll' || st.kind === 'quench' ? st.kind : st.hounds.length ? 'hounds' : '';
     if (key && !shot.has(key)) { shot.add(key); await page.screenshot({ path: `${out}/2-${key}.png` }); }
     if (st.state === 'draft') await page.evaluate(() => { const s = window.__ember.scene(); s.world.choose(0); });
     if (st.end || st.state === 'ended') break;
@@ -102,6 +112,11 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
     if (!said.some((x) => x.k === 'banner' && x.v === `The Kiln Mother | ${line}`)) fail(`her line did not show: ${line}`);
   }
   if (said.some((x) => /Stage 2|Phase 2|boils over/.test(x.v))) fail('a stage title or Boil-over showed in the short Kiln Mother');
+  const off = await page.evaluate(() => window.__coachOff);
+  if (off.length) fail(`coach lines off the screen: ${[...new Set(off)].join(', ')}`);
+  const pops = await page.evaluate(() => window.__pops);
+  console.log('Quench pops:', JSON.stringify(pops));
+  if (!pops.some((t) => /^Interrupted!.+stopped\. Staggered: double damage$/.test(t))) fail('no Interrupted! pop with the stagger on a Quenched caster');
   console.log('first Quench banner:', said.some((x) => x.v.startsWith('It fears water. Of course it does.')));
 
   // PR 4 Home: the end card, then the hub after it (Delve and the Forge only), then Delve again is Kiln tier 1.
@@ -127,7 +142,10 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
   if (home.items !== 1) fail(`the opening gave ${home.items} items, not 1`);
   if (home.buttons.join() !== '#againBtn') fail(`buttons shown: ${home.buttons.join()}`);
   if (home.hidden !== 5) fail('the full end screen still shows');
-  await page.reload();
+  const againText = await page.evaluate(() => document.querySelector('#againBtn').textContent.trim());
+  if (againText !== 'Home to the Forge') fail(`the Home card's button reads "${againText}"`);
+  // The Home card's button goes to the hub (no reload needed): Delve and the Forge only.
+  await page.click('#againBtn');
   await page.waitForTimeout(1500);
   const hub = await page.evaluate((shownSrc) => {
     const shown = eval(shownSrc);
@@ -136,6 +154,7 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
       tabs: [...document.querySelectorAll('#tabbar [data-tab]')].filter((b) => getComputedStyle(b).display !== 'none').map((b) => b.querySelector('span').textContent.trim()) };
   }, `(${shown})`);
   await page.screenshot({ path: `${out}/6-hub.png` });
+  if (!(await page.evaluate(() => document.querySelector('#end').hidden))) fail('the end screen still shows over the hub');
   console.log('hub after:', JSON.stringify(hub));
   // Phones show the Forge as a tab (the tab bar replaces the Bags button); wider screens keep the button.
   const forge = hub.shown.includes('#bagBtn') ? hub.bag.startsWith('Forge') : hub.tabs.join() === 'Delve,Forge';
