@@ -128,7 +128,6 @@ async function server() {
   await page.waitForTimeout(2000);
   const t0 = Date.now();
   let shotN = 0;
-  let stickPos = null;
 
   const gameTime = () => page.evaluate(() => window.__ember?.scene()?.world?.time ?? null).catch(() => null);
   const freeze = (on) => page.evaluate((on) => { const s = window.__ember?.scene(); if (s && s.sys?.isActive()) s.warp = on ? 0 : 1; }, on).catch(() => {});
@@ -177,9 +176,13 @@ async function server() {
     return { overlays, heading, banner, toasts, run, buttons };
   });
 
+  // Phones get real touches (pointerType 'touch'): a mouse would leave hover tooltips open that a phone never shows.
+  const cdp = view.mobile ? await ctx.newCDPSession(page) : null;
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  const press = async (x, y) => { if (view.mobile) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y); };
   const resolveTap = async (target) => {
-    if (target.startsWith('xy:')) { const [x, y] = target.slice(3).split(',').map(Number); await page.mouse.click(x, y); return `tapped ${x},${y}`; }
-    if (target.startsWith('css:')) { await page.locator(target.slice(4)).first().click({ timeout: 4000 }); return `tapped ${target}`; }
+    if (target.startsWith('xy:')) { const [x, y] = target.slice(3).split(',').map(Number); await press(x, y); return `tapped ${x},${y}`; }
+    if (target.startsWith('css:')) { const b = await page.locator(target.slice(4)).first().boundingBox({ timeout: 4000 }); if (!b) throw new Error(`${target} is not visible`); await press(b.x + b.width / 2, b.y + b.height / 2); return `tapped ${target}`; }
     // By text: an exact match wins; otherwise the text must match exactly one visible control.
     const pick = await page.evaluate((target) => {
       const norm = (x) => (x || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -188,14 +191,15 @@ async function server() {
       const els = [...document.querySelectorAll('button, summary, [role=button], a[href], .card, [data-tab], label')].filter(vis);
       const label = (el) => norm(el.innerText || el.textContent) || norm(el.getAttribute('aria-label'));
       const exact = els.filter((el) => label(el) === t);
-      const part = els.filter((el) => label(el).includes(t));
+      const part0 = els.filter((el) => label(el).includes(t));
+      const part = part0.filter((el) => !part0.some((o) => o !== el && el.contains(o)));
       const hit = exact.length === 1 ? exact[0] : exact.length === 0 && part.length === 1 ? part[0] : null;
       if (!hit) return { many: (exact.length ? exact : part).map((el) => label(el).slice(0, 50)) };
       const r = hit.getBoundingClientRect();
       return { x: r.x + r.width / 2, y: r.y + r.height / 2, label: label(hit).slice(0, 50) };
     }, target);
     if (pick.many) throw new Error(pick.many.length ? `"${target}" matches ${pick.many.length} controls: ${pick.many.join(' | ')}. Use more of the text, css:<selector> or xy:x,y` : `nothing visible matches "${target}"`);
-    await page.mouse.click(pick.x, pick.y);
+    await press(pick.x, pick.y);
     return `tapped "${pick.label}" at ${Math.round(pick.x)},${Math.round(pick.y)}`;
   };
 
@@ -220,12 +224,12 @@ async function server() {
     stick: async ([dir, ms]) => {
       const ks = DIRS[dir]; if (!ks) return { error: 'bad dir' };
       const z = await page.evaluate(() => { const t = document.getElementById('touch'); const r = t?.getBoundingClientRect(); return r && r.width ? { x: r.x + r.width * 0.3, y: r.y + r.height * 0.75 } : null; });
-      if (!z) return { error: 'no #touch zone on screen (not in a run, or not a phone view)' };
+      if (!z || !view.mobile) return { error: 'no #touch zone on screen (not in a run, or not a phone view; use move on desk)' };
       const dx = (ks.includes('a') ? -1 : ks.includes('d') ? 1 : 0) * 50; const dy = (ks.includes('w') ? -1 : ks.includes('s') ? 1 : 0) * 50;
-      await page.mouse.move(z.x, z.y); await page.mouse.down(); await page.mouse.move(z.x + dx, z.y + dy, { steps: 4 });
+      await touch('touchStart', z.x, z.y);
+      for (let i = 1; i <= 4; i++) await touch('touchMove', z.x + (dx * i) / 4, z.y + (dy * i) / 4);
       await run(ms || 500);
-      await page.mouse.up();
-      stickPos = null;
+      await touch('touchEnd', z.x + dx, z.y + dy);
       await log(`stick ${dir} ${ms || 500}ms`); return { ok: true, run: (await state()).run };
     },
     cast: async ([n, ms]) => { await page.keyboard.press(String(n)); await run(ms || 300); await log(`cast ${n}`); return { ok: true, run: (await state()).run }; },
