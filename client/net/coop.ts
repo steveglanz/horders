@@ -9,7 +9,7 @@
  */
 import { Party, Member, partyCode } from './party';
 import { Signal, localSignal, supabaseSignal } from './signal';
-import { Input, SimEvent, World, WorldOptions, HeroOptions, HeroLooks, TICK } from '../../sim/world';
+import { Input, ROLL_SLOT, SimEvent, World, WorldOptions, HeroOptions, HeroLooks, TICK } from '../../sim/world';
 import { GLOWS, TRAILS } from '../../sim/content/season';
 import { POTION_IDS } from '../../sim/content/potions';
 import { Snapshot, heardEvents, snapshot, trimRecent, withHeard } from '../../sim/netsync';
@@ -214,7 +214,12 @@ export class CoopSession {
       const i = this.inputs.get(id) ?? { x: 0, y: 0 };
       const c = this.casts.get(id);
       if (!c) return { x: i.x, y: i.y };
-      c.cd = w.heroData(k + 1).player.cds[c.slot] ?? 0;
+      const q = w.heroData(k + 1).player;
+      if (c.slot === ROLL_SLOT) {
+        c.cd = q.rollCd ?? 0;
+        return { x: i.x, y: i.y, roll: true };
+      }
+      c.cd = q.cds[c.slot] ?? 0;
       return { x: i.x, y: i.y, cast: c.slot };
     });
   }
@@ -227,7 +232,8 @@ export class CoopSession {
     this.order.forEach((id, k) => {
       const c = this.casts.get(id);
       if (!c) return;
-      if ((w.heroData(k + 1).player.cds[c.slot] ?? 0) > c.cd || --c.ticks <= 0) this.casts.delete(id);
+      const q = w.heroData(k + 1).player;
+      if ((c.slot === ROLL_SLOT ? q.rollCd ?? 0 : q.cds[c.slot] ?? 0) > c.cd || --c.ticks <= 0) this.casts.delete(id);
     });
   }
 
@@ -359,7 +365,7 @@ export class CoopSession {
         if (Number.isFinite(m.x) && Number.isFinite(m.y)) this.inputs.set(from, { x: Math.max(-1, Math.min(1, m.x)), y: Math.max(-1, Math.min(1, m.y)) });
         break;
       case 'cast':
-        if (Number.isInteger(m.slot) && m.slot >= 0 && m.slot < 4) this.casts.set(from, { slot: m.slot, ticks: QUEUE_TICKS, cd: 0 });
+        if (Number.isInteger(m.slot) && m.slot >= 0 && m.slot <= ROLL_SLOT) this.casts.set(from, { slot: m.slot, ticks: QUEUE_TICKS, cd: 0 });
         break;
       case 'pick':
         if (Number.isInteger(m.i) && m.i >= 0 && m.i < 3) this.picks.push({ id: from, i: m.i });

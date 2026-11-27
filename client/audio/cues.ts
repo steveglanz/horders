@@ -489,6 +489,9 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       const id = ABILITY[c.cls]?.[ev.slot];
       return id ? { id, jitter: 0.04 } : null;
     }
+    case 'overheat': return mine(ev.hero) ? { id: 'overheatScorch' } : null;
+    case 'backstab': return mine(ev.hero) ? { id: 'backstab', jitter: 0.1 } : null;
+    case 'roll': return mine(ev.hero) ? { id: 'dodgeRoll', jitter: 0.06 } : { id: 'dodgeRoll', jitter: 0.06, vol: 0.5 };
     case 'blink': return { id: c.cls === 'lumen' ? 'lumenStep' : 'emberBlink' };
     case 'dash':
       if (c.cls === 'slagbinder') return { id: 'slagLeap' };

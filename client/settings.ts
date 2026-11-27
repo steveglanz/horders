@@ -16,6 +16,8 @@ export type GraphicsSetting = 'auto' | 'saver' | 'full';
 export type TextSetting = 'normal' | 'large';
 /** The 3D look (the default) or the 2D look, which saves battery (client/hd2d/api.ts hd2dWanted). */
 export type LookSetting = '3d' | '2d';
+/** 1.0 CP2: how a touch player rolls: the Roll button (the default) or a flick of the stick. Cold testers pick the default. */
+export type DodgeSetting = 'button' | 'flick';
 
 export interface DisplaySettings {
   shake: ShakeSetting;
@@ -24,6 +26,7 @@ export interface DisplaySettings {
   graphics: GraphicsSetting;
   text: TextSetting;
   look: LookSetting;
+  dodge: DodgeSetting;
 }
 
 const KEY = 'horders.display.v1';
@@ -34,7 +37,7 @@ function osReducedMotion(): boolean {
 }
 
 function load(): DisplaySettings {
-  const base: DisplaySettings = { shake: osReducedMotion() ? 'reduced' : 'full', palette: 'standard', hand: 'right', graphics: 'auto', text: 'normal', look: '3d' };
+  const base: DisplaySettings = { shake: osReducedMotion() ? 'reduced' : 'full', palette: 'standard', hand: 'right', graphics: 'auto', text: 'normal', look: '3d', dodge: 'button' };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return base;
@@ -46,6 +49,7 @@ function load(): DisplaySettings {
       graphics: v.graphics === 'saver' || v.graphics === 'full' ? v.graphics : 'auto',
       text: v.text === 'large' ? 'large' : 'normal',
       look: v.look === '2d' ? '2d' : '3d',
+      dodge: v.dodge === 'flick' ? 'flick' : 'button',
     };
   } catch {
     return base;
@@ -138,6 +142,9 @@ export function mountDisplayOptions(box: HTMLElement): void {
   if (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) {
     const hand = segmented<HandSetting>('Ability buttons', () => display.hand, [['right', 'Right'], ['left', 'Left']], (v) => { display.hand = v; });
     hand.el.setAttribute('data-tip', 'Put the ability buttons under your left thumb and steer with your right.');
+    const dodge = segmented<DodgeSetting>('Dodge', () => display.dodge, [['button', 'Roll button'], ['flick', 'Flick the stick']], (v) => { display.dodge = v; });
+    dodge.el.setAttribute('data-tip', 'Roll with its own button, or by flicking the stick fast the way you want to go.');
+    rows.push(dodge);
     rows.push(hand);
   }
   box.append(...rows.map((r) => r.el));

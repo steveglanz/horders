@@ -188,6 +188,8 @@
   #actionbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(14px, env(safe-area-inset-bottom)); z-index: 11; display: flex; flex-direction: column; align-items: center; gap: 6px; }
   #heat { position: relative; width: 268px; height: 10px; border-radius: 5px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,138,61,0.45); overflow: hidden; }
   #heatFill { height: 100%; width: 0; background: linear-gradient(90deg, #a8351a, var(--ember), #ffd27a); }
+  /* 1.0 CP2 grey box, Overheat: style.ts fire[4] white-hot edge while the Emberwright's fire does double. */
+  #heat.over { border-color: #ffe2a0; box-shadow: 0 0 10px #ffa040; }
   #heatText { position: absolute; inset: 0; display: grid; place-items: center; font-size: 9px; font-weight: 700; text-shadow: 0 1px 2px #000; }
   #abilities { display: flex; gap: 8px; }
   .ab { position: relative; width: 60px; height: 60px; border-radius: 16px; border: 2px solid color-mix(in srgb, var(--ac, var(--ember)) 35%, transparent); background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--ac, var(--ember)) 26%, transparent), rgba(26,15,12,0.94) 75%); color: var(--ac, var(--ember)); padding: 0; overflow: hidden; touch-action: none; }
@@ -198,6 +200,8 @@
   .ab .cd { position: absolute; inset: 0; background: conic-gradient(rgba(0,0,0,0.72) calc(var(--p, 0) * 1turn), transparent 0); display: grid; place-items: center; font-size: 18px; font-weight: 800; text-shadow: 0 1px 3px #000; }
   .ab.nores { filter: saturate(0.2) brightness(0.7); }
   .ab.hot { border-color: #8fd8ff; box-shadow: 0 0 14px rgba(120,200,255,0.9); }
+  /* 1.0 CP2 grey box: the dodge roll, a plain iron button after the four abilities (style.ts iron, no class colour). */
+  .ab.roll { --ac: #8a929c; border-color: rgba(138,146,156,0.6); }
   .ab.flash { animation: abflash 0.25s; }
   @keyframes abflash { from { transform: scale(0.9); } to { transform: scale(1); } }
 
@@ -716,6 +720,8 @@
     #heat { width: 140px; }
     #abilities { display: grid; grid-template-columns: repeat(2, 64px); gap: 8px; }
     .ab { width: 64px; height: 64px; }
+    .ab.roll { grid-column: 1 / -1; width: auto; height: 48px; }
+    .ab.roll svg { margin-top: 3px; }
     #toasts { bottom: max(14px, env(safe-area-inset-bottom)); left: max(12px, env(safe-area-inset-left)); max-width: calc(100vw - 190px); }
     .toast { font-size: 12px; padding: 5px 8px; }
     .toast:nth-child(n+3) { display: none; }

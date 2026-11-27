@@ -7,7 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OSKELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { CLOTH } from './style';
+import { ROLL, ROLL_SLOT, ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OSKELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
 import { inLoop, roomLoops } from './hallsshape';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP, worldBossLabel } from '../sim/content/dungeon';
@@ -694,6 +695,8 @@ export class GameScene extends Phaser.Scene {
     kb.on('keydown-E', () => this.cast(1));
     kb.on('keydown-R', () => this.cast(2));
     kb.on('keydown-F', () => this.cast(3));
+    kb.on('keydown-SPACE', () => this.cast(ROLL_SLOT));
+    kb.on('keydown-SHIFT', () => this.cast(ROLL_SLOT));
     kb.on('keydown-P', () => this.togglePause());
     kb.on('keydown-ESC', () => this.togglePause());
 
@@ -997,8 +1000,10 @@ export class GameScene extends Phaser.Scene {
         const input = this.autopilot ? botInput(w) : this.readInput();
         if (!this.autopilot && this.queued) {
           if (this.time.now > this.queued.until) this.queued = null;
+          else if (this.queued.slot === ROLL_SLOT) input.roll = true;
           else input.cast = this.queued.slot;
         }
+        const rolled = !!input.roll && w.rollReady;
         const slot = input.cast;
         const cdBefore = slot !== undefined ? w.player.cds[slot] : 0;
         w.step(this.coop ? this.coopInputs(w, input) : w.heroes.length > 1 ? [input, ...this.botAllies(w)] : input);
@@ -1007,6 +1012,7 @@ export class GameScene extends Phaser.Scene {
           if (!this.autopilot) this.queued = null;
           this.hud.flashAbility(slot);
         }
+        if (rolled && !w.rollReady && !this.autopilot) this.queued = null;
         this.acc -= TICK;
         this.handleEvents(w.events);
       }
@@ -1268,6 +1274,22 @@ export class GameScene extends Phaser.Scene {
           this.floatText(ev.x, ev.y - 34, 'Parry!', '#f1e6ff', 18);
           this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: 46, angle: 0, color: 0xf1e6ff, life: 0.3 });
           break;
+        case 'overheat':
+          // Grey box: style.ts fire colours, a scorch ring on the Emberwright.
+          this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: 40, angle: 0, color: 0xffa040, life: 0.4 });
+          if (ev.hero === w.acting) this.floatText(ev.x, ev.y - 34, 'Overheat!', '#ffe2a0', 16);
+          break;
+        case 'backstab':
+          if (ev.hero === w.acting) this.floatText(ev.x, ev.y - 40, 'Snip', '#d9ae82', 13);
+          break;
+        case 'roll': {
+          // Grey box (1.0 CP2): a streak in the hero's cloth colour along the roll, and a puff of floor dust where it starts.
+          const cloth = Number.parseInt(CLOTH[w.heroes[ev.hero]?.cls ?? w.cls].slice(1), 16);
+          const x2 = ev.x + Math.cos(ev.angle) * ROLL.dist, y2 = ev.y + Math.sin(ev.angle) * ROLL.dist;
+          this.addShape({ kind: 'line', x: ev.x, y: ev.y, x2, y2, r: 0, angle: 0, color: cloth, life: ROLL.time + 0.15 });
+          this.trailDash(ev.x, ev.y, x2, y2);
+          break;
+        }
         case 'blink':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xffc861, life: 0.3 });
           this.burst(ev.x2, ev.y2, 10);

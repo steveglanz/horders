@@ -100,6 +100,26 @@ export const GRIT_CUT = { perStack: 0.07, fromTier: 4 };
  * first delve and the first tiers a new character plays.
  */
 export const UNLOCK_AID = { dmg: 0.1, cut: 0.1 };
+/**
+ * 1.0 Checkpoint 2 (docs/design/checkpoint-2-grey-box.md, piece 4): the dodge roll every class has, on its own button.
+ * The hero rolls `dist` px over `time` s (the way the stick points, else the way it faces), and no blow can touch it for
+ * `guard` s (it uses shieldT, as Blink does: soaks, heat, cold and other unblockable ticks still land). `cd` s to recharge.
+ */
+export const ROLL = { dist: 120, time: 0.3, guard: 0.3, cd: 3 };
+/**
+ * 1.0 CP2 signature verb, Emberwright Overheat (vision.md section 6 item 7): at `from` Heat or more its fire deals `mult`
+ * damage (dmgMult, so burns and burning ground lit while hot keep it). Reaching full Heat in a fight scorches it for
+ * `scorch` of its max health (unblockable) and vents the Heat down to `vent`.
+ */
+export const OVERHEAT = { from: 80, mult: 2, scorch: 0.04, vent: 55 };
+/**
+ * 1.0 CP2 signature verb, Cutwick (duskblade) Snip (id backstab; "Backstab" is a WoW Rogue ability, rename-map section 4): its direct hits on a foe from behind (outside `front` radians of
+ * the way the foe faces) always crit, and a killing blow from behind readies Rending Dash at once. Foes face the way
+ * they move, else their target, turning at `turn` rad/s (`bossTurn` for bosses), so a dash through a pack lands behind it.
+ */
+export const BACKSTAB = { front: (110 * Math.PI) / 180, turn: 5, bossTurn: 2.5 };
+/** The dodge button's press id where a press travels as a slot number (the client's queue, a co-op guest's press). */
+export const ROLL_SLOT = 4;
 /** Share of max health Sidestep heals. */
 const SIDESTEP_HEAL = 0.03;
 /** Share of max health Steady Breath restores, once per fight, to a melee hero below 30%. */
@@ -270,6 +290,8 @@ export interface Input {
   y: number;
   /** Ability button pressed this tick (0-3), if any. */
   cast?: number;
+  /** The dodge button (ROLL) was pressed this tick. */
+  roll?: boolean;
 }
 
 export interface Enemy {
@@ -326,6 +348,8 @@ export interface Enemy {
   affix: number;
   /** Phase 18 Halls: the map pack (World.halls.packs index) this foe belongs to; set only on Halls runs. */
   pack?: number;
+  /** Backstab (BACKSTAB): the way this foe faces, turned toward where it moves or its target. */
+  face?: number;
   /** FOE_AI lunge: seconds until it may lunge again, wind-up left (red lane showing), dash left, and the lane's angle. */
   lungeT: number;
   lungeW: number;
@@ -588,6 +612,11 @@ export interface Player {
   laneN?: number;
   /** Seconds left on the Hot Heels run boost. */
   hasteT: number;
+  /** Dodge roll (ROLL): seconds left rolling, seconds until the next roll, its direction, and blows rolled through. */
+  rollT?: number;
+  rollCd?: number;
+  rollAng?: number;
+  rolled?: number;
   /** Stored extra Blink charges (Hot Heels rank 2) and the timer refilling one. */
   blinkCharges: number;
   blinkChargeT: number;
@@ -717,6 +746,12 @@ export type SimEvent =
   | { type: 'slagGrip'; x: number; y: number; stacks: number }
   | { type: 'interrupt'; x: number; y: number; name: string }
   | { type: 'dodge'; x: number; y: number; healed: number }
+  /** 1.0 CP2 Backstab: a Cutwick hit foe (x, y) from behind (a sure crit). */
+  | { type: 'backstab'; x: number; y: number; hero: number }
+  /** 1.0 CP2 Overheat: an Emberwright hit full Heat and scorched itself. */
+  | { type: 'overheat'; x: number; y: number; hero: number }
+  /** 1.0 CP2: a hero started a dodge roll (ROLL) from (x, y) toward `angle`. */
+  | { type: 'roll'; x: number; y: number; angle: number; hero: number }
   | { type: 'castDone'; x: number; y: number; id: string; name: string }
   | { type: 'heal'; x: number; y: number; amount: number }
   | { type: 'ward'; index: number; amount: number }
@@ -1707,7 +1742,8 @@ export class World {
     const clinker = (this.rank('clinkerHeart') > 0 && plated ? DEFENCE_BRANCH.clinkerDmg : 0) + (this.rank('twinPour') > 0 && plated ? DEFENCE_BRANCH.twinDmg : 0);
     const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend') + DEFENCE_BRANCH.groundDmg * this.rank('kindledGround') + DEFENCE_BRANCH.graceDmg * (this.rank('renewal') + this.rank('aegisOfLight'))) * (1 + clinker);
     const party = this.cls !== 'slagbinder' || p.stance === 'anvil' ? 1 : this.heroes.length > 1 ? (this.dungeonId === 'flue' ? SLAG_KIT.fluePartyDmg : SLAG_KIT.partyDmg) : this.gunner ? SLAG_KIT.gunnerSoloDmg : SLAG_KIT.soloDmg;
-    return party * guard * (1 + UNLOCK_AID.dmg * this.lockedSlots) * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
+    const hot = this.cls === 'emberwright' && p.heat >= OVERHEAT.from ? OVERHEAT.mult : 1;
+    return hot * party * guard * (1 + UNLOCK_AID.dmg * this.lockedSlots) * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult / (1 + TREE.briskHaste * this.tree('brisk'));
@@ -3310,6 +3346,29 @@ export class World {
     return false;
   }
 
+  /**
+   * Bots' "roll on red" (1.0 CP2): the red mark (a hit or bloom telegraph) the acting hero stands in that lands within
+   * `within` s, or null. A gold soak is never one: rolling out of it would miss the soak.
+   */
+  redLanding(within: number): Telegraph | null {
+    const p = this.player;
+    for (const t of this.telegraphs) {
+      if (!t.alive || t.kind === 'soak' || t.dur - t.t > within) continue;
+      // A Bulwark takes a bloom on its shield (Smother) instead.
+      if (t.kind === 'bloom' && this.cls === 'bulwark') continue;
+      if (!this.insideFor(t, p)) continue;
+      // Only when walking out can't make it in time: a roll is a last resort, so a tank doesn't tumble off its spot.
+      const d = Math.sqrt(dist2(p.x, p.y, t.x, t.y));
+      let exit = t.r + PLAYER_RADIUS * 0.5 - d;
+      if (t.shape === 'cone') {
+        const off = Math.abs(angleDiff(Math.atan2(p.y - t.y, p.x - t.x), t.angle));
+        exit = Math.min(t.r - d, d * Math.sin(Math.max(0, t.arc / 2 - off)));
+      }
+      if (exit > this.moveSpeed * Math.max(0, t.dur - t.t)) return t;
+    }
+    return null;
+  }
+
   /** Back to Stone: the hero is within reach of a layout stone or a standing Glarewell pillar. */
   nearStone(p: Player = this.player): boolean {
     const r = SITE_CARDS.stoneRange + PLAYER_RADIUS;
@@ -3803,7 +3862,15 @@ export class World {
     p.px = p.x;
     p.py = p.y;
     const len = Math.hypot(input.x, input.y);
-    if (len > 0.01) {
+    if ((p.rollCd ?? 0) > 0) p.rollCd = Math.max(0, (p.rollCd ?? 0) - dt);
+    if (input.roll && (p.rollCd ?? 0) <= 0 && (p.rollT ?? 0) <= 0 && p.hp > 0) this.startRoll(input);
+    if ((p.rollT ?? 0) > 0) {
+      // Rolling: the roll carries the hero, whatever the stick says.
+      const step = (ROLL.dist / ROLL.time) * Math.min(dt, p.rollT ?? 0);
+      p.x += Math.cos(p.rollAng ?? 0) * step;
+      p.y += Math.sin(p.rollAng ?? 0) * step;
+      p.rollT = Math.max(0, (p.rollT ?? 0) - dt);
+    } else if (len > 0.01) {
       const k = Math.min(1, len) / len;
       p.x += input.x * k * this.moveSpeed * dt;
       p.y += input.y * k * this.moveSpeed * dt;
@@ -3814,6 +3881,23 @@ export class World {
     p.hp = Math.min(p.maxHp, p.hp + this.regen * dt);
     if (p.hurtFlash > 0) p.hurtFlash -= dt;
     if (this.stress) p.hp = p.maxHp;
+  }
+
+  /** The dodge roll (ROLL): the way the stick points (else the way the hero faces), a short guard against blows. */
+  private startRoll(input: Input): void {
+    const p = this.player;
+    const ang = Math.hypot(input.x, input.y) > 0.01 ? Math.atan2(input.y, input.x) : p.facing;
+    p.rollAng = ang;
+    p.facing = ang;
+    p.rollT = ROLL.time;
+    p.rollCd = ROLL.cd;
+    p.shieldT = Math.max(p.shieldT, ROLL.guard + TICK);
+    this.events.push({ type: 'roll', x: p.x, y: p.y, angle: ang, hero: this.acting });
+  }
+
+  /** Whether the acting hero can roll right now. */
+  get rollReady(): boolean {
+    return (this.player.rollCd ?? 0) <= 0 && (this.player.rollT ?? 0) <= 0;
   }
 
   /** Whether the acting hero is the one Ondrel is winding up Anvilfall on (for the bots). */
@@ -4063,7 +4147,19 @@ export class World {
   // ---------------------------------------------------------------- action bar
 
   private addHeat(v: number): void {
-    this.player.heat = Math.min(MAX_HEAT, this.player.heat + v);
+    const p = this.player;
+    p.heat = Math.min(MAX_HEAT, p.heat + v);
+    // Overheat: full Heat in a fight burns the Emberwright and vents it (only fights: Heat fills on its own between them).
+    if (p.heat >= MAX_HEAT && this.cls === 'emberwright' && this.phase === 'fight' && p.hp > 0) {
+      p.heat = OVERHEAT.vent;
+      this.hurtPlayer(p.maxHp * OVERHEAT.scorch, -1, true, 'Overheat');
+      this.events.push({ type: 'overheat', x: p.x, y: p.y, hero: this.acting });
+    }
+  }
+
+  /** Overheat (OVERHEAT): the acting Emberwright's fire is running hot. */
+  get overheated(): boolean {
+    return this.cls === 'emberwright' && this.player.heat >= OVERHEAT.from;
   }
 
   private updateAbilities(input: Input, dt: number): void {
@@ -6039,6 +6135,7 @@ export class World {
       if (sealed && roomGap(sealed, this.heroPlayer(tgt).x, this.heroPlayer(tgt).y) < 0) tgt = this.heroInRoom(sealed, e.x, e.y);
       if (this.heroes.length > 1 && tgt >= 0) this.use(tgt);
       const p = this.player;
+      this.turnFoe(e, p, dt);
       e.px = e.x;
       e.py = e.y;
       if (e.touchCd > 0) e.touchCd -= dt;
@@ -7208,7 +7305,9 @@ export class World {
       dmg *= m;
       glance = m < 1;
     }
-    if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
+    // Backstab (Cutwick): a direct hit from behind always crits.
+    const backstab = canCrit && !this.burnTick && this.cls === 'duskblade' && this.behindFoe(e);
+    if (backstab || forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2 + 0.1 * this.rank('brightWick') + TREE.glintCrit * this.tree('glint') + TREE.noondayCrit * this.tree('noonday');
       crit = true;
       // Ignition rank 2: crits bring Flame Wave back sooner.
@@ -7275,7 +7374,12 @@ export class World {
       });
       if (other >= 0) this.damageEnemy(other, dmg * 0.15, false, true);
     }
-    if (e.hp <= 0) this.killEnemy(i);
+    if (backstab && !silent) this.events.push({ type: 'backstab', x: e.x, y: e.y, hero: this.acting });
+    if (e.hp <= 0) {
+      // Backstab: a killing blow from behind readies Rending Dash (not an option swapped onto Q).
+      if (backstab && !this.isAlt(0)) this.player.cds[0] = 0;
+      this.killEnemy(i);
+    }
   }
 
   /** Verb set damage bonuses (R4). `silent` hits (damage over time) don't spend a Tidewalker charge. */
@@ -9148,6 +9252,22 @@ export class World {
     return m;
   }
 
+  /** Backstab: turn foe `e` toward the way it moved last tick, or toward hero `p` when it stood still. */
+  private turnFoe(e: Enemy, p: Player, dt: number): void {
+    const mx = e.x - e.px, my = e.y - e.py;
+    const want = mx * mx + my * my > 0.25 ? Math.atan2(my, mx) : Math.atan2(p.y - e.y, p.x - e.x);
+    if (e.face === undefined) { e.face = want; return; }
+    const d = angleDiff(want, e.face);
+    const step = (e.def.rank === 'boss' ? BACKSTAB.bossTurn : BACKSTAB.turn) * dt;
+    e.face += Math.abs(d) <= step ? d : Math.sign(d) * step;
+  }
+
+  /** Backstab: hero `p` stands behind foe `e` (outside its front arc). */
+  behindFoe(e: Enemy, p: Player = this.player): boolean {
+    if (e.face === undefined || e.def.stationary) return false;
+    return Math.abs(angleDiff(Math.atan2(p.y - e.y, p.x - e.x), e.face)) > BACKSTAB.front;
+  }
+
   behindColossus(e: Enemy, x: number, y: number): boolean {
     return Math.abs(angleDiff(Math.atan2(y - e.y, x - e.x), this.colFacing + this.colPlate)) >= COLO.backArc;
   }
@@ -9790,6 +9910,7 @@ export class World {
       }
       const inside = this.insideTelegraph(t);
       if (!inside && t.wasIn && t.kind === 'hit') this.dodged();
+      if (inside && (p.rollT ?? 0) > 0 && p.shieldT > 0) p.rolled = (p.rolled ?? 0) + 1;
       // A smothered bloom lands on the shield: the Bulwark takes half.
       if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (smother ? 0.5 : 1), -1, false, this.telegraphCause(t));
     }
@@ -9872,6 +9993,7 @@ export class World {
       this.eachHero((h) => {
         const inside = this.insideTelegraph(t);
         if (!inside && t.kind === 'hit' && (mask >> h) & 1) this.dodged();
+        if (inside && (this.player.rollT ?? 0) > 0 && this.player.shieldT > 0) this.player.rolled = (this.player.rolled ?? 0) + 1;
         // A smothered bloom lands on the shield: that Bulwark takes half.
         if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (h === smother ? 0.5 : 1), -1, false, this.telegraphCause(t));
       });

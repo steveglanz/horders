@@ -1225,7 +1225,8 @@ describe('audio', () => {
   });
 
   it('warns of the Colossus\'s Millstone, grinds every slag tick panned round with his front, and settles at the end (Phase 15 Y3)', () => {
-    const w = new World({ seed: 19, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
+    // Invulnerable (1.0 CP2, 27 Nov): with Overheat's scorch this gearless party fell at the Anvilguard first; this test is about the sounds.
+    const w = new World({ seed: 19, invulnerable: true, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
     (w as unknown as { rollColossusVariant(): string }).rollColossusVariant = () => 'mill';
     const c = { cls: 'duskblade' as const, acting: 0, dungeon: 'smeltery', boss: 'colossus' as const };
     const heard: string[] = [];

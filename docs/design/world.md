@@ -64,7 +64,7 @@ Each class is one of Wick's fire trades. Its kit, colour and sound come from tha
 | **Emberwright** | Coal-carrier | Carries live fire from hearth to hearth, and can throw it. Every new delver starts here. | Overheat | Brass tongs, a coal-pan; crackle and roar |
 | **Bulwark** | Anvil-smith | Holds the line with a shield that was an anvil's face. The only tank. | Parry | Iron; deep rings and clangs |
 | **Lumen** | Lamp-bearer | Carries the lamp that keeps a party alive in the dark. The healer. | Light motes | Brass lamp, glass; bells and chimes |
-| **Cutwick** *(new; was Duskblade)* | Lamp-snuffer | Trims wicks and puts out lamps for a living, so works best in the dark and from behind. Born thief. | Backstab | Shears, cloth; snips, hisses, soft steps |
+| **Cutwick** *(new; was Duskblade)* | Lamp-snuffer | Trims wicks and puts out lamps for a living, so works best in the dark and from behind. Born thief. | Snip (was Backstab, a WoW Rogue ability) | Shears, cloth; snips, hisses, soft steps |
 | **Slagbinder** | Foundry gunner | Pours slag into a hand cannon and makes the Court's own clay brittle. | Charged shot | Iron barrel; thump, hiss, crack |
 
 ### The layers of the Hoard (places)

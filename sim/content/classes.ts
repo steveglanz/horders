@@ -22,6 +22,11 @@ export interface ClassDef {
    */
   kick: boolean;
   abilities: AbilityDef[];
+  /**
+   * 1.0 CP2 grey box: the class's signature verb (vision.md section 6 item 7), shown in the pause menu's ability list
+   * and the run's tips. Built so far: Overheat (OVERHEAT) and Snip (id backstab, BACKSTAB; renamed from Backstab, a WoW Rogue ability) in sim/world.ts.
+   */
+  verb?: { name: string; text: string };
 }
 
 export const DUSKBLADE_ABILITIES: AbilityDef[] = [
@@ -56,10 +61,12 @@ export const CLASSES: Record<ClassId, ClassDef> = {
   emberwright: {
     id: 'emberwright', name: 'Emberwright', role: 'Ranged caster', blurb: 'Fire orbs, burning ground.',
     resource: 'Heat', baseHp: 120, speed: 140, interruptRange: 520, kick: true, abilities: ABILITIES,
+    verb: { name: 'Overheat', text: 'At 80 Heat or more your fire does double damage. Reach 100 in a fight and it scorches you and vents.' },
   },
   duskblade: {
     id: 'duskblade', name: 'Cutwick', role: 'Melee striker', blurb: 'Twin blades, bleeds, dashes.',
     resource: 'Momentum', baseHp: 190, speed: 152, interruptRange: 210, kick: true, abilities: DUSKBLADE_ABILITIES,
+    verb: { name: 'Snip', text: 'Your hits from behind always crit, and a kill from behind readies Rending Dash. Dash through a pack to get behind it.' },
   },
   bulwark: {
     id: 'bulwark', name: 'Bulwark', role: 'Tank', blurb: 'Shield and armor. Soak the hits, hit back.',

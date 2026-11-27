@@ -143,6 +143,19 @@ export const SOUNDS = {
   ],
   duskDash: join(whoosh(1500, 6000, 0.2, 0.35), [{ wave: 'saw', f: 400, f2: 900, dur: 0.12, vol: 0.06, lp: 3000 }]),
   duskStep: whoosh(5000, 1800, 0.22, 0.22),
+  /** 1.0 CP2 Overheat: the Emberwright's own fire scorches it, a sharp sizzle and a vented hiss. */
+  overheatScorch: join(whoosh(6000, 2500, 0.45, 0.3), [
+    { wave: 'saw', f: 180, f2: 90, dur: 0.25, vol: 0.18, lp: 2200 },
+  ]),
+  /** 1.0 CP2 Snip (id backstab): a quick shear snip under the crit. */
+  backstab: [
+    { wave: 'square', f: 2600, f2: 3400, dur: 0.04, vol: 0.12, lp: 7000 },
+    { wave: 'square', f: 2200, f2: 3000, dur: 0.04, delay: 0.06, vol: 0.12, lp: 7000 },
+  ],
+  /** 1.0 CP2 dodge roll (every class): a low cloth tumble and a soft landing thump. */
+  dodgeRoll: join(whoosh(1400, 500, 0.26, 0.24), [
+    { wave: 'sine', f: 120, f2: 70, dur: 0.12, delay: 0.22, vol: 0.22 },
+  ]),
   duskExecute: [
     { wave: 'saw', f: 220, f2: 50, dur: 0.35, vol: 0.3, lp: 1800, lp2: 300 },
     { wave: 'noise', f: 0, dur: 0.2, vol: 0.45, lp: 5000, lp2: 800 },
