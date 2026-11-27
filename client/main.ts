@@ -26,6 +26,8 @@ import { hd2dMounted, hd2dWanted, loadHd2d, lookWanted, prefetchHd2d } from './h
 import { display, mountDisplayOptions, onDisplayChange } from './settings';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
+import { checkOf, replayRun, RunLog, sameCheck } from '../sim/runlog';
+import { BUILD_ID, clearRun, loadRun, resumeBlocker, SavedRun, storeRun } from './resume';
 import { audio } from './audio';
 import { installSoundControls } from './audio/controls';
 import { hubThemeFor } from './audio/music';
@@ -194,9 +196,17 @@ let runSeed = 0;
 let runApplied = true;
 let lastBounty = false;
 let lastKey = false;
+/** Pause/resume (client/resume.ts): what the live solo delve is saved with, and the log its scene records into. */
+let runInfo: Omit<SavedRun, 'at' | 'ops' | 'check'> | null = null;
+let runLog: RunLog | null = null;
+const heroSig = () => ({ cls: hero.cls ?? 'emberwright', runs: savedRuns(hero), nextItemId: hero.nextItemId });
 
 /** Banks a finished (or abandoned) run into the saved hero, once. */
 function finishRun(w: World) {
+  // An ended or abandoned delve can't be picked up again (pause/resume, client/resume.ts).
+  runInfo = null;
+  runLog = null;
+  clearRun();
   if (runApplied || w.stress) return undefined;
   runApplied = true;
   let summary = w.summary();
@@ -340,19 +350,83 @@ function startRun(bounty = false, key = false): void {
   if (!stress) opts.halls = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
+  // Pause/resume: a solo delve logs its inputs so it survives the page closing. Not online co-op, ?stress or the opening.
+  clearRun();
+  const logged = !hosting && !stress && !opts.firstDelve;
+  runLog = logged ? new RunLog() : null;
+  runInfo = logged ? { build: BUILD_ID, opts: JSON.parse(JSON.stringify(runOpts)) as WorldOptions, runSeed, bounty, key, hero: heroSig() } : null;
   game.scene.start('game', {
     opts: runOpts,
     hud,
     glow: hero.wear?.glow,
     trail: wornTrail(hero),
     coop: hosting ? coop! : undefined,
-    onEnd: (w: World) => {
-      const rewards = finishRun(w);
-      hud.showEnd(w, rewards, hero);
-      offerLowerTier(w);
-      audio.rewards(rewards);
-    },
+    log: runLog ?? undefined,
+    onEnd: runEnded,
   });
+}
+
+function runEnded(w: World): void {
+  const rewards = finishRun(w);
+  hud.showEnd(w, rewards, hero);
+  offerLowerTier(w);
+  audio.rewards(rewards);
+}
+
+/** Pause/resume: saves the live solo delve to this device (going to the background, pagehide, every few seconds). */
+function saveDelve(): void {
+  const scene = game.scene.getScene('game') as GameScene | null;
+  if (!runInfo || !runLog || runApplied || scene?.log !== runLog || !scene.world || scene.world.state === 'ended') return;
+  storeRun({ ...runInfo, at: Date.now(), ops: runLog.ops, check: checkOf(scene.world) });
+}
+window.addEventListener('pagehide', saveDelve);
+window.setInterval(saveDelve, 5000);
+
+/**
+ * Pause/resume: the page was closed mid-delve. Replay the saved inputs on a fresh World (a short "Picking up your
+ * delve" screen; a long run is a couple of seconds of sim, spread over frames), check it landed where the save says,
+ * and open the delve paused. Anything off (a replay that doesn't match the save): drop it and go on as a fresh load.
+ */
+function resumeDelve(r: SavedRun): void {
+  const screen = el('hd2dLoad');
+  const say = () => {
+    screen.hidden = false;
+    screen.classList.remove('failed');
+    screen.querySelector('.hl-title')!.textContent = 'Picking up your delve';
+    screen.querySelector('.hl-note')!.textContent = 'Back where you left it';
+  };
+  say();
+  const go = async () => {
+    if (hd2dWanted() && !hd2dMounted()) { await loadHd2d(DUNGEONS[r.opts.dungeon ?? 'kiln']?.name); say(); }
+    const w = new World(JSON.parse(JSON.stringify(r.opts)) as WorldOptions);
+    let at = { op: 0, done: 0 };
+    while (at.op < r.ops.length) {
+      at = replayRun(w, r.ops, at, 1500);
+      await new Promise((res) => requestAnimationFrame(res));
+    }
+    if (!sameCheck(checkOf(w), r.check) || w.state === 'ended') {
+      clearRun();
+      screen.hidden = true;
+      if (opensOnWake(hero, stress)) openWake();
+      return;
+    }
+    if (!r.bounty && !r.key) { hub.dungeon = r.opts.dungeon ?? hub.dungeon; hub.tier = r.opts.tier ?? hub.tier; }
+    runSeed = r.runSeed;
+    runApplied = false;
+    lastBounty = r.bounty;
+    lastKey = r.key;
+    runLog = new RunLog();
+    runLog.ops = r.ops;
+    runInfo = { build: r.build, opts: r.opts, runSeed: r.runSeed, bounty: r.bounty, key: r.key, hero: r.hero };
+    const scene = game.scene.getScene('game') as GameScene;
+    scene.events.once(Phaser.Scenes.Events.CREATE, () => {
+      scene.togglePause(true);
+      if (!hd2dWanted() || !hd2dMounted()) screen.hidden = true;
+    });
+    game.scene.start('game', { opts: r.opts, world: w, log: runLog, hud, glow: hero.wear?.glow, trail: wornTrail(hero), onEnd: runEnded });
+  };
+  if (game.isBooted && game.scene.getScene('game')) void go();
+  else game.events.once(Phaser.Core.Events.READY, () => void go());
 }
 
 /**
@@ -396,7 +470,12 @@ function openWake(): void {
     delve();
   });
 }
-if (opensOnWake(hero, stress)) openWake();
+const savedDelve = stress ? null : loadRun();
+if (savedDelve && !resumeBlocker(savedDelve, heroSig(), Date.now())) resumeDelve(savedDelve);
+else {
+  if (savedDelve) clearRun();
+  if (opensOnWake(hero, stress)) openWake();
+}
 /** The cloud brought back a hero who has delved before (a new device or a cleared browser): the hub, not the opening. */
 function wakeFollowsSave(): void {
   if (wake?.open() && !opensOnWake(hero, stress)) wake.close();
@@ -561,6 +640,7 @@ window.addEventListener('keydown', (e) => {
 document.addEventListener('visibilitychange', () => {
   const scene = game.scene.getScene('game') as GameScene | null;
   if (document.hidden && scene && game.scene.isActive('game')) scene.togglePause(true);
+  if (document.hidden) saveDelve();
 });
 
 mountDisplayOptions(el('pauseOpts'));
