@@ -1,6 +1,7 @@
 /** Gear: slots, rarity tiers, stats and mythic effects. All data. */
 import type { ClassId } from './emberwright';
 import type { SetId } from './sets';
+import type { DungeonId } from './dungeon';
 
 export type Slot = 'weapon' | 'head' | 'chest' | 'hands' | 'ring' | 'trinket';
 export const SLOTS: Slot[] = ['weapon', 'head', 'chest', 'hands', 'ring', 'trinket'];
@@ -130,6 +131,81 @@ export const RARITY_PREFIX: Record<Rarity, string[]> = {
   legendary: ['Ashcrowned', 'Starkiln', 'Hoardsworn', 'Sunbanked'],
   mythic: ['Heartfire', 'Everburning', 'Kaldera', 'Firstflame'],
 };
+
+/**
+ * Item names written for one place (vision v2 CP3, docs/design/kiln-items.md). Replaces RARITY_PREFIX + SLOT_NAMES
+ * for drops from that place. Common to Rare are plain gear (four per slot, four weapons per class); Epic and up are
+ * one named piece per slot (and per class for weapons), each with a line (ITEM_LINES), until Treasures (CP6).
+ * Every name was searched on warcraft.wiki.gg and wowpedia (no match). Steve may veto any of them.
+ */
+export interface PlaceNames {
+  plain: Record<Exclude<Slot, 'weapon'>, string[]>;
+  weapon: Record<ClassId, string[]>;
+  court: Record<Exclude<Slot, 'weapon'>, string>;
+  courtWeapon: Record<ClassId, string>;
+}
+
+export const PLACE_ITEMS: Partial<Record<DungeonId, PlaceNames>> = {
+  kiln: {
+    plain: {
+      head: ["Stoker's Hood", 'Pot Helm', 'Glazed Half-Mask', 'Wet-Clay Cap'],
+      chest: ["Potter's Apron", 'Slip-Stained Smock', 'Sherd Mail', "Patched Delver's Coat"],
+      hands: ['Kiln Mitts', 'Wheel-Worn Gloves', 'Clay-Caked Wraps', 'Singed Gauntlets'],
+      ring: ['Cutting-Wire Loop', 'Glaze-Bead Ring', 'Clay Signet', 'Brass Thimble'],
+      trinket: ['Warm Sherd', 'Pocket Coal', "Potter's Stamp", 'Clay Whistle'],
+    },
+    weapon: {
+      emberwright: ['Brass Tongs', 'Coal Pan', 'Kiln Rake', 'Fire Shovel'],
+      duskblade: ['Wick Shears', 'Trimming Knife', 'Clay Knife', 'Glaze Scraper'],
+      bulwark: ['Kiln-Door Shield', 'Damper Plate', 'Kiln Shelf', 'Wedging Mallet'],
+      lumen: ['Clay Oil Lamp', 'Glazed Lantern', 'Brass Hand Lamp', 'Pot Lamp'],
+      slagbinder: ['Patched Hand Cannon', 'Stovepipe Cannon', 'Short Bore', 'Bellmouth Gun'],
+    },
+    court: {
+      head: "The Urn Warden's Lid",
+      chest: "The Kiln Mother's Apron",
+      hands: "The Kiln Mother's Mitts",
+      ring: "The Taster's Ring",
+      trinket: 'The First Witness Cone',
+    },
+    courtWeapon: {
+      emberwright: "The Stoker's Last Tongs",
+      duskblade: 'The Wheel Knife',
+      bulwark: "The Kiln's Spare Door",
+      lumen: 'The Peephole Lamp',
+      slagbinder: 'The Bellows Nozzle',
+    },
+  },
+};
+
+/** One line under a named piece's name in its tooltip (world.md: a maker and one line). Keyed by item name. */
+export const ITEM_LINES: Record<string, string> = {
+  "The Urn Warden's Lid": 'It guarded one door for a hundred years.',
+  "The Kiln Mother's Apron": 'She never once wiped her hands.',
+  "The Kiln Mother's Mitts": 'Still warm after four hundred years of firings.',
+  "The Taster's Ring": 'He bit it to test it, like everything else.',
+  'The First Witness Cone': "It slumped at the Kiln's first firing and never stood again.",
+  "The Stoker's Last Tongs": 'Left here by a delver who never carried them home.',
+  'The Wheel Knife': 'The Kiln Mother cut every pot free with it.',
+  "The Kiln's Spare Door": "She had a spare made, so she won't miss this one.",
+  'The Peephole Lamp': 'She hung it by the spyhole to watch her pots fire.',
+  'The Bellows Nozzle': 'Made to blow air into her kiln, not slag at her pots.',
+};
+
+/**
+ * An item's name. `a` and `b` are two rolls (0-3) made for every item, so a place's names never shift the run's
+ * other rolls. A place with written names uses them (b picks the plain name); elsewhere, prefix + slot as before.
+ */
+export function itemName(slot: Slot, rarity: Rarity, a: number, b: number, cls?: ClassId, place?: DungeonId): string {
+  const p = place ? PLACE_ITEMS[place] : undefined;
+  if (p) {
+    const c = cls ?? 'emberwright';
+    if (RARITIES.indexOf(rarity) >= RARITIES.indexOf('epic')) return slot === 'weapon' ? p.courtWeapon[c] : p.court[slot];
+    return slot === 'weapon' ? p.weapon[c][b] : p.plain[slot][b];
+  }
+  const nouns = slot === 'weapon' && cls ? WEAPON_NAMES[cls] : SLOT_NAMES[slot];
+  return `${RARITY_PREFIX[rarity][a]} ${nouns[b]}`;
+}
 
 export type MythicId =
   | 'phoenixFeather' | 'giantsBane' | 'gluttonsGem' | 'splittingCinders'
