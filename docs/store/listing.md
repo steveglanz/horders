@@ -55,7 +55,7 @@ order-entry app with nothing to tell them apart.
 > Horders is a pocket-sized dungeon crawler built for phones. Pick a hero, delve through a dungeon room by room, clear the packs in your way and take on a boss that fights back with real mechanics. A run takes a few minutes, and every one pays out loot.
 >
 > FIVE CLASSES
-> Bulwark, the shield tank who holds the boss. Lumen, the healer who keeps the party standing. Emberwright, the fire caster. Duskblade, the fast blade. Slagbinder, the cannon gunner. Each unlocks new abilities as you level, and each has its own talent tree to shape how it plays.
+> Bulwark, the shield tank who holds the boss. Lumen, the healer who keeps the party standing. Emberwright, the fire caster. Cutwick, the fast blade. Slagbinder, the cannon gunner. Each unlocks new abilities as you level, and each has its own talent tree to shape how it plays.
 >
 > BOSSES THAT ASK SOMETHING OF YOU
 > Bosses telegraph their big hits. Step out of the red, hide behind a pillar from the Glare, interrupt the cast that would heal them, find the light before the Long Night falls. Learn the fight, then beat it on a higher tier.

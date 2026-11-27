@@ -58,7 +58,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     resource: 'Heat', baseHp: 120, speed: 140, interruptRange: 520, kick: true, abilities: ABILITIES,
   },
   duskblade: {
-    id: 'duskblade', name: 'Duskblade', role: 'Melee striker', blurb: 'Twin blades, bleeds, dashes.',
+    id: 'duskblade', name: 'Cutwick', role: 'Melee striker', blurb: 'Twin blades, bleeds, dashes.',
     resource: 'Momentum', baseHp: 190, speed: 152, interruptRange: 210, kick: true, abilities: DUSKBLADE_ABILITIES,
   },
   bulwark: {
@@ -67,7 +67,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
   },
   lumen: {
     id: 'lumen', name: 'Lumen', role: 'Healer', blurb: 'Light that mends. Overhealing turns into damage.',
-    resource: 'Radiance', baseHp: 100, speed: 138, interruptRange: 480, kick: false, abilities: LUMEN_ABILITIES,
+    resource: 'Oil', baseHp: 100, speed: 138, interruptRange: 480, kick: false, abilities: LUMEN_ABILITIES,
   },
   slagbinder: {
     id: 'slagbinder', name: 'Slagbinder', role: 'Ranged gunner', blurb: 'A slow slag cannon that hits hard and pierces. Brittle foes break.',

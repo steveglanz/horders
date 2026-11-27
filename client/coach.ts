@@ -19,7 +19,7 @@ const TIPS: Record<string, string> = {
   red: 'Red on the floor is a hit coming. Step out before it fills.',
   gold: 'Gold circles want someone inside. Stand in it until it fills, or it blasts you.',
   // The interrupt split (#841): in a party a boss shrugs off the Lumen's and Slagbinder's stun.
-  nokick: 'In a party, bosses shrug off stuns. Bring a Bulwark, Duskblade or Emberwright to interrupt.',
+  nokick: 'In a party, bosses shrug off stuns. Bring a Bulwark, Cutwick or Emberwright to interrupt.',
 };
 const TIP_TIME = 5;
 
