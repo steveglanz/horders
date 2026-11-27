@@ -1,5 +1,7 @@
 # L1: the first delve (21 Nov 2026)
 
+*1.0 Checkpoint 3 replaces this with the 5-minute opening: [opening.md](opening.md). This page stays the record of what is on main until that is built.*
+
 **Problem.** A brand-new hero's first delve is an ordinary Kiln run at tier 1, with a random route. The novice reference (`LAG=0.3 SKILL=0.5`, tools/balance.ts) loses a third to a half of those first runs, depending on the class. The fight tips name verbs ("Quench its Ground Pound") without saying which button that is.
 
 **Design.** A character's first delve (`hero.runs === 0`) in the Kiln at tier 1, solo, is a guided run. The numbers and coach lines are in `sim/content/firstdelve.ts`.
