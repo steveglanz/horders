@@ -8,20 +8,23 @@
  */
 import type { SimEvent } from '../../sim/world';
 import type { CueContext } from './cues';
+import { BUZZ_INTERRUPT, FEEL } from '../feel';
 
 /** A vibrate pattern: on, off, on... in milliseconds. */
 export type Buzz = number[];
 
 export const BUZZ = {
-  hurt: [18],
-  hurtBig: [45],
+  // CP2 feel kit: the blows you take and the interrupt come from client/feel.ts (hits you land buzz from GameScene,
+  // which knows how heavy each one is for your hero).
+  hurt: FEEL.hurt.buzz!,
+  hurtBig: FEEL.hurtBig.buzz!,
   telegraph: [30, 70, 30],
   targeted: [70, 50, 70, 50, 140],
   bossSpawn: [90, 60, 90],
   phase: [50, 40, 110],
   levelUp: [20, 40, 20],
   down: [160],
-  interrupt: [25],
+  interrupt: BUZZ_INTERRUPT,
 } satisfies Record<string, Buzz>;
 
 /** What a simulation event feels like, if anything. Only your own hero's hits buzz. */
