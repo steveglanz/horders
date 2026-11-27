@@ -123,8 +123,12 @@ const UNLOCK_LEVEL_KEPT = Math.max(MAX_UNLOCK, UNLOCK_AID.until);
 export const ROLL = { dist: 120, time: 0.3, guard: 0.3, cd: 3 };
 /**
  * 1.0 CP2 signature verb, Emberwright Overheat (vision.md section 6 item 7): at `from` Heat or more its fire deals `mult`
- * damage (dmgMult, so burns and burning ground lit while hot keep it). Reaching full Heat in a fight scorches it for
- * `scorch` of its max health (unblockable) and vents the Heat down to `vent`.
+ * damage (dmgMult, so burns and burning ground lit while hot keep it), and its orb hits feed no more Heat. Reaching
+ * full Heat in a fight (the slow drift, or Heat from kills and talents) scorches it for `scorch` of its max health
+ * (unblockable) and vents the Heat down to `vent`.
+ * Classes, 27 Nov (60% floor): orbs used to keep feeding Heat while hot, about 13.6 Heat/s in a long boss fight against
+ * 10.7 at most that Flame Wave and Combustion on cooldown can spend, so the scorch could not be avoided and killed the
+ * Emberwright in every boss loss at Wrackline 13 (65-100% of the damage taken).
  */
 export const OVERHEAT = { from: 80, mult: 2, scorch: 0.04, vent: 55 };
 /**
@@ -6424,7 +6428,8 @@ export class World {
       const hx = e.x;
       const hy = e.y;
       this.damageEnemy(hit, o.dmg, true);
-      this.addHeat(4 * (1 + 0.35 * this.rank('heatSink')));
+      // Overheat: an orb that hits while the fire runs hot feeds no Heat, so only holding it (the slow drift) scorches.
+      if (this.player.heat < OVERHEAT.from) this.addHeat(4 * (1 + 0.35 * this.rank('heatSink')));
       if (burn > 0 && e.alive) {
         e.burnDps = Math.max(e.burnDps, 6 * burn * (1 + 0.15 * this.rank('deepSmoulder')) * this.dmgMult);
         e.burnT = 3;
@@ -7140,7 +7145,7 @@ export class World {
       // Ember Lob: a slow fire circle where you stand now. Keep moving, or close in on it.
       if (e.abilityT <= 0 && dist2(p.x, p.y, e.x, e.y) < VARIETY.lobRange ** 2) {
         e.abilityT = VARIETY.lobEvery + this.rng.next() * 0.6;
-        this.startCast(i, 'emberLob', 'Ember Lob', VARIETY.lobCast, false);
+        this.startCast(i, 'emberLob', 'Lob', VARIETY.lobCast, false);
         this.addTelegraph('circle', p.x, p.y, VARIETY.lobRadius, 0, 0, VARIETY.lobLand, VARIETY.lobDamage, 'hit', i);
         this.events.push({ type: 'spitLob', index: i, x1: e.x, y1: e.y, x2: p.x, y2: p.y });
       }

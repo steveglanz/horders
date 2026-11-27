@@ -30,9 +30,10 @@ function hit(w: World, inner: Inner, i: number): number {
   return 1e6 - e.hp;
 }
 
-describe('Phase 16 U2: the Ashwall (the Kiln)', () => {
-  it('is a Kiln opener: one Ashwall and two Ember Spitters', () => {
-    expect(DUNGEONS.kiln.openers).toContain('ashwall');
+describe('Phase 16 U2: the Ashwall (the Foundry since CP3)', () => {
+  it('is a Foundry opener, not a Kiln one: one Ashwall and two Spouts', () => {
+    expect(DUNGEONS.foundry.openers).toContain('ashwall');
+    expect(DUNGEONS.kiln.openers).not.toContain('ashwall');
     expect(ENCOUNTERS.ashwall.spawns).toEqual([{ kind: 'ashwall', n: 1 }, { kind: 'emberSpitter', n: 2 }]);
   });
 

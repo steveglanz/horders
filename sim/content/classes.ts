@@ -61,7 +61,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
   emberwright: {
     id: 'emberwright', name: 'Emberwright', role: 'Ranged caster', blurb: 'Fire orbs, burning ground.',
     resource: 'Heat', baseHp: 120, speed: 140, interruptRange: 520, kick: true, abilities: ABILITIES,
-    verb: { name: 'Overheat', text: 'At 80 Heat or more your fire does double damage. Reach 100 in a fight and it scorches you and vents.' },
+    verb: { name: 'Overheat', text: 'At 80 Heat or more your fire does double damage and your orbs stop building Heat. Hold it until 100 in a fight and it scorches you and vents.' },
   },
   duskblade: {
     id: 'duskblade', name: 'Cutwick', role: 'Melee striker', blurb: 'Twin blades, bleeds, dashes.',

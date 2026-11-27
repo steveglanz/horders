@@ -90,22 +90,22 @@ The Hoard goes down in layers. Each place is one layer, has one Court member, on
 
 ### Foes: what the Court sends
 
-Every Court foe is a fired-clay creature from the Kiln Mother's kiln, built from one of 8 jobs (charger, spitter, shielder, caster, mender, bomber, swarmling, brute; roadmap). Each place re-glazes 4 or 5 jobs and adds one twist foe. **Naming rule for foes:** name it for the pot or clay thing it is, or for its job in plain words (an Urn Warden, a Spout, a Sherd swarm), never with an Ember-, Cinder- or Ash- prefix. Today's foes get their final names in the job pass (Checkpoint 3 for the Kiln, Checkpoint 5 for the rest). Until then, each one's place in the world:
+Every Court foe is a fired-clay creature from the Kiln Mother's kiln, built from one of 8 jobs (charger, spitter, shielder, caster, mender, bomber, swarmling, brute; roadmap). Each place re-glazes 4 or 5 jobs and adds one twist foe. **Naming rule for foes:** name it for the pot or clay thing it is, or for its job in plain words (an Urn Warden, a Spout, a Sherd swarm), never with an Ember-, Cinder- or Ash- prefix. Today's foes get their final names in the job pass: the Kiln's are done (Checkpoint 3, [kiln-foes.md](kiln-foes.md)), the rest come at Checkpoint 5. Each one's place in the world:
 
 | Place | Foe (today's name) | Its place in the world |
 |---|---|---|
-| Kiln | Cinderhound | A clay hound, the Kiln Mother's favorite firing; hunts in packs. |
-| Kiln | Hollow Warden | A tall hollow urn that guards doors and slams the floor. |
-| Kiln | Cinder Brute | A heavy crock of a thing that Ground Pounds. |
-| Kiln | Ember Spitter | A spouted pot that lobs fire from a distance. |
-| Kiln | Ember Acolyte | A censer that mends the Brute; kill it first. |
-| Kiln | Hollow Rift, Ashling | A crack in the kiln wall that spills small fragments until it breaks. |
-| Kiln | Ember Twin | Two pots fired together; break them together or one relights the other. |
-| Kiln | Vorhulm the Glutton (named) | Uncle Glut's taster, sent up to eat stolen embers first (rename: the Taster). |
+| Kiln | **Hound** (charger; was Cinderhound) | A clay hound, the Kiln Mother's favorite firing; hunts in packs and lunges down a red line. |
+| Kiln | **Urn Warden** (brute; was Hollow Warden) | A tall hollow urn that guards doors and slams the floor. |
+| Kiln | **Crock** (caster; was Cinder Brute) | A heavy crock of a thing whose Ground Pound is a blue cast: Quench it. |
+| Kiln | **Spout** (spitter; was Ember Spitter) | A spouted pot that lobs fire from a distance. |
+| Kiln | **Censer** (mender; was Ember Acolyte) | A censer that mends the Crock; break it first. |
+| Kiln | **Wall Crack**, **Sherd** (the Kiln's twist; were Hollow Rift, Ashling) | A crack in the kiln wall that spills sherds until it breaks. |
+| Kiln | The Taster (named) | Uncle Glut's taster, sent up to eat stolen embers first. |
 | Kiln | Kiln Bellows | The Kiln Mother's bellows, part of her fight. |
 | Foundry | Glass Warden | A glazed guard whose Mirror Ward throws your damage back. |
 | Foundry | Sluice Crawler | Crawls out of the flood and leaves a bursting ring. |
 | Foundry | Ballast | A drowned weight that anchors when you're close. |
+| Foundry | Ember Twin | Two pots fired together; break them together or one relights the other. |
 | Foundry | Ashbuck, Ashwall | A charging ram-pot and a shield-wall, both waterlogged works the flood woke. |
 | Glarewell | Shade | A dark-glazed thing that is hard to hit in shadow; pull it into the light. |
 | Glarewell | Lensbearer, Lampeye, Twin Lamp | The Glass Heir's lenses and lamps: they look, and what they see burns. |
