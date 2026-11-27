@@ -398,7 +398,6 @@ export class Hub {
       // Steve, 26 Nov: say what a tier does. One line; tier 15 is the top (MAX_TIER), and keys go on from there.
       + (h.maxTier > 1 ? `<div class="hint">${h.maxTier > MAX_TIER ? `Tier ${MAX_TIER} is the top. Delver's Keys keep going.` : 'Higher tiers: tougher foes, better loot. Win your top tier to open the next.'}</div>` : '') + '</div>'
       + (h.maxTier === 1 ? '<div class="hint">Higher tiers: tougher foes, better loot. Beat the Kiln Mother to unlock tier 2.</div>' : '')
-      + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a Spark and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
       + `<div class="prep-full">${this.heatLine()}${this.omenLine(omens)}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}${this.seenLine(true)}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>

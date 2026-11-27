@@ -206,6 +206,11 @@ export function characterOf(h: HeroProfile, cls: ClassId): Character | undefined
   return (h.cls ?? 'emberwright') === cls ? takeCharacter(h) : h.roster?.[cls];
 }
 
+/** Delves played across every class on this save (CP3 opening: a save with none opens on the title, docs/design/opening.md). */
+export function savedRuns(h: HeroProfile): number {
+  return totals(h).runs;
+}
+
 /** Delves and levels across every class, for picking the newer of two saves. */
 function totals(h: HeroProfile): { runs: number; levels: number; xp: number } {
   const all = [takeCharacter(h), ...Object.values(h.roster ?? {})] as Character[];

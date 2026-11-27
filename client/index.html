@@ -1360,8 +1360,24 @@
 
   /* First run and parties on phones. */
   body.tabs .solo-tier { display: none; }
-  .firstrun { margin-top: 12px; padding: 10px 12px; border-radius: 12px; border: 1px dashed rgba(255,200,97,0.4); background: rgba(255,200,97,0.06); font-size: 13px; line-height: 1.45; color: var(--muted); }
-  .firstrun b { color: var(--gold); }
+  /* CP3 opening: the wake screen. A cold town at night, one hearth guttering (style.ts MASTER soot/fire/hearth). Placeholder
+     until visuals' Wick diorama (Checkpoint 3); keep it this quiet. */
+  #wake { z-index: 45; cursor: pointer; user-select: none; -webkit-user-select: none; background: #0e0b0a; overflow: hidden; touch-action: manipulation; }
+  #wake .wake-sky { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 40% at 50% 100%, rgba(122,30,14,0.35), transparent 70%), linear-gradient(180deg, #0e0b0a 0%, #120d0b 60%, #261d19 100%); }
+  #wake .wake-sky::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 22%; background: #120d0b; clip-path: polygon(0 40%, 8% 40%, 8% 20%, 14% 8%, 20% 20%, 20% 40%, 34% 40%, 34% 28%, 41% 14%, 48% 28%, 48% 40%, 58% 40%, 58% 24%, 66% 10%, 74% 24%, 74% 40%, 86% 40%, 86% 26%, 92% 16%, 98% 26%, 98% 40%, 100% 40%, 100% 100%, 0 100%); }
+  #wake .wake-hearth { position: absolute; left: 50%; bottom: 13%; width: 0; height: 0; }
+  #wake .wake-hearth i { position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, rgba(255,226,160,0.9) 0, rgba(240,122,31,0.55) 12%, rgba(194,65,12,0.18) 40%, transparent 70%); animation: wakeGutter 2.6s ease-in-out infinite; }
+  @keyframes wakeGutter { 0%, 100% { opacity: 0.55; scale: 0.9; } 30% { opacity: 0.8; scale: 1; } 55% { opacity: 0.4; scale: 0.85; } 70% { opacity: 0.7; scale: 0.95; } }
+  #wake .wake-title { position: absolute; left: 16px; right: 16px; top: 30%; text-align: center; transition: opacity 0.6s ease; }
+  #wake h1 { margin: 0; font: 700 clamp(30px, 8vw, 44px) var(--serif); letter-spacing: 0.12em; text-transform: uppercase; color: #ffa040; text-shadow: 0 0 18px rgba(240,122,31,0.4); }
+  #wake .wake-tap { margin-top: 18px; font: 500 16px var(--serif); color: #ede3cf; opacity: 0.8; animation: wakeTap 2.4s ease-in-out infinite; }
+  @keyframes wakeTap { 50% { opacity: 0.4; } }
+  #wake:not([data-step="title"]) .wake-title { opacity: 0; }
+  #wake .wake-line { position: absolute; left: 24px; right: 24px; top: 38%; margin: 0 auto; max-width: 30ch; text-align: center; font: italic 400 clamp(18px, 5vw, 24px)/1.45 var(--serif); color: #ede3cf; opacity: 0; }
+  #wake .wake-line.in { animation: wakeLine 0.8s ease-out forwards; }
+  @keyframes wakeLine { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+  #wake[data-step="title"] .wake-line { display: none; }
+  @media (prefers-reduced-motion: reduce) { #wake .wake-hearth i, #wake .wake-tap { animation: none; } #wake .wake-line.in { animation: none; opacity: 1; } }
   body.tabs .coop label.open { min-height: 44px; }
   body.tabs .coop label.open input { width: 22px; height: 22px; }
 
@@ -1612,6 +1628,13 @@
   </div>
 </div>
 
+<!-- CP3 opening (docs/design/opening.md): a save with no delves opens here, never on the hub. -->
+<div id="wake" class="overlay screen" hidden data-step="title" role="button" tabindex="0" aria-label="Tap to wake">
+  <div class="wake-sky" aria-hidden="true"></div>
+  <div class="wake-hearth" aria-hidden="true"><i></i></div>
+  <div class="wake-title"><h1>Horders</h1><div class="wake-tap">Tap to wake.</div></div>
+  <p class="wake-line" aria-live="polite"></p>
+</div>
 <div id="draft" class="overlay" hidden>
   <div class="panel">
     <div class="eyebrow" id="draftLevel">Level up</div>

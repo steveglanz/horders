@@ -106,11 +106,15 @@ export const GRIT_GUARD = { perStack: 0.2, cap: 0.7, fromTier: 4 };
  */
 export const GRIT_CUT = { perStack: 0.07, fromTier: 4 };
 /**
- * Ability unlocks (SLOT_UNLOCK in content/classes.ts): for each action-bar slot a hero hasn't unlocked yet, it deals
- * `dmg` more damage and takes `cut` less. Only the first character levels have locked slots, so this only reaches the
- * first delve and the first tiers a new character plays.
+ * Ability unlocks (SLOT_UNLOCK in content/classes.ts): a hero below character level `until` deals `dmg` more damage and
+ * takes `cut` less for each level it is short of it (level 1 three steps, 2 two, 3 one). This was one step per locked
+ * slot when F opened at level 4; F now opens at level 1 (opening.md), and the aid stays by level, because dropping it with
+ * F cost the Emberwright Kiln t3 at level 3 55 -> 46 of 60 wins at average skill (classes grid, 27 Nov). Only the first
+ * character levels get it, so it only reaches the first delve and the first tiers a new character plays.
  */
-export const UNLOCK_AID = { dmg: 0.1, cut: 0.1 };
+export const UNLOCK_AID = { dmg: 0.1, cut: 0.1, until: 4 };
+/** A hero's level is kept for unlocks while it still has a locked slot or UNLOCK_AID; past that it plays as unset. */
+const UNLOCK_LEVEL_KEPT = Math.max(MAX_UNLOCK, UNLOCK_AID.until);
 /**
  * 1.0 Checkpoint 2 (docs/design/checkpoint-2-grey-box.md, piece 4): the dodge roll every class has, on its own button.
  * The hero rolls `dist` px over `time` s (the way the stick points, else the way it faces), and no blow can touch it for
@@ -1547,7 +1551,7 @@ export class World {
       brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false, imageT: 0, imageX: 0, imageY: 0, tossId: -1, tossT: 0, orbsFired: 0, worryId: -1, worryN: 0,
     };
     this.player.alts = altsFor(this.cls, opts);
-    if (opts.unlockLevel !== undefined && opts.unlockLevel < MAX_UNLOCK) this.player.unlockLevel = opts.unlockLevel;
+    if (opts.unlockLevel !== undefined && opts.unlockLevel < UNLOCK_LEVEL_KEPT) this.player.unlockLevel = opts.unlockLevel;
     if (this.cls === 'slagbinder') {
       this.player.stance = this.gunner ? 'bellows' : opts.stance ?? 'bellows';
       if (this.player.stance === 'anvil') { this.player.maxHp += SLAG_KIT.anvilHp; this.player.hp = this.player.maxHp; }
@@ -1635,7 +1639,7 @@ export class World {
     const player: Player = { ...this.heroes[0].player, cds: [0, 0, 0, 0], hp, maxHp: hp, x: Math.cos(a) * 40, y: Math.sin(a) * 40 };
     player.stance = cls === 'slagbinder' ? (this.gunner ? 'bellows' : h.stance ?? 'bellows') : undefined;
     player.alts = altsFor(cls, h);
-    player.unlockLevel = h.unlockLevel !== undefined && h.unlockLevel < MAX_UNLOCK ? h.unlockLevel : undefined;
+    player.unlockLevel = h.unlockLevel !== undefined && h.unlockLevel < UNLOCK_LEVEL_KEPT ? h.unlockLevel : undefined;
     if (player.stance === 'anvil') { player.maxHp += SLAG_KIT.anvilHp; player.hp = player.maxHp; }
     if (cls === 'slagbinder' && this.gunner) { player.maxHp -= SLAG_KIT.gunnerHp; player.hp = player.maxHp; }
     player.px = player.x;
@@ -1779,11 +1783,11 @@ export class World {
     return 1;
   }
 
-  /** Action-bar slots this hero's character level hasn't unlocked yet (SLOT_UNLOCK), 0 to 3. */
-  get lockedSlots(): number {
-    let n = 0;
-    for (let k = 1; k < 4; k++) if (!this.unlocked(k)) n++;
-    return n;
+  /** UNLOCK_AID steps for this hero: character levels short of UNLOCK_AID.until, 0 to 3 (0 when no level is set). */
+  get aidSteps(): number {
+    const lv = this.player.unlockLevel;
+    if (lv === undefined) return 0;
+    return Math.max(0, Math.min(3, UNLOCK_AID.until - Math.max(1, Math.floor(lv) || 1)));
   }
   get dmgMult(): number {
     // Small growth per level keeps damage in step with the horde's health.
@@ -1797,7 +1801,7 @@ export class World {
     const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend') + DEFENCE_BRANCH.groundDmg * this.rank('kindledGround') + DEFENCE_BRANCH.graceDmg * (this.rank('renewal') + this.rank('aegisOfLight'))) * (1 + clinker);
     const party = this.cls !== 'slagbinder' || p.stance === 'anvil' ? 1 : this.heroes.length > 1 ? (this.dungeonId === 'flue' ? SLAG_KIT.fluePartyDmg : SLAG_KIT.partyDmg) : this.gunner ? SLAG_KIT.gunnerSoloDmg : SLAG_KIT.soloDmg;
     const hot = this.cls === 'emberwright' && p.heat >= OVERHEAT.from ? OVERHEAT.mult : 1;
-    return hot * party * guard * (1 + UNLOCK_AID.dmg * this.lockedSlots) * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
+    return hot * party * guard * (1 + UNLOCK_AID.dmg * this.aidSteps) * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult / (1 + TREE.briskHaste * this.tree('brisk'));
@@ -4234,8 +4238,8 @@ export class World {
     if (ownShell || this.shellCovers(p)) amount *= 1 - (ownShell ? SLAG_KIT.shellCut : SLAG_KIT.allyShellCut) - (this.cls === 'slagbinder' ? 0.05 * this.rank('slowCool') : 0);
     // Steady Halo (Lumen) and Slag Scales (Slagbinder): a flat cut to every hit.
     if (this.cls === 'lumen') amount *= 1 - 0.05 * this.rank('steadyHalo');
-    // A hero still unlocking its buttons (SLOT_UNLOCK) is hit softer for each one it doesn't have yet.
-    amount *= 1 - UNLOCK_AID.cut * this.lockedSlots;
+    // A hero in its first character levels (UNLOCK_AID) is hit softer for each level it is short of level 4.
+    amount *= 1 - UNLOCK_AID.cut * this.aidSteps;
     if (this.cls === 'slagbinder') amount *= (1 - 0.04 * this.rank('slagScales')) * (1 - TREE.shaleCut * this.tree('shale'));
     if (this.cls === 'emberwright') amount *= (1 - 0.04 * this.rank('sootCloak')) * (1 - TREE.sootCut * this.tree('soot'));
     if (this.cls === 'duskblade') amount *= (1 - 0.04 * this.rank('lowStance')) * (1 - TREE.poiseCut * this.tree('poise'));

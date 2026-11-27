@@ -15,3 +15,25 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+  # Vision v2 Checkpoint 1 (pillar 3): the fight-budget and 60%-floor gate on the bot matrix, fast subset
+  # (seeds 1-6, one job per launch place). Rules and how to update the baseline: docs/design/fight-budgets.md.
+  fight-budget:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        place: [kiln, foundry, hammerdeep, glarewell, coldmarrow, wrackline]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx --yes tsx@4.20.6 tools/matrix.ts
+        env:
+          CHECK: '1'
+          PLACES: ${{ matrix.place }}
+          SUMMARY: ${{ runner.temp }}/summary.md
+      - if: always()
+        run: cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY" || true

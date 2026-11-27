@@ -21,6 +21,7 @@ import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './n
 import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
 import { showFlatBadge } from './flatart';
+import { opensOnWake, showWake, Wake } from './opening';
 import { hd2dMounted, hd2dWanted, loadHd2d, lookWanted, prefetchHd2d } from './hd2d/api';
 import { display, mountDisplayOptions, onDisplayChange } from './settings';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
@@ -90,6 +91,7 @@ function mergeCloud(loaded: HeroProfile | null): Kept {
 }
 void (async () => {
   mergeCloud(await cloud.loadHero());
+  wakeFollowsSave();
   await hub.refreshBoss();
 })();
 let pulling = false;
@@ -368,13 +370,30 @@ game.events.once(Phaser.Core.Events.READY, () => {
   prefetchHd2d();
 });
 
-el('startBtn').addEventListener('click', () => {
+/** The Delve button: the 3D file loads the first time you delve (a short loading screen), never before. */
+function delve(): void {
   stress = params.has('stress');
   hud.showPerf = stress || params.has('debug');
-  // HD-2D look test: the 3D file loads the first time you press Delve (a short loading screen), never before.
   if (hd2dWanted() && !hd2dMounted()) { void loadHd2d(DUNGEONS[hub.dungeon]?.name).then(() => startRun()); return; }
   startRun();
-});
+}
+el('startBtn').addEventListener('click', delve);
+
+// CP3 opening, PR 1 (docs/design/opening.md): a save that has never delved opens on the title ("Tap to wake."),
+// then two Hearthkeeper lines, then straight into the Kiln. No hub on the way in. ?stress runs skip it.
+let wake: Wake | null = null;
+if (opensOnWake(hero, stress)) {
+  wake = showWake(el('wake'), () => {
+    // The opening is the Kiln, tier 1 (the sim gives a save's first delve the teaching route).
+    hub.dungeon = 'kiln';
+    hub.tier = 1;
+    delve();
+  });
+}
+/** The cloud brought back a hero who has delved before (a new device or a cleared browser): the hub, not the opening. */
+function wakeFollowsSave(): void {
+  if (wake?.open() && !opensOnWake(hero, stress)) wake.close();
+}
 el('stressLink').addEventListener('click', (e) => {
   e.preventDefault();
   stress = true;
