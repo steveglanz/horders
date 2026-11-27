@@ -5,6 +5,7 @@
  * (client/hd2d, visuals) and takes the camera rule through the adapter (focus and zoom); the corner map, arrow and
  * fade are DOM, so they show over either look.
  */
+import { roomZoom } from './camera';
 import Phaser from 'phaser';
 import type { World } from '../sim/world';
 import { HALLS, doorRoom, HallsMap, HallsRoom, corridorAt, mainRooms, hallsWay, roomAt } from '../sim/halls';
@@ -38,6 +39,8 @@ export interface HallsFrame {
   rect: DOMRect;
   /** The 2D view's width in world units at today's zoom (GameScene viewFor), for the room fit. */
   view: number;
+  /** The most the room fit may zoom out, so your hero stays big enough (client/camera.ts zoomCap). */
+  zoomMax: number;
 }
 
 export class HallsView {
@@ -476,7 +479,7 @@ export class HallsView {
     const room = roomAt(m, f.px, f.py);
     let want = 1, lx = 0, ly = 0;
     if (room >= 0) {
-      want = Math.max(1, Math.min(2, (2 * (m.rooms[room].r + 40)) / f.view));
+      want = roomZoom(m.rooms[room].r, f.view, f.zoomMax);
     } else {
       const c = corridorAt(m, f.px, f.py);
       if (c >= 0) {
