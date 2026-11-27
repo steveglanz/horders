@@ -1,6 +1,6 @@
 // CP3 opening PR 2 check (docs/design/opening.md): the opening run in the real build, 390x844 phone, fake backend.
 // A fresh save taps through the wake screen; the game bot plays the opening (warp 3) while this records the route, the
-// coach and banner lines as they show, the first draft line, and the end; then a second fresh save quits mid-opening and
+// coach and banner lines as they show, the first draft line, the short Kiln Mother's lines and moves (PR 3), and the end; then a second fresh save quits mid-opening and
 // must land back on the wake screen with no run counted. node tools/openingcheck.cjs [outDir]   (after npm run build)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -64,12 +64,13 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
       const s = window.__ember.scene(); const w = s?.world;
       const q = (sel) => { const e = document.querySelector(sel); return e && !e.hidden && getComputedStyle(e).display !== 'none' ? e.textContent.trim() : ''; };
       const ban = document.querySelector('#banner');
-      return { state: w?.state, t: Math.round(w?.time ?? 0), coach: q('#coach'), kind: document.querySelector('#coach')?.dataset.kind ?? '', banner: ban?.classList.contains('show') ? `${q('#bannerTitle')} | ${q('#bannerSub')}` : '', draft: q('#draft') ? q('#draftLevel') : '', end: !document.querySelector('#end').hidden, hounds: w ? w.enemies.filter((e) => e.alive && e.kind === 'cinderhound').map((e) => e.def.size) : [] };
+      return { state: w?.state, t: Math.round(w?.time ?? 0), coach: q('#coach'), kind: document.querySelector('#coach')?.dataset.kind ?? '', banner: ban?.classList.contains('show') ? `${q('#bannerTitle')} | ${q('#bannerSub')}` : '', draft: q('#draft') ? q('#draftLevel') : '', end: !document.querySelector('#end').hidden, hounds: w ? w.enemies.filter((e) => e.alive && e.kind === 'cinderhound').map((e) => e.def.size) : [], km: w?.kmOpen ?? 0, kmCast: w && w.bossIndex >= 0 && w.enemies[w.bossIndex]?.alive ? w.enemies[w.bossIndex].castId : '' };
     });
     for (const [k, v] of [['coach', st.coach], ['banner', st.banner], ['draft', st.draft]]) {
       if (v && !said.some((x) => x.k === k && x.v === v)) { said.push({ k, v, t: st.t }); console.log(`  t=${st.t}s ${k}: ${v}`); }
     }
-    const key = st.draft ? 'draft' : st.kind === 'roll' || st.kind === 'quench' ? st.kind : st.hounds.length ? 'hounds' : '';
+    // PR 3: the short Kiln Mother's Swipe (stage 1) and blue cast (stage 2).
+    const key = st.draft ? 'draft' : st.km && st.kmCast === 'kmSwipe' ? 'boss-swipe' : st.km && st.kmCast === 'cataclysm' ? 'boss-cast' : st.kind === 'roll' || st.kind === 'quench' ? st.kind : st.hounds.length ? 'hounds' : '';
     if (key && !shot.has(key)) { shot.add(key); await page.screenshot({ path: `${out}/2-${key}.png` }); }
     if (st.state === 'draft') await page.evaluate(() => { const s = window.__ember.scene(); s.world.choose(0); });
     if (st.end || st.state === 'ended') break;
@@ -95,6 +96,11 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
   if (!quench) fail('no Quench line');
   else if (r5 && quench.t >= 0 && quench.t < r5.t) fail('the Quench line came before the caster room');
   if (said.some((x) => /step out of the ring/.test(x.v))) fail('the no-interrupt caster line showed');
+  // PR 3: the short Kiln Mother's three lines, in her name, and no stage title or Boil-over.
+  for (const line of ["A thief from Wick. I thought you'd all gone cold.", 'Mind the pots. I fired every one of them.', 'Take it, then. I can always make more than you can carry.']) {
+    if (!said.some((x) => x.k === 'banner' && x.v === `The Kiln Mother | ${line}`)) fail(`her line did not show: ${line}`);
+  }
+  if (said.some((x) => /Stage 2|Phase 2|boils over/.test(x.v))) fail('a stage title or Boil-over showed in the short Kiln Mother');
   console.log('first Quench banner:', said.some((x) => x.v.startsWith('It fears water. Of course it does.')));
   await ctx.close();
 

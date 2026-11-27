@@ -513,7 +513,7 @@ export class Hud {
     $('tTitle').textContent = e.named >= 0 ? `Named · ${AFFIXES[e.affix]}` : e.def.title ?? (e.def.stationary ? 'Objective' : '');
     const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? (e.named >= 0 && AFFIXES[e.affix] === 'Warded' ? 'Shield up' : 'Warded') : '';
     // A Warded named elite already says "Warded" in its title, so the live state reads "Shield up".
-    const phases = BOSS_PHASES[e.kind] ?? 3;
+    const phases = w.kmOpen && e.kind === 'kilnMother' ? 2 : BOSS_PHASES[e.kind] ?? 3; // the opening's short Kiln Mother has 2
     // YSMERETV2 stage 2: two flames, one bar (they share their health), and the frame says so.
     const state = e.kind === 'ysmeret' && w.ysStage === 2 && !w.boilSteps ? 'Two flames · one health' : e.def.rank === 'boss' ? (w.boilSteps > 0 ? `Boil-over${w.boilSteps > 1 ? ` ×${w.boilSteps}` : ''}` : bossClock(w, e, phases > 1 ? `Phase ${w.bossPhase} of ${phases}` : ''))  : e.stunT > 0 ? 'Stunned' : '';
     // Join with a dot ("Enraged · Warded"); Maelra's Temper already brings its own.

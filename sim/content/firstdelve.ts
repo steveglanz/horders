@@ -6,6 +6,7 @@
  */
 import type { EncounterId } from './dungeon';
 import type { EnemyKind } from './enemies';
+import type { KilnSay } from './kilnmother';
 
 export const FIRST_DELVE = {
   /**
@@ -29,8 +30,35 @@ export const FIRST_DELVE = {
   /** Foe health and damage multipliers for the opening. */
   hp: 0.85,
   dmg: 0.5,
-  /** The Kiln Mother's health share in the opening (with `hp` on top). Tuned in PR 3 (the short Kiln Mother). */
-  bossHp: 0.5,
+  /** The Kiln Mother's health share in the opening (with `hp` on top), tuned so her short fight lasts 60-90 s. */
+  bossHp: 2.7,
+  /**
+   * The short Kiln Mother (opening.md, "The short Kiln Mother"; World.runKilnOpening). Stage 1 to half health: a Swipe
+   * every swipeEvery[0] s, shown swipeShow s ahead. Stage 2: a Swipe every swipeEvery[1] s plus one blue cast (Kiln
+   * Ripple, interruptible) every castEvery s, the first castFirst s into the stage (after her stage line has been read); un-Quenched it lands as one light
+   * ring (rippleDamage, before `dmg`). Her Swipe reaches past a caster's usual range, so the roll is the answer from
+   * anywhere in front of her; her sides and back are safe. Engineering's picks: swipeFirst, castFirst, the reach, arc
+   * and damages.
+   */
+  boss: {
+    stage2At: 0.5,
+    swipeEvery: [6, 8] as [number, number],
+    swipeFirst: 3,
+    swipeShow: 1.2,
+    swipeReach: 340,
+    swipeArc: (90 * Math.PI) / 180,
+    swipeDamage: 24,
+    castEvery: 12,
+    castFirst: 6,
+    castTime: 3,
+    rippleDamage: 30,
+  },
+  /** Her lines in the opening (opening.md), in place of the seed's pick from sim/content/kilnmother.ts. */
+  says: {
+    enter: "A thief from Wick. I thought you'd all gone cold.",
+    stage2: 'Mind the pots. I fired every one of them.',
+    sheFalls: 'Take it, then. I can always make more than you can carry.',
+  } as Partial<Record<KilnSay, string>>,
 };
 
 /**

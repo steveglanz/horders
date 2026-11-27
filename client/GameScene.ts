@@ -1533,6 +1533,8 @@ export class GameScene extends Phaser.Scene {
           if (ev.name === 'Glare') this.hud.warn('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
           else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.warn(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
           else if (ev.name === 'Kiln Ripple' && ev.id === 'kmRipple') this.hud.warn('Kiln Ripple', 'Rings of fire roll out. Stand in a gap, or roll through');
+          // The opening (opening.md rule 5): no words it hasn't taught.
+          else if (ev.name === 'Kiln Ripple' && w.kmOpen) this.hud.warn('Kiln Ripple', `Tap ${w.abilities[3].name}, the blue button, to stop it`);
           else if (ev.name === 'Kiln Ripple') this.hud.warn('Kiln Ripple', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
           else if (ev.name === 'Anvilfall') this.hud.warn('Anvilfall!', this.hud.compact ? 'Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them' : 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
           else if (ev.name === 'Choir of Iron') this.hud.warn('Choir of Iron!', 'The whole party is hit. Healers: get ready');
@@ -1749,6 +1751,8 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
+          } else if (w.kmOpen) {
+            // The opening's short Kiln Mother (opening.md): her stage-change line is the banner (a bossSay), no stage title.
           } else if (w.kmStage && ev.phase === 2) {
             // CP3 Kiln Mother remake (docs/design/kiln-mother.md): one line per stage. The old fight's Acolytes are gone.
             this.hud.banner('Stage 2: Into the kiln', 'Stand in the cool quarter. Break each bellows as it appears');

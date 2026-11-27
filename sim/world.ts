@@ -1129,6 +1129,10 @@ export class World {
   partyF = false;
   /** BOSSV2 Kiln Mother: 0 = not a v2 fight, else her stage (1 the duel, 2 in the kiln, 3 the last fire). */
   kmStage = 0;
+  /** The opening's short Kiln Mother (opening.md, FIRST_DELVE.boss): her stage, 1 or 2, or 0 when she isn't that fight. */
+  kmOpen = 0;
+  /** The opening's short Kiln Mother: s until her next Swipe and her next blue cast. Host only. */
+  private kmOpenClock = { swipe: 0, cast: 0 };
   /** BOSSV2: she's inside the kiln (stage 2; she can't be hit all through stage 2, the walk in too). */
   kmInKiln = false;
   /** CP3 remake: which taunts she has said this fight, and the ones waiting to be said (at World.time). */
@@ -1984,6 +1988,7 @@ export class World {
       this.updateLances(dt);
       this.updateTelegraphs(dt);
       if (this.kmStage) this.kmTick(dt);
+      else if (this.kmOpen) this.kmOpenTalk();
       this.updateDrops();
       this.updateVeins(dt);
       this.updateGems(dt);
@@ -2009,6 +2014,7 @@ export class World {
     // Shared things tick once per step and then resolve for each hero (not once per hero).
     this.updatePartyTelegraphs(dt);
     if (this.kmStage) this.kmTick(dt);
+    else if (this.kmOpen) this.kmOpenTalk();
     this.eachHero(() => this.updateDrops());
     this.updatePartyVeins(dt);
     this.updatePartyGems(dt);
@@ -2355,6 +2361,8 @@ export class World {
       kilnMother: BOIL.kilnMother, maelra: FOUNDRY.enrageAfter, lensmother: GLARE.enrageAfter, nhevra: COLD.enrageAfter,
       hessa: WRACK.enrageAfter, ysmeret: YSMERET.enrageAfter, oskel: OSKEL.enrageAfter, ondrel: ONDREL.enrageAfter,
     };
+    // The opening (opening.md): no Boil-over countdown in the short Kiln Mother.
+    if (this.firstDelve) return undefined;
     const t = at[kind];
     // Loose Lid (a Relic): the boss boils over sooner.
     return t !== undefined && this.heroes.some((_, i) => this.heroPlayer(i).relic === 'looseLid') ? t - RELIC.lidSooner : t;
@@ -2574,6 +2582,7 @@ export class World {
           this.bossEcho = this.rollEcho(KILN_VARIANTS, this.bossVariant);
           this.echoNext = true; // QA #658: her first phase-3 signature is the echo, so a short last phase still hears it
           if (this.bossV2) this.kmStart();
+          else if (this.firstDelve) this.kmOpenStart();
           this.events.push({ type: 'bossSpawn' });
         }
         // Wardens take turns mirroring, so one Quench can answer each Mirror Ward.
@@ -6646,7 +6655,7 @@ export class World {
       if (e.def.rank !== 'normal' && e.lungeW <= 0 && e.lungeD <= 0) this.runAbilities(i, dt); // no Snap mid-lunge
 
       // CP3 remake: the remade Kiln Mother (kmStage > 0) never hurts by touch; every blow of hers is a red mark first.
-      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !(this.kmStage > 0 && e.kind === 'kilnMother')) {
+      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !((this.kmStage > 0 || this.kmOpen > 0) && e.kind === 'kilnMother')) {
         e.touchCd = 0.6;
         const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1)
           * (e.kind === 'ysmeret' && this.ysStage === 2 ? YSMERETV2.melee : 1);
@@ -6812,7 +6821,8 @@ export class World {
     for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1; // let it land
     if (id === 'cataclysm') {
       const p = this.player;
-      this.hurtPlayer(45 * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
+      // The opening: un-Quenched, it lands as one light ring (FIRST_DELVE.boss.rippleDamage).
+      this.hurtPlayer((this.kmOpen ? FIRST_DELVE.boss.rippleDamage : 45) * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 160 });
     } else if (id === 'charge') {
       e.aux2 = VARIETY.chargeLen / (VARIETY.chargeSpeed * this.moveScale); // run the lane it showed (faster on a Halls run, no further)
@@ -7284,6 +7294,8 @@ export class World {
   private runBoss(i: number, dt: number): void {
     const e = this.enemies[i];
     const p = this.player;
+    // The opening: her short two-stage fight, with no enrage (opening.md, "The short Kiln Mother").
+    if (this.kmOpen && e.kind === 'kilnMother') { this.runKilnOpening(i, dt); return; }
     if (!this.bossEnraged && this.time - e.spawnedAt > BOSS_ENRAGE_AFTER) {
       this.bossEnraged = true;
       this.events.push({ type: 'bossEnrage' });
@@ -7406,6 +7418,57 @@ export class World {
         this.spawn('ashling', e.x + Math.cos(a) * 260, e.y + Math.sin(a) * 260);
       }
     }
+  }
+
+  /** The opening's short Kiln Mother starts in stage 1 (called when she spawns on a first delve). */
+  private kmOpenStart(): void {
+    this.kmOpen = 1;
+    this.kmOpenClock = { swipe: FIRST_DELVE.boss.swipeFirst, cast: 0 };
+    this.kmSaid.clear();
+    this.kmSayQ = [];
+    this.kmSay('enter', KILN_V2.sayDelay);
+  }
+
+  /** The opening's short Kiln Mother: her lines, once a step (her fall line too, which comes after her last step). */
+  private kmOpenTalk(): void {
+    const boss = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+    this.kmTalk(!!boss?.alive && boss.kind === 'kilnMother', boss);
+  }
+
+  /**
+   * The opening's short Kiln Mother (opening.md, "The short Kiln Mother"; FIRST_DELVE.boss). Stage 1: a Swipe (a red
+   * cone at the hero, shown ahead) every few seconds. Stage 2 from half health: slower Swipes, plus one blue cast (Kiln
+   * Ripple) to Quench. No eggs, bellows, gold circles, adds, Boil-over or Old Tricks: those are taught in the remade
+   * fight. One thing at a time: a move that comes due while she's casting waits for the cast to end.
+   */
+  private runKilnOpening(i: number, dt: number): void {
+    const e = this.enemies[i];
+    const p = this.player;
+    const B = FIRST_DELVE.boss, c = this.kmOpenClock;
+    if (this.kmOpen === 1 && e.hp <= e.maxHp * B.stage2At) {
+      this.kmOpen = 2;
+      this.bossPhase = 2;
+      this.events.push({ type: 'phase', phase: 2 });
+      this.kmSay('stage2', KILN_V2.sayDelay);
+      c.cast = B.castFirst;
+      c.swipe = Math.max(c.swipe, B.castFirst + B.castTime + 1);
+    }
+    c.swipe -= dt;
+    if (this.kmOpen === 2) c.cast -= dt;
+    if (e.castId) return;
+    if (this.kmOpen === 2 && c.cast <= 0) {
+      c.cast = B.castEvery;
+      if (this.startCast(i, 'cataclysm', 'Kiln Ripple', B.castTime, true)) {
+        c.swipe = Math.max(c.swipe, B.castTime + 1);
+        return;
+      }
+    }
+    if (c.swipe > 0) return;
+    c.swipe = B.swipeEvery[this.kmOpen - 1];
+    const show = this.kmShow(B.swipeShow);
+    const a = Math.atan2(p.y - e.y, p.x - e.x);
+    this.startCast(i, 'kmSwipe', 'Swipe', show, false);
+    this.addTelegraph('cone', e.x, e.y, B.swipeReach, a, B.swipeArc, show, B.swipeDamage, 'hit', i);
   }
 
   /** BOSSV2: the Kiln Mother's fight starts in stage 1 (called when she spawns). */
@@ -7608,11 +7671,11 @@ export class World {
     this.eachHero(() => { if (this.player.hp > 0) { up = true; if (this.player.hp < this.player.maxHp * 0.3) low = true; } });
     if (!live && !boss.alive) { this.kmSayQ = []; this.kmSay('sheFalls'); }
     else if (!up) { this.kmSayQ = []; this.kmSay('heroFalls'); }
-    else if (low) this.kmSay('heroLow');
+    else if (low && !this.kmOpen) this.kmSay('heroLow');
     for (let k = 0; k < this.kmSayQ.length; k++) {
       const q = this.kmSayQ[k];
       if (q.at > this.time) continue;
-      this.events.push({ type: 'bossSay', say: q.say, line: kilnTaunt(q.say, this.seed) });
+      this.events.push({ type: 'bossSay', say: q.say, line: (this.kmOpen ? FIRST_DELVE.says[q.say] : undefined) ?? kilnTaunt(q.say, this.seed) });
       this.kmSayQ.splice(k--, 1);
     }
   }
