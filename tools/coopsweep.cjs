@@ -106,7 +106,11 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
     let downed1 = -1, downed2 = -1, minLeft = Infinity, revived1 = false, revived2 = false;
     const r = await play(P, {
       each: async (A) => {
-        const s = await world(A, `if (!w.bossUp) return null;
+        // Open (M5 QA, 27 Nov): the pick-up check still fails. Only the host plays, the boss is on it, and rescue() leaves
+        // out the hero the boss is on while an idle guest is up, so nobody walks over (the sim with a playing ally passes).
+        // Guests stand still, so since the Hammerdeep went on the Halls map (#729) the host alone burned out before
+        // Ondrel (M5 QA, 27 Nov: 690 s on seed 9). Trash is set to 1 hp until he's up, as the raid and Pressworks cases do.
+        const s = await world(A, `if (!w.bossUp) { for (const e of w.enemies) if (e.alive && e.def.rank !== "boss") e.hp = Math.min(e.hp, 1); return null; }
           if (a.d1 < 0) { w.heroPlayer(1).hp = 0; return { d1: w.time }; }
           if (a.d2 < 0 && w.time - a.d1 > 14) { w.heroPlayer(2).hp = 0; return { d2: w.time }; }
           return { left: w.revivesLeft, hp1: w.heroPlayer(1).hp, hp2: w.heroPlayer(2).hp };`, { d1: downed1, d2: downed2 });
