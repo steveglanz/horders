@@ -1527,7 +1527,8 @@ export class GameScene extends Phaser.Scene {
         case 'castStart':
           if (ev.name === 'Glare') this.hud.warn('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
           else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.warn(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
-          else if (ev.name === 'Molten Cataclysm') this.hud.warn('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
+          else if (ev.name === 'Kiln Ripple' && ev.id === 'kmRipple') this.hud.warn('Kiln Ripple', 'Rings of fire roll out. Stand in a gap, or roll through');
+          else if (ev.name === 'Kiln Ripple') this.hud.warn('Kiln Ripple', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
           else if (ev.name === 'Anvilfall') this.hud.warn('Anvilfall!', this.hud.compact ? 'Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them' : 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
           else if (ev.name === 'Choir of Iron') this.hud.warn('Choir of Iron!', 'The whole party is hit. Healers: get ready');
           else if (ev.name === 'Twin Vents') this.hud.warn('Twin Vents!', 'Split up: someone in each gold vent');
@@ -1735,6 +1736,12 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
+          } else if (w.kmStage && ev.phase === 2) {
+            // CP3 Kiln Mother remake (docs/design/kiln-mother.md): one line per stage. The old fight's Acolytes are gone.
+            this.hud.banner('Stage 2: Into the kiln', 'Stand in the cool quarter. Break each bellows as it appears');
+          } else if (w.kmStage) {
+            const sig = w.bossVariant === 'draw' ? 'Kiln Draw: get behind her' : w.bossVariant === 'turning' ? 'Turning Fire: follow it round her' : 'Kiln Ripple: stand in a gap';
+            this.hud.banner('Stage 3: The last fire', `${sig}. Stand in the gold circle at her side`);
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
           else if (w.bossEcho) this.hud.banner('Phase 3: The kiln cracks', `She casts faster, and falls back on an old trick: ${BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho}`);
           else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
@@ -1991,6 +1998,10 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'encounterClear':
           this.hud.ding(ev.index + 1 >= w.route.length ? 'Victory!' : 'Cleared!');
+          break;
+        case 'bossSay':
+          // CP3 Kiln Mother remake: her taunts (sim/content/kilnmother.ts), in the one-line banner, in her name.
+          this.hud.banner('The Kiln Mother', ev.line);
           break;
         case 'boilOver':
           // Boil-over (1.0 CP2): the boss glows, taunts once, and hits harder every BOIL.every s from now.

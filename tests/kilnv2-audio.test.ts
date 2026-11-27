@@ -58,13 +58,14 @@ describe('BOSSV2 Kiln Mother sound: reused cues only', () => {
     intoKiln(w, q, b);
     const st = { warn: false, on: false };
     const got: { id: string; at: number }[] = [];
-    for (let n = 0; n < 30 * 15; n++) {
+    // CP3 remake: steps every KILN_V2.heatEvery s; three steps' worth.
+    for (let n = 0; n < 30 * (KILN_V2.heatEvery * 2 + 3); n++) {
       w.player.hp = w.player.maxHp;
       one(w);
       for (const c of kmHeatCues(st, w.kmHeat)) got.push({ id: c.id, at: w.time + (c.after ?? 0) });
     }
     const warns = got.filter((c) => c.id === 'kilnVentWarn'), flares = got.filter((c) => c.id === 'lavaFlare');
-    // Every 6 s: one warning and one flare per step of the heat (15 s in the kiln: three).
+    // One warning and one flare per step of the heat (2 steps and 3 s in the kiln: three).
     expect(warns.length).toBe(3);
     expect(flares.length).toBe(warns.length);
     // Each warning, delayed, ends as its quarters start to burn (within a step).
@@ -77,13 +78,18 @@ describe('BOSSV2 Kiln Mother sound: reused cues only', () => {
   it('each bellows broken closes like a Rift; all three and she falls out to the "hit it now" surge', () => {
     const { w, q, b } = mother();
     intoKiln(w, q, b);
-    one(w);
-    w.events.length = 0;
-    for (let k = 0; k < w.enemies.length; k++) if (w.enemies[k].alive && w.enemies[k].kind === 'kilnBellows') q.damageEnemy(k, 1e6, false);
-    const broke = (w.events as SimEvent[]).map((ev) => cueFor(ev, ctx)?.id);
+    // CP3 remake: the bellows come one at a time; break each as it appears.
+    const broke: (string | undefined)[] = [];
+    let last: string[] = [];
+    for (let n = 0; n < 30 * (KILN_V2.kilnMax + 1) && w.kmStage === 2; n++) {
+      w.player.hp = w.player.maxHp;
+      w.events.length = 0;
+      for (let k = 0; k < w.enemies.length; k++) if (w.enemies[k].alive && w.enemies[k].kind === 'kilnBellows') q.damageEnemy(k, 1e6, false);
+      broke.push(...(w.events as SimEvent[]).map((ev) => cueFor(ev, ctx)?.id));
+      last = one(w);
+    }
     expect(broke.filter((id) => id === 'riftClosed')).toHaveLength(3);
-    w.player.x = 300; w.player.y = 200;
-    expect(one(w)).toContain('surgeReady');
+    expect(last).toContain('surgeReady');
     expect(w.kmStage).toBe(3);
   });
 

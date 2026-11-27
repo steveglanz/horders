@@ -43,6 +43,8 @@ export const NOT_SENT: Record<string, string> = {
   talents: 'per hero, sent in Snapshot.heroes',
   player: 'per hero, sent in Snapshot.heroes',
   kmClock: 'BOSSV2 timers only the host steps; guests draw kmHeat, kmEggs and kmRings',
+  kmSaid: 'CP3 Kiln Mother taunts: the host decides; guests get each line as a bossSay event',
+  kmSayQ: 'CP3 Kiln Mother taunts waiting to be said: host only',
   halls: 'H4: the guest builds the same map from the start options; its moving parts ride in Snapshot.halls',
 };
 /** Fields a guest keeps for itself. */

@@ -12,7 +12,7 @@ type Q = {
   bossIndex: number;
   bossSpawned: boolean;
   bossPhase: number;
-  kmClock: { swipe: number; egg: number; kiln: number; heat: number; tick: number; rings: number; ringNext: number; vuln: number };
+  kmClock: { swipe: number; egg: number; kiln: number; heat: number; tick: number; rings: number; ringNext: number; vuln: number; bellows: number };
 };
 
 const idle = { x: 0, y: 0 };
@@ -32,6 +32,15 @@ function mother(more: Partial<ConstructorParameters<typeof World>[0]> = {}): { w
   w.bossVariant = 'cataclysm';
   q.kmStart();
   return { w, q, b };
+}
+
+/** CP3 remake: in the kiln, break each bellows as it appears until she falls out (stage 3). */
+function breakAll(w: World, q: Q): void {
+  for (let n = 0; n < 30 * (KILN_V2.kilnMax + 1) && w.kmStage === 2; n++) {
+    for (let k = 0; k < w.enemies.length; k++) if (w.enemies[k].alive && w.enemies[k].kind === 'kilnBellows') q.damageEnemy(k, 1e6, false);
+    w.player.hp = w.player.maxHp;
+    one(w);
+  }
 }
 
 /** Puts her into stage 2 and walks her into the kiln. */
@@ -114,10 +123,11 @@ describe('BOSSV2 stage 1: the duel', () => {
 });
 
 describe('BOSSV2 stage 2: into the kiln', () => {
-  it('at 65% she walks to the kiln mouth, can\'t be hit on the way or inside, and her swipe and eggs stop', () => {
+  it('at 60% she walks to the kiln mouth, can\'t be hit on the way or inside, and her swipe and eggs stop', () => {
     const { w, q, b } = mother();
     const e = w.enemies[b];
-    e.hp = e.maxHp * 0.64;
+    expect(KILN_V2.stage2At).toBe(0.6);
+    e.hp = e.maxHp * 0.59;
     q.runBoss(b, 0.01);
     expect(w.kmStage).toBe(2);
     const hp = e.hp;
@@ -137,25 +147,41 @@ describe('BOSSV2 stage 2: into the kiln', () => {
     expect(w.kmEggs.some((g) => g.alive)).toBe(false);
   });
 
-  it('brings 3 bellows on a 380 ring, one each in the south, west and east quarters', () => {
+  it('CP3 remake: brings 3 bellows on a 380 ring one at a time, each in the quarter that just turned cool (east, south, west)', () => {
     const { w, q, b } = mother();
     intoKiln(w, q, b);
     one(w);
-    const bw = w.enemies.filter((e) => e.alive && e.kind === 'kilnBellows');
-    expect(bw).toHaveLength(3);
-    for (const o of bw) expect(Math.hypot(o.x, o.y)).toBeCloseTo(380, 6);
-    expect(bw.map((o) => w.kmQuarter(o.x, o.y)).sort()).toEqual([0, 1, 2]);
+    const live = () => w.enemies.filter((e) => e.alive && e.kind === 'kilnBellows');
+    const seen: number[] = [];
+    const met = new Set<string>(); // enemies are pooled: a broken bellows' slot is reused
+    for (let n = 0; n < 30 * (KILN_V2.heatEvery * 3 + 2); n++) {
+      w.player.hp = w.player.maxHp;
+      for (const o of live()) {
+        const id = `${w.enemies.indexOf(o)}@${o.spawnedAt}`;
+        if (met.has(id)) continue;
+        met.add(id);
+        expect(Math.hypot(o.x, o.y)).toBeCloseTo(380, 6);
+        // It stands in the cool quarter as it appears.
+        expect(w.kmQuarter(o.x, o.y)).toBe(w.kmHeat.safe);
+        seen.push(w.kmQuarter(o.x, o.y));
+      }
+      expect(live().length).toBeLessThanOrEqual(seen.length);
+      one(w);
+    }
+    expect(seen).toEqual([0, 1, 2]);
+    // Unbroken, she stays in the kiln.
+    expect(w.kmStage).toBe(2);
     expect(w.kmQuarter(KM_MOUTH.x, KM_MOUTH.y)).toBe(3);
   });
 
-  it('heats 3 quarters every 6 s after a 2.5 s warning (design, 25 Nov: a slow melee hero can walk from the middle of a quarter to safety), the safe one stepping clockwise; the safe quarter takes nothing', () => {
+  it('heats 3 quarters every 9 s after a 2.5 s warning (design, 25 Nov: a slow melee hero can walk from the middle of a quarter to safety), the safe one stepping clockwise; the safe quarter takes nothing', () => {
     const { w, q, b } = mother();
     intoKiln(w, q, b);
     one(w);
     const safes: number[] = [];
     for (let k = 0; k < 4; k++) {
       // Wait for the next warning.
-      for (let n = 0; n < 30 * 7 && !(w.kmHeat.warn > 0 && !w.kmHeat.on); n++) one(w);
+      for (let n = 0; n < 30 * (KILN_V2.heatEvery + 1) && !(w.kmHeat.warn > 0 && !w.kmHeat.on); n++) one(w);
       safes.push(w.kmHeat.safe);
       expect(w.kmHeat.warn).toBeGreaterThan(2.4);
       // Stand in the safe quarter through the warning and the burn.
@@ -166,7 +192,7 @@ describe('BOSSV2 stage 2: into the kiln', () => {
     }
     for (let k = 1; k < safes.length; k++) expect(safes[k]).toBe((safes[k - 1] + 1) % 4);
     // Out of it, 4% of max health every 0.5 s once it burns (none during the warning).
-    for (let n = 0; n < 30 * 7 && !(w.kmHeat.warn > 0 && !w.kmHeat.on); n++) one(w);
+    for (let n = 0; n < 30 * (KILN_V2.heatEvery + 1) && !(w.kmHeat.warn > 0 && !w.kmHeat.on); n++) one(w);
     const bad = ((w.kmHeat.safe + 2) % 4) * (Math.PI / 2);
     const hp0 = w.player.hp;
     for (let n = 0; n < 30 * 1.4; n++) { w.player.x = Math.cos(bad) * 250; w.player.y = Math.sin(bad) * 250; one(w); }
@@ -181,9 +207,8 @@ describe('BOSSV2 stage 2: into the kiln', () => {
     const { w, q, b } = mother();
     intoKiln(w, q, b);
     one(w);
-    for (let k = 0; k < w.enemies.length; k++) if (w.enemies[k].alive && w.enemies[k].kind === 'kilnBellows') q.damageEnemy(k, 1e6, false);
+    breakAll(w, q);
     w.player.x = 300; w.player.y = 200;
-    one(w);
     const e = w.enemies[b];
     expect(w.kmStage).toBe(3);
     expect(w.kmInKiln).toBe(false);
@@ -228,22 +253,25 @@ describe('BOSSV2 stage 3: the last fire', () => {
     const m = mother();
     m.w.bossVariant = variant;
     intoKiln(m.w, m.q, m.b);
-    for (let k = 0; k < m.w.enemies.length; k++) if (m.w.enemies[k].alive && m.w.enemies[k].kind === 'kilnBellows') m.q.damageEnemy(k, 1e6, false);
-    one(m.w);
+    breakAll(m.w, m.q);
     m.w.enemies[m.b].stunT = 0;
     return m;
   }
 
-  it('Molten Cataclysm is 3 eruption rings a second apart, not a cast; a gap keeps a hero safe, else 40 a ring', () => {
+  it('Kiln Ripple (was Molten Cataclysm): a 1 s wind-up, then rings a second apart, not an interrupt; a gap keeps a hero safe, else 30 a ring', () => {
+    expect(KILN_V2.ringDamage).toBe(30);
     for (const inGap of [true, false]) {
       const { w, q, b } = stage3('cataclysm');
       const e = w.enemies[b];
       e.aux = 0;
       q.runBoss(b, 0.01);
-      expect(e.castId).not.toBe('cataclysm');
+      expect(e.castId).toBe('kmRipple');
       expect(e.interruptible).toBe(false);
       expect(w.enemies.some((o) => o.alive && o.kind === 'acolyte')).toBe(false);
-      one(w);
+      // Nothing rolls during the wind-up (0.8 s or more of warning, vision section 6).
+      step(w, KILN_V2.ringWarn - 0.1);
+      expect(w.kmRings.some((x) => x.alive)).toBe(false);
+      step(w, 0.15);
       const r = w.kmRings.find((x) => x.alive)!;
       expect(r).toBeTruthy();
       expect(r.w).toBe(24);
@@ -263,16 +291,40 @@ describe('BOSSV2 stage 3: the last fire', () => {
     }
   });
 
-  it('the draw and turning versions are today\'s, and the Kiln Brand comes back', () => {
+  it('CP3 remake: Kiln Draw\'s fire is the half of the floor in front of her, so behind her (melee reach) is safe', () => {
     const { w, q, b } = stage3('draw');
     const e = w.enemies[b];
+    w.player.x = e.x + 200; w.player.y = e.y;
     e.aux = 0;
+    for (const t of w.telegraphs) t.alive = false;
     q.runBoss(b, 0.01);
     expect(e.castId).toBe('kilnDraw');
     expect(w.bossPhase).toBe(3);
-    e.castId = '';
-    step(w, KILN_V2.brandFirst + 0.5);
-    expect(w.telegraphs.some((t) => t.alive && t.kind === 'soak') || w.events.length >= 0).toBe(true);
+    const t = w.telegraphs.find((x) => x.alive && x.owner === b)!;
+    expect(t.shape).toBe('cone');
+    expect(t.arc).toBeCloseTo(Math.PI, 9);
+    expect(t.angle).toBeCloseTo(0, 6); // facing the hero, due east
+  });
+
+  it('CP3 remake: Kiln Brand\'s gold circle lands at her side, within a melee hero\'s reach', () => {
+    const { w, q, b } = stage3('turning');
+    const e = w.enemies[b];
+    e.aux = 99;
+    (q as unknown as { brandT: number }).brandT = 0.001;
+    q.runBoss(b, 0.01);
+    const t = w.telegraphs.find((x) => x.alive && x.kind === 'soak')!;
+    expect(Math.hypot(t.x - e.x, t.y - e.y)).toBeCloseTo(KILN_V2.brandOff, 6);
+    expect(t.dmg).toBe(KILN_V2.brandMiss);
+  });
+
+  it('CP3 remake: she never hurts by touch', () => {
+    const { w, b } = stage3('turning');
+    const e = w.enemies[b];
+    e.aux = 99; e.abilityT = 99; e.touchCd = 0;
+    (w as unknown as { brandT: number }).brandT = 99;
+    const hp = w.player.hp;
+    for (let n = 0; n < 30 * 2; n++) { w.player.x = e.x + 40; w.player.y = e.y; w.player.heat = 0; for (const t of w.telegraphs) t.alive = false; one(w); }
+    expect(w.player.hp).toBeGreaterThanOrEqual(hp);
   });
 });
 
@@ -319,27 +371,26 @@ describe('BOSSV2: Vorhulm the Glutton\'s Gorge', () => {
   });
 });
 
-describe('BOSSV2 stage 3: the basic attacks\' pace (design, 25 Nov)', () => {
-  it('today\'s phase 2 pace from when she comes out (3.2 s, 7 Ashlings), today\'s phase 3 pace below 30% (2.4 s, 10)', () => {
-    for (const [share, gap, ash] of [[0.6, 3.2, 7], [0.25, 2.4, 10]] as const) {
-      const { w, q, b } = mother();
-      intoKiln(w, q, b);
-      for (let k = 0; k < w.enemies.length; k++) if (w.enemies[k].alive && w.enemies[k].kind === 'kilnBellows') q.damageEnemy(k, 1e6, false);
-      one(w);
-      const e = w.enemies[b];
-      e.stunT = 0; e.hp = e.maxHp * share; e.aux = 99;
-      (q as unknown as { brandT: number }).brandT = 99;
-      let seen = 0;
-      for (let k = 0; k < 40 && seen < 1; k++) {
-        e.abilityT = 0;
+describe('BOSSV2 stage 3: one basic attack (CP3 remake)', () => {
+  it('a Swipe on a hero in melee range, a Lob on one farther out; every 4 s above 30%, 3.2 s below; no Ashling rings', () => {
+    for (const [share, gap] of [[0.5, 4], [0.25, 3.2]] as const) {
+      for (const far of [false, true]) {
+        const { w, q, b } = mother();
+        intoKiln(w, q, b);
+        breakAll(w, q);
+        const e = w.enemies[b];
+        e.stunT = 0; e.hp = e.maxHp * share; e.aux = 99; e.abilityT = 0; e.castId = '';
+        (q as unknown as { brandT: number }).brandT = 99;
+        for (const t of w.telegraphs) t.alive = false;
+        w.player.x = e.x + (far ? 300 : 100); w.player.y = e.y;
         const before = w.enemies.filter((o) => o.alive && o.kind === 'ashling').length;
         q.runBoss(b, 0.01);
         expect(e.abilityT).toBeCloseTo(gap, 9);
-        const n = w.enemies.filter((o) => o.alive && o.kind === 'ashling').length - before;
-        if (n > 0) { expect(n).toBe(ash); seen++; }
-        for (const o of w.enemies) if (o.alive && o.kind === 'ashling') o.alive = false;
+        const t = w.telegraphs.find((x) => x.alive)!;
+        if (far) { expect(t.shape).toBe('circle'); expect(t.x).toBeCloseTo(w.player.x, 6); expect(t.dmg).toBe(KILN_V2.lobDamage); }
+        else { expect(t.shape).toBe('cone'); expect(e.castId).toBe('kmSwipe'); }
+        expect(w.enemies.filter((o) => o.alive && o.kind === 'ashling').length).toBe(before);
       }
-      expect(seen).toBe(1);
     }
   });
 });
