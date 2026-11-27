@@ -28,6 +28,7 @@ import { botName, CLASS_ICON, GLOW_MARK, isBotAlly } from './icons';
 import { ALT_ABILITIES, ALT_OPTIONS, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
+import { FEEL, FLASH_MIX, KNOCK_RANKS, STOP_GAP_MS, HitScale, killSize, knockCurve, type FeelSize, type HitSize } from './feel';
 import { hd2dFx, hd2dModule, hideHd2dLoading, type Hd2dView } from './hd2d/api';
 import { buildTextures, FRAMES, SPRITE_RES, WORLD_BOSS_SHEET } from './textures';
 import { BRANCH_COLOR, Hud } from './ui';
@@ -419,6 +420,16 @@ export class GameScene extends Phaser.Scene {
   private facing = 1;
   private hitSparks = 0;
   private hitStop = 0;
+  /** CP2 feel kit (client/feel.ts): your average hit this run, so a heavy hit is heavy for your hero at this tier. */
+  private hitScale = new HitScale();
+  /** Per foe slot: its last hit's push (drawn only) and white flash, by scene time (ms). born guards a reused slot. */
+  private knocks: ({ at: number; born: number; ux: number; uy: number; amp: number; ms: number; flashMs: number; mix: number } | undefined)[] = [];
+  /** The 2D look's clay shards from kills, lying on the floor (the 3D view keeps its own). */
+  private shards2d: { x: number; y: number; vx: number; vy: number; at: number; rot: number; r: number; col: number }[] = [];
+  private shardGfx: Phaser.GameObjects.Graphics | null = null;
+  /** This frame's shake offset (world units), which the 3D camera follows too. */
+  private shakeX = 0;
+  private shakeY = 0;
   /** Juice: a brief zoom-in on big moments (fraction of the base zoom), and the zoom it returns to. */
   private punch = 0;
   private baseZoom = 1;
@@ -544,6 +555,10 @@ export class GameScene extends Phaser.Scene {
     this.gateTexts = [];
     this.facing = 1;
     this.hitStop = 0;
+    this.hitScale = new HitScale();
+    this.knocks = [];
+    this.shards2d = [];
+    this.shakeX = this.shakeY = 0;
     this.punch = 0;
     this.bossFlash = 0;
     this.bossFell = false;
@@ -599,6 +614,8 @@ export class GameScene extends Phaser.Scene {
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
     this.gfx = this.add.graphics().setDepth(2);
     this.overFx = this.add.graphics().setDepth(8.6);
+    // CP2 feel kit: kills' clay shards lie on the floor, under every foe and hero (2D look only; the 3D view draws its own).
+    this.shardGfx = this.add.graphics().setDepth(1.3);
     // Phase 18 Halls H1: the Kiln as a map. The ground outside the rooms goes dark (the walls), and the map layer draws the rest.
     this.halls = null;
     if (w.halls) {
@@ -741,7 +758,9 @@ export class GameScene extends Phaser.Scene {
           floor: () => (this.bridge ? { canvas: this.bridge.canvas, span: this.bridge.span, stamp: this.bridge.stamp, x: this.bridge.cx, y: this.bridge.cy } : null),
           kindTex: (kind) => this.enemyTex({ kind } as Enemy, 0),
           echoAt: () => this.echoAt,
-          focus: () => ({ x: this.focusX + (this.halls?.leadX ?? 0), y: this.focusY + (this.halls?.leadY ?? 0) }),
+          // The shake moves the 3D camera too (it never did before CP2's feel kit).
+          focus: () => ({ x: this.focusX + (this.halls?.leadX ?? 0) + this.shakeX, y: this.focusY + (this.halls?.leadY ?? 0) + this.shakeY }),
+          hitFx: (i) => this.hitFx(i),
           zoom: () => this.halls?.zoomK ?? 1,
         }, { fx: hd2dFx(), saver: display.graphics === 'saver' });
         this.cameras.main.setVisible(false);
@@ -1238,29 +1257,31 @@ export class GameScene extends Phaser.Scene {
     const fightStarts = events.some((e) => e.type === 'encounterStart');
     for (const ev of events) {
       switch (ev.type) {
-        case 'hit':
+        case 'hit': {
           if (this.hitSparks < 12) {
             this.hitSparks++;
             this.impact(ev.x, ev.y, ev.crit ? 0.75 : 0.45);
           }
-          // A big crit freezes the frame for a blink (solo only: co-op never stalls the shared run).
-          if (ev.crit && ev.amount >= 60 && !this.coop && this.time.now - this.lastCritStop > 350) {
-            this.lastCritStop = this.time.now;
-            this.stop(0.035);
-          }
-          if (ev.crit || ev.amount >= 40) this.floatText(ev.x, ev.y - 10, Math.round(ev.amount).toString(), ev.crit ? '#ffe08a' : '#ffffff', ev.crit ? 18 : 14);
+          // CP2 feel kit (client/feel.ts): flash, push, number, stop, shake and buzz by the size of the hit.
+          const mine = ev.hero === undefined || ev.hero === w.acting;
+          this.feelHit(w, ev.x, ev.y, mine ? this.hitScale.size(ev.amount, ev.crit) : ev.crit ? 'crit' : 'tap', mine, Math.round(ev.amount));
           break;
-        case 'kill':
+        }
+        case 'kill': {
           this.death(ev.kind, ev.x, ev.y);
-          if (ENEMIES[ev.kind].rank === 'boss') this.bossDeath(ev.kind, ev.x, ev.y);
-          else if (ENEMIES[ev.kind].rank === 'rare' || ev.kind === 'cinderBrute') {
+          const ks = killSize(ENEMIES[ev.kind].rank, ev.kind);
+          this.shatter(ev.x, ev.y, FEEL[ks].shards, ENEMIES[ev.kind].radius);
+          audio.haptics.buzz(FEEL[ks].buzz);
+          if (ks === 'bossKill') this.bossDeath(ev.kind, ev.x, ev.y);
+          else if (ks === 'bigKill') {
             this.burst(ev.x, ev.y, 24);
             this.ring(ev.x, ev.y, 120, 0xffb347, 0.5);
-            this.shakeBy(0.4);
+            this.shakeBy(FEEL.bigKill.shake);
             this.punch = Math.max(this.punch, 0.05);
-            this.stop(0.08);
+            this.stop(FEEL.bigKill.stopMs / 1000);
           } else this.burst(ev.x, ev.y, 4);
           break;
+        }
         case 'explode':
         case 'strike':
           if (ev.type === 'explode' && w.vents.some((v) => Math.abs(v.x - ev.x) < 2 && Math.abs(v.y - ev.y) < 2)) {
@@ -1288,7 +1309,7 @@ export class GameScene extends Phaser.Scene {
         case 'playerHurt':
           // Co-op: shake and flash only for hits on your own hero.
           if (ev.hero !== undefined && ev.hero !== w.acting) break;
-          this.shake = Math.max(this.shake, ev.amount >= 20 ? 0.3 : 0.08);
+          this.shake = Math.max(this.shake, FEEL[ev.amount >= 20 ? 'hurtBig' : 'hurt'].shake);
           this.pulseVignette(ev.amount >= 20 ? 'hurt big' : 'hurt');
           break;
         case 'levelUp': {
@@ -2072,6 +2093,7 @@ export class GameScene extends Phaser.Scene {
       sx = (Math.random() - 0.5) * m;
       sy = (Math.random() - 0.5) * m;
     }
+    this.shakeX = sx; this.shakeY = sy;
     this.bossInView(dt, px, py);
     cam.centerOn(px + this.focusX + (this.halls?.leadX ?? 0) + sx, py + this.focusY + (this.halls?.leadY ?? 0) + sy);
     // HD-2D hides this camera, and Phaser skips a hidden camera's preRender, which is what keeps worldView current.
@@ -2192,8 +2214,8 @@ export class GameScene extends Phaser.Scene {
         if (s.visible) { s.setVisible(false); sh.setVisible(false); }
         continue;
       }
-      const x = lerp(e.px, e.x);
-      const y = lerp(e.py, e.y);
+      let x = lerp(e.px, e.x);
+      let y = lerp(e.py, e.y);
       if (!onScreen(x, y)) {
         if (s.visible) { s.setVisible(false); sh.setVisible(false); }
         continue;
@@ -2225,6 +2247,9 @@ export class GameScene extends Phaser.Scene {
         k = 0.3 + 0.7 * t + Math.sin(t * Math.PI) * 0.25;
       }
       const hit = e.flash > 0 ? 0.12 : 0;
+      // CP2 feel kit: a normal foe is pushed back a little from the hit (drawn only), then settles.
+      const kfx = this.hitFx(i);
+      if (kfx) { x += kfx.x; y += kfx.y; }
       // Every shadow shows at the size Grandmother Slag's 128-unit sheet always did, whatever its sheet's size.
       const shadowScale = e.kind === 'worldShadow' ? (1.05 * 128) / shadowSheet(w.worldBoss).size : 1;
       s.setVisible(true).setPosition(x, y).setFlipX(e.kind === 'colossus' ? Math.cos(w.colFacing) < 0 : !e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? shadowScale : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? shadowScale : 1));
@@ -3091,6 +3116,7 @@ export class GameScene extends Phaser.Scene {
 
     this.stepFx(this.fx, dt);
     this.stepFx(this.smoke, dt);
+    this.shardsDraw();
     for (const tr of this.trails) this.stepFx(tr.fx, dt);
     for (const t of this.floats) {
       if (t.life <= 0) continue;
@@ -7329,6 +7355,105 @@ export class GameScene extends Phaser.Scene {
       o.lineStyle(3, SOAK, 0.9 * close).strokeCircle(t.x, t.y, r);
       o.lineStyle(3, 0xff6b8a, 0.9 * close).strokeCircle(t.x, t.y, r + 8);
       g.fillStyle(0x000000, 0.2 + 0.3 * f).fillEllipse(t.x, t.y + 18, 40 + 30 * f, 14 + 10 * f);
+    }
+  }
+
+  /**
+   * CP2 feel kit (client/feel.ts): one hit you or an ally landed. Your own hits get the number, the buzz and (solo,
+   * a heavy hit) the stop; anyone's hit flashes the foe and pushes a normal one back a little, both drawn only.
+   */
+  private feelHit(w: World, x: number, y: number, size: HitSize, mine: boolean, amount: number): void {
+    const f = FEEL[size];
+    // The foe in that spot: the event carries the foe's position from this same tick.
+    let i = -1;
+    for (let k = 0; k < w.enemies.length; k++) { const e = w.enemies[k]; if (e.alive && e.x === x && e.y === y) { i = k; break; } }
+    const e = i >= 0 ? w.enemies[i] : null;
+    if (e && f.flashMs > 0) {
+      const rank = e.def.rank;
+      const from = w.player;
+      const d = Math.hypot(e.x - from.x, e.y - from.y) || 1;
+      this.knocks[i] = {
+        at: this.time.now, born: e.spawnedAt, ux: (e.x - from.x) / d, uy: (e.y - from.y) / d,
+        amp: KNOCK_RANKS.has(rank) && !e.def.stationary ? f.knock : 0, ms: f.knockMs, flashMs: f.flashMs,
+        mix: rank === 'normal' || rank === 'elite' ? FLASH_MIX[rank] : 0,
+      };
+    }
+    if (f.num && (mine || size !== 'tap')) this.floatText(x, y - 10, amount.toString(), f.num.color, f.num.size);
+    if (!mine) return;
+    if (f.stopMs > 0 && !this.coop && this.time.now - this.lastCritStop > STOP_GAP_MS) {
+      this.lastCritStop = this.time.now;
+      this.stop(f.stopMs / 1000);
+    }
+    if (f.shake > 0) this.shakeBy(f.shake);
+    audio.haptics.buzz(f.buzz);
+  }
+
+  /** Foe slot i's feel this frame: its push (world units) and white flash (0 to 1), or null when it has none. */
+  hitFx(i: number): { x: number; y: number; flash: number } | null {
+    const k = this.knocks[i], e = this.world.enemies[i];
+    if (!k || !e || !e.alive || k.born !== e.spawnedAt) return null;
+    const age = this.time.now - k.at;
+    if (age >= Math.max(k.ms, k.flashMs)) { this.knocks[i] = undefined; return null; }
+    const c = k.ms > 0 ? knockCurve(age / k.ms) * k.amp : 0;
+    return { x: k.ux * c, y: k.uy * c, flash: age < k.flashMs ? k.mix : 0 };
+  }
+
+  /** A kill breaks into clay shards that fly out and stay on the floor (the 3D view, or the 2D look's own). */
+  private shatter(x: number, y: number, n: number, r: number): void {
+    if (n <= 0) return;
+    if (this.lowFx) n = Math.ceil(n / 2);
+    if (this.hd2d) { this.hd2d.shatter?.(x, y, n, r); return; }
+    const clay = MASTER.clay.map((c) => parseInt(c.slice(1), 16));
+    for (let k = 0; k < n; k++) {
+      const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 90;
+      if (this.shards2d.length >= 160) this.shards2d.shift();
+      this.shards2d.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, at: this.time.now, rot: Math.random() * 6, r: 2 + Math.random() * Math.min(4, r * 0.25), col: clay[k % clay.length] });
+    }
+  }
+
+  /** The 2D look's shards: they fly out for a third of a second, then lie where they landed. */
+  private shardsDraw(): void {
+    const g = this.shardGfx;
+    if (!g) return;
+    if (this.hd2d) { if (g.visible) g.clear().setVisible(false); return; }
+    g.clear();
+    const now = this.time.now;
+    for (const s of this.shards2d) {
+      const u = Math.min(1, (now - s.at) / 330), ease = 1 - (1 - u) * (1 - u);
+      const x = s.x + s.vx * 0.33 * ease, y = s.y + s.vy * 0.33 * ease - Math.sin(u * Math.PI) * 10;
+      const c = Math.cos(s.rot + u * 4), sn = Math.sin(s.rot + u * 4), r = s.r;
+      g.fillStyle(s.col, 0.9).fillTriangle(x + c * r, y + sn * r * 0.6, x - sn * r * 0.8, y + c * r * 0.5, x - c * r * 0.7, y - sn * r * 0.4);
+    }
+  }
+
+  /**
+   * The feel test scene (tools/feelclips.cjs): plays one size of the kit on the nearest live foe, exactly as a real
+   * hit or kill would, without changing the fight (no damage, no kill: the foe only shows it).
+   */
+  feelTest(size: FeelSize): void {
+    const w = this.world, p = w.player;
+    let best = -1, bd = Infinity;
+    for (let k = 0; k < w.enemies.length; k++) { const e = w.enemies[k]; if (!e.alive) continue; const d = (e.x - p.x) ** 2 + (e.y - p.y) ** 2; if (d < bd) { bd = d; best = k; } }
+    const e = best >= 0 ? w.enemies[best] : null;
+    const f = FEEL[size];
+    if (size === 'tap' || size === 'crit' || size === 'heavy') {
+      if (!e) return;
+      e.flash = f.flashMs / 1000;
+      this.lastCritStop = -1e9;
+      this.impact(e.x, e.y, size === 'tap' ? 0.45 : 0.75);
+      this.feelHit(w, e.x, e.y, size, true, size === 'tap' ? 24 : size === 'crit' ? 52 : 118);
+      audio.haptics.buzz(f.buzz);
+    } else if (size === 'hurt' || size === 'hurtBig') {
+      this.shakeBy(f.shake);
+      this.pulseVignette(size === 'hurtBig' ? 'hurt big' : 'hurt');
+      audio.haptics.buzz(f.buzz);
+    } else {
+      const x = e ? e.x : p.x + 60, y = e ? e.y : p.y;
+      this.shatter(x, y, f.shards, e ? e.def.radius : 12);
+      this.burst(x, y, size === 'kill' ? 4 : 24);
+      if (f.shake) this.shakeBy(f.shake);
+      if (f.stopMs) this.stop(f.stopMs / 1000);
+      audio.haptics.buzz(f.buzz);
     }
   }
 

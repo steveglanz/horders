@@ -35,6 +35,7 @@ import { buildSlag3d } from './ondrelslag3d';
 import { buildAnvil3d } from './anvil3d';
 import { buildOskel3d } from './oskel3d';
 import type { HallsMap } from '../../sim/halls';
+import { MASTER } from '../style';
 
 /** 3D units per world unit: the 560-unit arena becomes an 8-unit room. */
 const S = 1 / 70;
@@ -1067,6 +1068,70 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     }
     return m;
   };
+  // CP2 feel kit (client/feel.ts): a hit foe's white flash. The same frame washed toward warm white (by FLASH_MIX: 0.8
+  // trash, 0.6 elites), unlit so it reads white in any room, swapped in for the flash's 70-80 ms. No extra draws.
+  const flashMats = new Map<string, THREE.MeshBasicMaterial | null>();
+  const foeFlashMat = (key: string, n: number, mix: number) => {
+    const id = `${key}#${n}#${mix}`;
+    let m = flashMats.get(id);
+    if (m === undefined) {
+      const c = A.frame(key, n);
+      if (c) {
+        const cv = document.createElement('canvas'); cv.width = c.width; cv.height = c.height;
+        const k = cv.getContext('2d')!;
+        k.drawImage(c, 0, 0); k.globalCompositeOperation = 'source-atop'; k.fillStyle = `rgba(255,248,240,${mix})`; k.fillRect(0, 0, cv.width, cv.height);
+        m = new THREE.MeshBasicMaterial({ map: canvasTex(cv), alphaTest: 0.45, side: THREE.DoubleSide });
+        (m.map as THREE.Texture).userData = { w: c.width, h: c.height };
+      } else m = null;
+      flashMats.set(id, m);
+    }
+    return m;
+  };
+  // CP2 feel kit: kills break into clay shards that fly out and stay on the floor. One instanced mesh for every shard in
+  // the run (one draw, no shadow), oldest reused first. Clay tones from style.ts MASTER.clay.
+  const SHARD_CAP = 160;
+  const shardGeo = new THREE.TetrahedronGeometry(1, 0); shardGeo.scale(1, 0.35, 0.8);
+  const shardMat = new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0, flatShading: true });
+  const shardMesh = new THREE.InstancedMesh(shardGeo, shardMat, SHARD_CAP);
+  shardMesh.count = 0; shardMesh.frustumCulled = false; shardMesh.castShadow = false; shardMesh.receiveShadow = !saver;
+  scene.add(shardMesh);
+  // Light biscuit and fired clay (the two pale clay steps), so shards read on dark iron floors and the Kiln's brick alike.
+  const clayCols = [MASTER.clay[3], MASTER.clay[2], MASTER.clay[3], MASTER.hearth[1]].map((c) => new THREE.Color(c));
+  type Shard = { x: number; z: number; vx: number; vz: number; at: number; rot: number; spin: number; s: number };
+  const shards: Shard[] = [];
+  let shardNext = 0, shardsMoving = false, shardsOnMap = false;
+  const shardM = new THREE.Matrix4(), shardQ = new THREE.Quaternion(), shardE = new THREE.Euler(), shardP = new THREE.Vector3(), shardS = new THREE.Vector3();
+  const SHARD_FLY = 0.33;
+  const shatter = (wx: number, wy: number, n: number, r: number) => {
+    for (let k = 0; k < n; k++) {
+      const a = Math.random() * Math.PI * 2, sp = (0.9 + Math.random() * 1.4) * Math.max(0.6, r * S * 2.2);
+      const sh: Shard = { x: wx * S, z: wy * S, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, at: t, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 14, s: (0.06 + Math.random() * 0.07) * Math.min(1.8, 0.7 + r / 24) };
+      const i = shardNext; shardNext = (shardNext + 1) % SHARD_CAP;
+      shards[i] = sh;
+      shardMesh.setColorAt(i, clayCols[(i * 7 + k) % clayCols.length]);
+      if (shardMesh.count < SHARD_CAP) shardMesh.count = Math.max(shardMesh.count, i + 1);
+    }
+    if (shardMesh.instanceColor) shardMesh.instanceColor.needsUpdate = true;
+    shardsMoving = true;
+  };
+  const shardsUpdate = () => {
+    if (!shardsMoving) return;
+    let moving = false;
+    for (let i = 0; i < shardMesh.count; i++) {
+      const sh = shards[i]; if (!sh) continue;
+      const u = Math.min(1, (t - sh.at) / SHARD_FLY);
+      if (u < 1) moving = true;
+      else if (sh.at < 0) continue; // already laid flat: its matrix stays as it is
+      const ease = 1 - (1 - u) * (1 - u);
+      const x = sh.x + sh.vx * SHARD_FLY * ease, z = sh.z + sh.vz * SHARD_FLY * ease;
+      const y = FLOOR + sh.s * 0.3 + Math.sin(u * Math.PI) * 0.35;
+      shardE.set(u < 1 ? sh.spin * u : 0, sh.rot + sh.spin * u * 0.3, u < 1 ? sh.spin * u * 0.5 : 0);
+      shardMesh.setMatrixAt(i, shardM.compose(shardP.set(x, y, z), shardQ.setFromEuler(shardE), shardS.set(sh.s, sh.s, sh.s)));
+      if (u >= 1) sh.at = -1;
+    }
+    shardMesh.instanceMatrix.needsUpdate = true;
+    shardsMoving = moving;
+  };
   type FoeS = { mesh: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group; eye?: EyeS; horn?: HornS; conch?: ConchS; bellows?: ReturnType<typeof makeKmBellows>; gorge?: THREE.Mesh };
   // Phase 16 U2, the Ballast (design #606): an iron anchor on a chain at its side. It drops as Enemy.aux counts up to
   // BALLAST.plantDelay, bites into the floor once planted, and heaves up and glows while it winds up its slam.
@@ -1538,6 +1603,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const hm = w.halls, onMap = !!hm && !hm.done;
     if (hm && hm !== hallsOf) buildHallsView(hm);
     room.visible = !onMap;
+    // Through the boss door (or back): the last place's shards stay behind.
+    if (onMap !== shardsOnMap) { shardsOnMap = onMap; shardMesh.count = 0; shards.length = 0; shardNext = 0; }
     if (halls) halls.group.visible = onMap;
     // The floor bridge: the 2D scene's floor layer, laid flat just over the tiles and under the 3D telegraphs.
     const fl = A.floor?.();
@@ -1686,6 +1753,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       // Kept small (Steve, 25 Nov: sprites "sometimes looking a little stretched"): a hit and a lunge together
       // used to make a foe 24% wider and 20% shorter, half again its own width for its height.
       const hit = e.flash > 0 ? 0.04 : 0;
+      // CP2 feel kit: the push from the last hit (world units, drawn only) and the white flash.
+      const hfx = A.hitFx?.(i) ?? null;
       let fa = foeAtk[i];
       if (!fa || fa.born !== e.spawnedAt) fa = foeAtk[i] = { born: e.spawnedAt, touch: e.touchCd, abil: e.abilityT, at: -9, dx: 0, dz: 1 };
       if (e.touchCd > fa.touch + 0.05 || e.abilityT > fa.abil + 0.05) {
@@ -1715,11 +1784,12 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
         m.emissiveIntensity = e.flash > 0 ? Math.max(0.7, FOE_GLOW[e.kind] ?? 0) : FOE_GLOW[e.kind] ?? foeGlow; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
+        if (hfx && hfx.flash > 0) { const fm = foeFlashMat(key, fr, hfx.flash); if (fm) f.mesh.material = fm; }
       }
       const flip = !e.def.stationary && x > cx ? -1 : 1;
       f.mesh.scale.set(flip * wd * rise * (1 + hit + 0.06 * ak), ht * rise * (1 - hit - 0.05 * ak + rear), 1);
       const reach = Math.min(0.35, (e.def.radius * S) * 0.6) * ak;
-      f.mesh.position.set(x + fa.dx * reach, FLOOR, z + fa.dz * reach);
+      f.mesh.position.set(x + fa.dx * reach + (hfx ? hfx.x * S : 0), FLOOR, z + fa.dz * reach + (hfx ? hfx.y * S : 0));
       // Where this foe's head is drawn, for its health and cast bar on the overlay (view.foeHead).
       (foeHeads[i] ??= { x: 0, z: 0, h: 0, at: 0 });
       foeHeads[i].x = f.mesh.position.x; foeHeads[i].z = f.mesh.position.z - ht * rise * 0.96 * tiltSin; foeHeads[i].h = FLOOR + ht * rise * 0.96 * tiltCos; foeHeads[i].at = frameNo;
@@ -2045,6 +2115,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       if (pos[i * 3 + 1] > 6) spawn(i, cx, cz, false);
     }
     pgeo.attributes.position.needsUpdate = true;
+    shardsUpdate();
 
     // The camera follows the hero like the 2D camera, at the handoff's angle; the sun's shadow box follows too.
     // GameScene's focus offset (phones: keep the boss clear of the ability buttons) moves the camera, not the lamp.
@@ -2130,6 +2201,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       return sfx.splice(0);
     },
     heroPx,
+    shatter,
     stats() {
       const ms = times.length ? times.reduce((x, y) => x + y, 0) / times.length : 0;
       return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, ms: +ms.toFixed(2), fx, pixelRatio: pr, attacks, foeAttacks, heroPx: heroPx() };

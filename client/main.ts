@@ -1,4 +1,5 @@
 import { weekOf } from '../sim/content/omens';
+import { applyFeelParams } from './feel';
 import { keyOmens, keyTier } from '../sim/content/keys';
 import { bountyFor, dayOf } from '../sim/content/bounty';
 import { heatFor } from '../sim/content/heat';
@@ -39,6 +40,8 @@ installSoundControls();
   follow();
 }
 const params = new URLSearchParams(location.search);
+// CP2 feel kit test: ?feelstop=<ms> tries another hit-stop length for heavy hits (client/feel.ts).
+applyFeelParams(location.search);
 let stress = params.has('stress');
 installTips();
 const hud = new Hud();

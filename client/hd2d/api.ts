@@ -41,6 +41,11 @@ export interface Hd2dAdapter {
   echoAt?(): number;
   /** How far (world units) the camera looks past your hero this frame ({0, 0} when it doesn't): phones' boss framing. */
   focus?(): { x: number; y: number };
+  /**
+   * CP2 feel kit (client/feel.ts): enemy i's hit feel this frame, its push from the last hit (world units, drawn only)
+   * and how white it flashes (0 to 1), or null when it has none.
+   */
+  hitFx?(i: number): { x: number; y: number; flash: number } | null;
 }
 
 export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number; /** Attacks your hero has started this run (the attack pose). */ attacks: number; /** Foe attacks (lunges) started this run. */ foeAttacks: number; /** Your hero's figure height on screen, CSS px. */ heroPx: number }
@@ -67,6 +72,8 @@ export interface Hd2dView {
   sounds?(): RoomSound[];
   /** How tall your own hero's figure shows on screen this frame, CSS px (the camera rule, client/camera.ts). */
   heroPx?(): number;
+  /** CP2 feel kit: a kill at world (x, y) breaks into n clay shards that fly out and stay on the floor (r: the foe's radius). */
+  shatter?(x: number, y: number, n: number, r: number): void;
 }
 
 export interface Hd2dModule {
