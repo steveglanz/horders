@@ -11181,8 +11181,14 @@ export const KILN_BOSS_HP: Record<number, number> = { 1: 1.7, 2: 1.6, 3: 1.3 };
  * (`foes`: trash, named and hard fights, the rare, adds) and for its boss. The Glarewell is the first place past tier 4
  * (unlock 7, a tier-6 hero), and its Shades, Lensbearers, Brandkeepers and Twin Lamps ran over the 30/45 s trash and
  * named budgets for the Emberwright and the Lumen, and the Glass Heir over 90 s for the Lumen and both melee classes.
+ * The Coldmarrow (unlock 10) and the Wrackline (unlock 13) had the same gap for the same two classes, trash and named
+ * only (their bosses were already inside 90 s), so they get a foes share and keep the boss at 1.
  */
-export const PLACE_HP: Partial<Record<DungeonId, { foes: number; boss: number }>> = { glarewell: { foes: 0.6, boss: 0.85 } };
+export const PLACE_HP: Partial<Record<DungeonId, { foes: number; boss: number }>> = {
+  glarewell: { foes: 0.6, boss: 0.85 },
+  coldmarrow: { foes: 0.75, boss: 1 },
+  wrackline: { foes: 0.65, boss: 1 },
+};
 
 export const KILN_V2 = {
   /** Stage 2 at this share of her health. */
