@@ -18,6 +18,18 @@ export function topTier(maxTier: number): number {
   return Math.max(1, Math.min(MAX_TIER, maxTier));
 }
 
+/**
+ * The tier the hub opens on. CP2 Kiln panel (27 Nov): opening on the top unlocked tier, which is always the one not yet
+ * won, sent returning players into their hardest fight and they died in 10-40 s. So the hub opens on the tier last
+ * delved (a win on the top tier moves that up to the new top), and a save from before that opens on the highest tier
+ * won. A fresh hero opens on tier 1.
+ */
+export function startTier(h: { maxTier: number; lastTier?: number }): number {
+  const top = topTier(h.maxTier);
+  if (h.lastTier !== undefined) return Math.max(1, Math.min(top, h.lastTier));
+  return Math.max(1, Math.min(top, h.maxTier - 1));
+}
+
 /** Party sizes the game is tuned for (co-op is planned for 2 to 4). */
 export const MAX_PARTY = 4;
 

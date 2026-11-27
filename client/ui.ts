@@ -24,7 +24,7 @@ import { HeroProfile, RunRewards, equip, equippedItems, heroMaxLevel, heroXpToNe
 import { hurtRecap } from '../sim/hurtrecap';
 
 /** X6: the run-shape chips' accents: the stone of the floors, the named Rare blue, the ember of an event, the boss's gold. */
-const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', stir: '#c98bff', foe: '#ff6b8a', boss: '#ffc861', echo: '#ffe29a', heat: '#ff8a3d' };
+const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', door: '#ffc861', relic: '#5fe0c8', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', stir: '#c98bff', foe: '#ff6b8a', boss: '#ffc861', echo: '#ffe29a', heat: '#ff8a3d' };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** L2: per-frame HUD writes skip unchanged values, since even a same-value write invalidates layout. */
@@ -764,8 +764,25 @@ export class Hud {
     this.draftShownFor = -1;
   }
 
-  setPaused(p: boolean): void {
+  setPaused(p: boolean, w?: World): void {
+    if (p && w) this.showRunPicks(w);
     $('pause').hidden = !p;
+  }
+
+  /** CP2 Kiln panel (27 Nov): the pause menu names this delve's Relic and the Sparks caught so far. */
+  private showRunPicks(w: World): void {
+    const box = $('pauseRun');
+    const relic = w.player.relic ? RELICS[w.player.relic] : undefined;
+    const ids = (Object.keys(w.talents) as TalentId[]).filter((id) => (w.talents[id] ?? 0) > 0 && TALENTS[id]);
+    box.hidden = !relic && !ids.length;
+    if (box.hidden) { box.innerHTML = ''; return; }
+    const spark = (id: TalentId) => {
+      const def = TALENTS[id];
+      const n = w.talents[id] ?? 0;
+      return `${def.name}${def.maxRank > 1 && n > 1 ? ` ${def.maxRank >= 99 ? 'x' : ''}${n}` : ''}`;
+    };
+    box.innerHTML = (relic ? `<div class="po-h">Relic</div><div class="po"><span><b>${relic.name}</b><i>${relic.text}</i></span></div>` : '')
+      + (ids.length ? `<div class="po-h">Sparks this delve</div><div class="po"><span><i>${ids.map(spark).join(' · ')}</i></span></div>` : '');
   }
 
   /** The rest of the current banner chain (what shows after this banner), if any. */
@@ -1042,7 +1059,9 @@ export class Hud {
       ? `${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} falls. Emberhold will sing of this.`
       : w.bossSpawned
         ? `So close. ${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} still stands.`
-        : `${w.encounterDef.name} bested you. Your gear and levels carry into the next delve.`;
+        // CP2 Kiln panel (27 Nov): naming the fight here ("Hollow Wardens bested you") clashed with the line below, which
+        // names who did the damage ("Hurt most by Ashbuck"). The headline says where; the line below says who.
+        : `You fell in fight ${Math.min(w.encounter + 1, w.route.filter((r) => r !== 'worldShadow').length)} of ${w.route.filter((r) => r !== 'worldShadow').length}. Your gear and levels carry into the next delve.`;
     // What took this hero's health in the fight they fell in, so a loss says what to watch for next time.
     const cause = s.victory ? '' : hurtRecap(w.player);
     $('endCause').textContent = cause;

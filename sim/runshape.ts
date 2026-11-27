@@ -8,9 +8,10 @@ import { ENCOUNTERS, type EncounterId } from './content/dungeon';
 import { ENEMIES } from './content/enemies';
 import { HEATS, type HeatId } from './content/heat';
 import { AFFIX_TIP } from './content/named';
+import { RELICS } from './content/relics';
 import { NEW_FOES, NEW_FOE_BIT, STIR_BIT, STIR_IDS, STIR_INFO, WAVE_SHAPE_INFO, type ArenaEventId, type LayoutId, type WaveShape, type World } from './world';
 
-export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'wave' | 'stir' | 'foe' | 'boss' | 'echo' | 'heat';
+export type ShapeKind = 'route' | 'door' | 'relic' | 'floor' | 'mark' | 'event' | 'wave' | 'stir' | 'foe' | 'boss' | 'echo' | 'heat';
 export interface ShapeChip {
   kind: ShapeKind;
   /** Short chip text, such as "Floors: 2 stone, 1 vent". */
@@ -57,6 +58,16 @@ export function runShape(w: World): ShapeChip[] {
   if (fights.length) {
     out.push({ kind: 'route', label: `Route: ${plural(fights.length, 'fight')}`, tip: fights.map((f) => name(f.id)).join(' › ') });
   }
+
+  // 1.0 CP2, the Kiln run (panel 27 Nov): the fork door taken and the Relic picked, so the run's two choices leave a trace.
+  const door = w.halls?.packs.find((p) => p.fork && !p.skipped && p.state !== 'asleep');
+  if (door) {
+    out.push(door.fork === 'hard'
+      ? { kind: 'door', label: `Door: Hard (${name(door.enc)})`, tip: `You took the hard door: ${name(door.enc)}, for an extra roll of rare loot` }
+      : { kind: 'door', label: 'Door: Easy', tip: 'You took the easy door: lighter foes, for an extra Spark' });
+  }
+  const relic = w.player.relic ? RELICS[w.player.relic] : undefined;
+  if (relic) out.push({ kind: 'relic', label: `Relic: ${relic.name}`, tip: relic.text });
 
   const floors: string[] = [];
   const count: Partial<Record<LayoutId, number>> = {};

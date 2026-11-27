@@ -196,3 +196,18 @@ describe('QA M5: the first win reaches hero level 2', () => {
     expect(h.xp - lvl).toBeLessThan(heroXpToNext(2));
   });
 });
+
+describe('CP2 Kiln panel (27 Nov): the run leaves a trace of its choices', () => {
+  it("the end screen's shape names the fork door taken and the Relic picked", async () => {
+    const { runShape } = await import('../sim/runshape');
+    const w = kiln(3);
+    expect(runShape(w).find((c) => c.kind === 'door')).toBeUndefined();
+    pack(w, 'F').state = 'cleared';
+    pack(w, 'C').state = 'cleared';
+    pack(w, 'C').skipped = true;
+    w.player.relic = 'fireBrick';
+    const shape = runShape(w);
+    expect(shape.find((c) => c.kind === 'door')?.label).toBe('Door: Easy');
+    expect(shape.find((c) => c.kind === 'relic')?.label).toBe(`Relic: ${RELICS.fireBrick.name}`);
+  });
+});
