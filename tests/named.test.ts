@@ -52,7 +52,7 @@ describe('named elites (C2)', () => {
     expect(e.named).toBeGreaterThanOrEqual(0);
     expect(e.maxHp).toBe(1500 * NAMED.hp);
     const name = w.namedName(i);
-    expect(name).toBe(`${NAMED_TITLES[e.named]}, Cinder Brute`);
+    expect(name).toBe(`${NAMED_TITLES[e.named]}, Crock`);
     expect(w.events).toContainEqual({ type: 'namedSpawn', index: i, name, affix: 'Swift' });
     w.events.length = 0;
     inner.killEnemy(i);
@@ -126,7 +126,7 @@ describe('named elites (C2)', () => {
     const { w, inner } = inFight();
     const i = inner.spawn('cinderBrute', 200, 0);
     expect(w.enemies[i].named).toBe(-1);
-    expect(w.namedName(i)).toBe('Cinder Brute');
+    expect(w.namedName(i)).toBe('Crock');
   });
 });
 

@@ -37,9 +37,10 @@ describe('Phase 15 Y4: the Seen log', () => {
       }
       for (const v of BOSS_VERSIONS[d]) expect(BOSS_VERSION_NAME[v], v).toBeTruthy();
     }
-    // The Kiln: 3 boss versions (Turning Fire since Y3), 3 echoes, the Ashwall, 3 wave shapes, 5 traits, 2 events, 4 stirs, 4 Heats.
-    expect(seenPool('kiln')).toHaveLength(25);
-    expect(foesPossible('kiln')).toEqual(['ashwall']);
+    // The Kiln: 3 boss versions (Turning Fire since Y3), 3 echoes, 3 wave shapes (the Ashwall moved to the Foundry in CP3), 5 traits, 2 events, 4 stirs, 4 Heats.
+    expect(seenPool('kiln')).toHaveLength(24);
+    expect(foesPossible('kiln')).toEqual([]);
+    expect(foesPossible('foundry')).toContain('ashwall');
     // Every new foe turns up in some dungeon's pool.
     for (const k of NEW_FOES) expect(DUNGEON_IDS.some((d) => foesPossible(d).includes(k)), k).toBe(true);
     // Every echo is one of the boss's own versions.
@@ -102,7 +103,7 @@ describe('Phase 15 Y4: the Seen log', () => {
     expect(h.seen).toEqual(['kiln:boss:draw', 'kiln:heat:richHaul', 'kiln:mark:Swift']);
     const kiln = seenIn(h, 'kiln');
     expect(kiln.seen).toBe(3);
-    expect(kiln.total).toBe(25);
+    expect(kiln.total).toBe(24);
     expect(kiln.entries.find((e) => e.id === 'draw')?.seen).toBe(true);
     expect(kiln.entries.find((e) => e.id === 'cataclysm')?.seen).toBe(false);
     expect(seenIn(h, 'foundry').seen).toBe(0);

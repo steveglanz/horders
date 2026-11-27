@@ -113,6 +113,20 @@ Card names follow world.md: concrete, plain English, the trade's tools and mater
 
 Rule (world.md): a Court foe is named for the pot or clay thing it is, or for its job in plain words, never with an Ember-, Cinder- or Ash- prefix. Ideas to start the Kiln pass from, **not proposals yet** (they get searched with the pass): Hollow Warden → Urn Warden, Ember Spitter → Spout, Ember Acolyte → Censer, Ashling → Sherds, Cinder Brute → Crock. Cinderhound, Glass Warden, Snuffer, Barge Hauler, Conchblower and the other plain-word foes can stay if their job survives.
 
+**Kiln pass DONE (Checkpoint 3, 27 Nov 2026, [kiln-foes.md](kiln-foes.md)).** Searched and applied (ids stay):
+
+| Today | New | Job | Search |
+|---|---|---|---|
+| Cinderhound | Hound | charger | plain word. "Clay Hound" was dropped: it is a *Don't Starve* enemy ([dontstarve.wiki.gg](https://dontstarve.wiki.gg/wiki/Clay_Hound)) |
+| Hollow Warden | Urn Warden | brute | no game foe found; WoW has only plain urn objects ([wowhead](https://www.wowhead.com/object=272249/urn)) |
+| Cinder Brute | Crock | caster | plain word; WoW has only the item *Croak Crock* ([wowpedia](https://wowpedia.fandom.com/wiki/Croak_Crock)) |
+| Ember Spitter | Spout | spitter | plain word; WoW uses it for a spell and *Water Spout* ([wowhead](https://www.wowhead.com/npc=66941/water-spout)), allowed by Steve's 21 Nov rule |
+| Ember Acolyte | Censer | mender | plain word; WoW has *Purifying Censer* ([wowhead](https://www.wowhead.com/npc=173097/purifying-censer)), allowed by the same rule |
+| Hollow Rift | Wall Crack | the Kiln's twist | no game foe found |
+| Ashling | Sherd | swarmling | no game foe found |
+
+Glass Warden, Snuffer, Barge Hauler, Conchblower and the rest wait for Checkpoint 5. The Ashbuck and Ashwall still break the prefix rule; they are the Foundry's now and get renamed with its pass.
+
 ---
 
 ## 8. The game's name (shortlist)

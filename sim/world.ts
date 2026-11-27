@@ -7135,7 +7135,7 @@ export class World {
       // Ember Lob: a slow fire circle where you stand now. Keep moving, or close in on it.
       if (e.abilityT <= 0 && dist2(p.x, p.y, e.x, e.y) < VARIETY.lobRange ** 2) {
         e.abilityT = VARIETY.lobEvery + this.rng.next() * 0.6;
-        this.startCast(i, 'emberLob', 'Ember Lob', VARIETY.lobCast, false);
+        this.startCast(i, 'emberLob', 'Lob', VARIETY.lobCast, false);
         this.addTelegraph('circle', p.x, p.y, VARIETY.lobRadius, 0, 0, VARIETY.lobLand, VARIETY.lobDamage, 'hit', i);
         this.events.push({ type: 'spitLob', index: i, x1: e.x, y1: e.y, x2: p.x, y2: p.y });
       }
