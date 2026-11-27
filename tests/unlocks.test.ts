@@ -90,6 +90,7 @@ describe('ability unlocks by character level', () => {
   it('the first delve teaches stepping out of the Brute\'s cast when there is no interrupt yet', () => {
     expect(coachLine('brute')).toContain('step out');
     expect(coachLine('kilnMother')).not.toContain('undefined');
-    expect(coachLine('brute', 'Kick')).toContain('Kick');
+    // With F open, the caster's room opens on an empty line: the Quench line comes on its first cast (client/coach.ts).
+    expect(coachLine('brute', 'Kick')).toBe('');
   });
 });

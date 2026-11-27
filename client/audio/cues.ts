@@ -521,6 +521,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (ev.id === 'churn') return { id: 'churn', jitter: 0.06 };
       return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : ev.id === 'ebb' && c.whirl ? 'whirlWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
+    // The opening's stagger rides on the interrupt's own sound.
+    case 'staggered': return null;
     // The Hoard: Swallow is the fight's main alarm for everyone (break the Craw); getting out or digesting is news for all.
     case 'swallowed': return { id: 'swallowed' };
     case 'spatOut': return mine(ev.hero) ? { id: 'spatOut' } : { id: 'spatOut', vol: 0.7 };

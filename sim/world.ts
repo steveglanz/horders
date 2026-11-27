@@ -371,6 +371,8 @@ export interface Enemy {
   stunT: number;
   /** Kilnbreaker 3-piece: takes extra damage after being interrupted. */
   exposedT?: number;
+  /** The opening: a Quenched caster is staggered, taking FIRST_DELVE.stagger.taken times the damage while this runs. */
+  staggerT?: number;
   /** Slagbinder: the run time until which this foe is Brittle (takes more damage from everyone). */
   brittleUntil?: number;
   /** Hamstring and Cinder Sump: the run time until which this foe is slowed, and its speed factor. */
@@ -802,6 +804,8 @@ export type SimEvent =
   | { type: 'brittle'; x: number; y: number }
   | { type: 'slagGrip'; x: number; y: number; stacks: number }
   | { type: 'interrupt'; x: number; y: number; name: string }
+  /** The opening: a Quenched caster is staggered for `time` s (FIRST_DELVE.stagger). */
+  | { type: 'staggered'; x: number; y: number; time: number }
   | { type: 'dodge'; x: number; y: number; healed: number }
   /** 1.0 CP2 Backstab: a Cutwick hit foe (x, y) from behind (a sure crit). */
   | { type: 'backstab'; x: number; y: number; hero: number }
@@ -1007,6 +1011,8 @@ export interface RunSummary {
   namedKills?: number;
   /** The hero's first delve (the tutorial Kiln): it sets no best time. */
   firstDelve?: boolean;
+  /** The opening: blows that would have felled the hero, held at 1 health instead (opening.md rule 1). */
+  floorSaves?: number;
   /** Real heroes in the party (bots left out), for a party run only. */
   realHeroes?: number;
 }
@@ -1068,6 +1074,8 @@ export class World {
   private fillRng: Rng | null = null;
   /** L1: this is the hero's first delve (FIRST_DELVE). */
   readonly firstDelve: boolean;
+  /** The opening: blows that would have felled the hero (held at 1 health instead). */
+  floorSaves = 0;
   /** BOSSV2: the three-stage Kiln Mother and the new Gorge, on every run but the first delve (which keeps the old fight). */
   readonly bossV2: boolean;
   /** Every Slagbinder in this run is the cannon gunner (no Anvil stance). */
@@ -1518,12 +1526,15 @@ export class World {
     if (this.firstDelve) {
       this.keyHp *= FIRST_DELVE.hp;
       this.keyDmg *= FIRST_DELVE.dmg;
+      // The opening (opening.md rule 4): no world-boss bonus fight after the Kiln Mother.
+      this.worldBoss = '';
     }
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
     this.heat = opts.heat && HEATS[opts.heat] && heatFits(this.dungeonId, opts.heat) && !this.firstDelve && !this.stress
       && opts.bounty === undefined && !opts.keyLevel ? opts.heat : '';
-    const omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
-    const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress ? opts.bossOmen : undefined;
+    // The opening (opening.md rule 4): no Omens, not even the world boss's.
+    const omens = this.firstDelve ? [] : opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
+    const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress && !this.firstDelve ? opts.bossOmen : undefined;
     this.bossOmen = bossOmen && !omens.includes(bossOmen) ? bossOmen : undefined;
     this.omens = this.bossOmen ? [...omens, this.bossOmen] : omens;
     // The boss's Omen always pays its bonus, even when the tier already rolled that Omen.
@@ -2152,7 +2163,7 @@ export class World {
       ...(this.keyLevel ? { keyLevel: this.keyLevel } : {}),
       interrupts: this.player.interrupts ?? 0,
       namedKills: this.namedKills,
-      ...(this.firstDelve ? { firstDelve: true } : {}),
+      ...(this.firstDelve ? { firstDelve: true, floorSaves: this.floorSaves } : {}),
       ...(this.heroes.length > 1 ? { realHeroes: this.heroes.length - this.fillBots } : {}),
     };
   }
@@ -3134,6 +3145,11 @@ export class World {
       if (i < 0) return;
       const e = this.enemies[i];
       if (pk.trash) e.maxHp = e.hp = e.maxHp * KILNTRASH.hp;
+      // The opening: each room's foe at its own health (FIRST_DELVE.kindHp); R1's hounds bigger and slower.
+      else if (this.firstDelve) {
+        e.maxHp = e.hp = e.maxHp * (FIRST_DELVE.kindHp[f.kind] ?? 1);
+        if (f.kind === 'cinderhound') e.def = OPENING_HOUND;
+      }
       // KILNTRASH.named (design, 25 Nov): on a map with trash, the other packs' foes at this share of health.
       else if (KILNTRASH.named !== 1 && this.halls!.packs.some((q) => q.trash)) e.maxHp = e.hp = e.maxHp * KILNTRASH.named;
       if (firstElite < 0 && e.def.rank === 'elite') firstElite = i;
@@ -4336,6 +4352,12 @@ export class World {
       this.events.push({ type: 'parry', x: p.x, y: p.y });
       return;
     }
+    // The opening (opening.md rule 1): you can't lose it. The hero holds at 1 health, nothing says so, and the run counts
+    // the blows that would have felled it (floorSaves), to see where new players struggle.
+    if (this.firstDelve && amount >= p.hp && p.hp > 0) {
+      this.floorSaves++;
+      amount = Math.max(0, p.hp - 1);
+    }
     this.noteHurt(p, Math.min(amount, Math.max(0, p.hp)), cause ?? (src >= 0 ? this.enemies[src]?.def.name : undefined) ?? 'the dungeon');
     p.hp -= amount;
     p.hurtFlash = 0.15;
@@ -4605,6 +4627,11 @@ export class World {
       p.interrupts = (p.interrupts ?? 0) + 1;
       this.cancelCast(t);
       e.stunT = 2;
+      // The opening (R5, opening.md): a Quenched cast staggers the caster.
+      if (this.firstDelve && e.def.rank !== 'boss') {
+        e.staggerT = FIRST_DELVE.stagger.time;
+        this.events.push({ type: 'staggered', x: e.x, y: e.y, time: FIRST_DELVE.stagger.time });
+      }
       // Reaching Light: Hushing a Spitter gives some of Hush back.
       if (e.kind === 'emberSpitter' && this.rank('reachingLight') > 0) p.cds[3] = Math.max(0, p.cds[3] - SITE_CARDS.hushRefund * this.rank('reachingLight'));
       // Kilnbreaker: an interrupt sharpens you (2 pieces) and exposes the foe (3).
@@ -6419,6 +6446,7 @@ export class World {
 
       if (e.woundT > 0) e.woundT -= dt;
       if ((e.exposedT ?? 0) > 0) e.exposedT = (e.exposedT ?? 0) - dt;
+      if ((e.staggerT ?? 0) > 0) e.staggerT = (e.staggerT ?? 0) - dt;
       if (e.burnT > 0) {
         e.burnT -= dt;
         this.burnTick = true;
@@ -6481,7 +6509,8 @@ export class World {
         mx = v.x * speed;
         my = v.y * speed;
       }
-      if (FOE_AI_LUNGERS.has(e.kind) && e.def.rank !== 'boss') {
+      // The opening's hounds don't lunge: red on the floor is R3's lesson (FIRST_DELVE.hound).
+      if (FOE_AI_LUNGERS.has(e.kind) && e.def.rank !== 'boss' && !this.firstDelve) {
         const l = this.runLunge(i, p, d, dt, speed);
         if (l) { mx = l.x; my = l.y; }
       }
@@ -7141,7 +7170,7 @@ export class World {
     }
     if (e.kind === 'husk') {
       if (e.abilityT <= 0 && dist2(p.x, p.y, e.x, e.y) < 220 * 220) {
-        e.abilityT = 4.5;
+        e.abilityT = this.firstDelve ? FIRST_DELVE.slamEvery : 4.5;
         this.startCast(i, 'slam', 'Warden Slam', 1.2, false);
         this.addTelegraph('circle', e.x, e.y, 115, 0, 0, 1.2, 24, 'hit', i);
       }
@@ -7670,6 +7699,7 @@ export class World {
     let m = 1;
     if ((p.kbT ?? 0) > 0) m *= 1 + SET_TUNING.kbDamage;
     if ((e.exposedT ?? 0) > 0) m *= 1 + SET_TUNING.kbExposed;
+    if ((e.staggerT ?? 0) > 0) m *= FIRST_DELVE.stagger.taken;
     if ((p.gwT ?? 0) > 0) m *= 1 + SET_TUNING.gwDamage;
     if ((p.warmth ?? 0) > 0) m *= 1 + SET_TUNING.hkDamage * (p.warmth ?? 0);
     if (p.planted && this.setCount('wrackrider') >= 3) m *= 1 + SET_TUNING.wrDamage;
@@ -7906,9 +7936,9 @@ export class World {
     }
     if (e.kind === 'cinderBrute') this.dropLoot(e.x, e.y, 'elite');
     if (this.stress && e.def.rank === 'normal' && this.rng.chance(TRASH_DROP)) this.dropLoot(e.x, e.y, 'trash');
-    if (e.kind === 'cinderBrute') {
+    if (e.kind === 'cinderBrute' && !this.firstDelve) {
       this.eliteKilled = true;
-      // Elite chest: a free bonus draft.
+      // Elite chest: a free bonus draft (not in the opening: one draft per room clear is enough to read).
       this.events.push({ type: 'chest', x: e.x, y: e.y });
       for (let h = 0; h < this.heroes.length; h++) this.heroPlayer(h).pendingLevels++;
     }
@@ -10332,6 +10362,8 @@ export class World {
 
   private dropLoot(x: number, y: number, source: LootSource): void {
     if (!this.fillKeeps()) return;
+    // The opening (opening.md rule 4): no bags from foes; the Kiln Mother's item is picked up straight away.
+    if (this.firstDelve) return;
     const item = this.makeItem(source);
     const d = this.drops.find((q) => !q.alive);
     if (!d) {
@@ -11099,6 +11131,13 @@ export const FOE_AI = {
 /** Foes that keep their own way of moving (they hang back, guard, plant or charge), so FOE_AI leaves their walk alone. */
 export const FOE_AI_OWN_MOVE: ReadonlySet<EnemyKind> = new Set<EnemyKind>(['emberSpitter', 'ashwall', 'dimhorn', 'lampeye', 'ballast', 'ashbuck', 'kilnMother', 'sluiceCrawler']);
 /** The fast pack chasers with no charge of their own: these lunge. */
+/** The opening's R1 hound (FIRST_DELVE.hound): a Cinderhound, bigger and slower. */
+const OPENING_HOUND: EnemyDef = {
+  ...ENEMIES.cinderhound,
+  speed: ENEMIES.cinderhound.speed * FIRST_DELVE.hound.speed,
+  radius: Math.round(ENEMIES.cinderhound.radius * FIRST_DELVE.hound.size),
+  size: FIRST_DELVE.hound.size,
+};
 export const FOE_AI_LUNGERS: ReadonlySet<EnemyKind> = new Set<EnemyKind>(['cinderhound', 'ashling', 'slagling', 'shade', 'rimehound', 'snuffer', 'shoalLurker']);
 /** A steady 0..1 number per foe slot and salt (no draw from the run's Rng, so nothing else shifts). */
 function foeHash(i: number, salt: number): number {

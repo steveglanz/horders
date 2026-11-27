@@ -5,7 +5,7 @@
 import { zoomCap } from './camera';
 import { corridorEnds } from '../sim/halls';
 import { OMENS } from '../sim/content/omens';
-import { coachLine } from '../sim/content/firstdelve';
+import { coachLine, OPENING_LINES } from '../sim/content/firstdelve';
 import { RELICS } from '../sim/content/relics';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
@@ -445,6 +445,8 @@ export class GameScene extends Phaser.Scene {
   private bossFlash = 0;
   /** Set when a boss falls, so the end screen waits for the death moment. */
   private bossFell = false;
+  /** The opening: the first Quench's line has shown (reset each run in create). */
+  private firstQuenchSaid = false;
   /** When each loot drop appeared (scene ms), for its pop-in. */
   private dropBorn: number[] = [];
   /** Set when the frame rate sags: drops cosmetic extras (shadows under fodder, embers in the air). */
@@ -583,6 +585,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     if (!this.textures.exists('ground')) buildTextures(this);
     const w = this.world;
+    this.firstQuenchSaid = false;
     audio.theme(themeFor(w.dungeonId));
 
     this.ground = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'ground').setOrigin(0.5).setScrollFactor(0).setDepth(-10);
@@ -796,7 +799,9 @@ export class GameScene extends Phaser.Scene {
     // Every Halls dungeon's own name (phone pass 25 Nov: the Hammerdeep opened as "The Kiln Depths").
     // CP2 Kiln panel (27 Nov): in the Kiln run a room's foes all wake as you walk in (roomWake), so the old "sleep until
     // you step close" line had players walk in expecting to pick their pull.
-    if (w.halls?.packs.some((p) => p.roomWake)) this.hud.banner(w.dungeonDef.name, this.hud.compact ? 'A room wakes when you walk in. The door guard must fall.' : 'Every foe in a room wakes as you walk in, so take each room as one fight. The door guard must fall before the boss door opens.');
+    // The opening (opening.md rule 5, seven words): just the name; the coach says what to do.
+    if (w.firstDelve) this.hud.banner(w.dungeonDef.name, '');
+    else if (w.halls?.packs.some((p) => p.roomWake)) this.hud.banner(w.dungeonDef.name, this.hud.compact ? 'A room wakes when you walk in. The door guard must fall.' : 'Every foe in a room wakes as you walk in, so take each room as one fight. The door guard must fall before the boss door opens.');
     else if (w.halls) this.hud.banner(w.dungeonDef.name, this.hud.compact ? 'Foes sleep until you step close. Pick your fights; the door guard must fall.' : 'Foes sleep until you step into their red ring, so pick your fights. The door guard must fall before the boss door opens.');
   }
 
@@ -1570,6 +1575,14 @@ export class GameScene extends Phaser.Scene {
           // The skill moment of the game: a short freeze and a nudge of the camera.
           if (!this.coop) this.stop(0.06);
           this.shakeBy(0.12);
+          // The opening (R5, opening.md): the Hearthkeeper's line on the first Quench.
+          if (w.firstDelve && !this.firstQuenchSaid) {
+            this.firstQuenchSaid = true;
+            this.hud.banner(OPENING_LINES.firstQuench, '');
+          }
+          break;
+        case 'staggered':
+          this.floatText(ev.x, ev.y - 60, 'Staggered', '#8fd8ff', 16);
           break;
         case 'cleanse':
           // Hammerdeep: an ally's heal broke Slag Grip.
@@ -1916,7 +1929,7 @@ export class GameScene extends Phaser.Scene {
             ? ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.`
             : '';
           // L1: the first delve coaches each fight instead of the usual tip. Coach lines get the full-length banner.
-          const coach = w.firstDelve ? coachLine(ev.id, w.unlocked(3) ? w.abilities[3].name : undefined) : undefined;
+          const coach = w.firstDelve ? coachLine(ev.id, w.unlocked(3) ? w.abilities[3].name : undefined, w.abilities[0]?.name) : undefined;
           // V4: the first fight also names the Day's Heat.
           const heatDef = ev.index === 0 && w.heat ? HEATS[w.heat] : undefined;
           const heat = heatDef ? ` Today's Heat, ${heatDef.name}: ${heatDef.text}` : '';
@@ -1943,7 +1956,8 @@ export class GameScene extends Phaser.Scene {
           const title = ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${worldBossLabel(w.worldBoss)}` : def.name;
           const named = events.find((e) => e.type === 'namedSpawn');
           const namedNext = named?.type === 'namedSpawn' ? { title: named.name, sub: namedLine(named.affix) } : undefined;
-          if (w.hallsOn && !coach && !omens && !heat) {
+          // The opening's rooms with an empty coach line ('') open on the name alone (their line comes at the moment).
+          if (w.hallsOn && coach === undefined && !omens && !heat) {
             // Halls (keep it simple, design 25 Nov, every screen): a pack's tip shows only the first time this hero meets
             // that encounter, then just its name. A named foe folds into the same banner instead of a second one.
             const met = this.hud.tipSeen?.(ev.id) ?? false;
@@ -1955,7 +1969,7 @@ export class GameScene extends Phaser.Scene {
               .map((l) => l.trim()).filter(Boolean);
             if (met && ground.trim()) lines.unshift(ground.trim());
             this.hud.banner(title, lines.join(' '));
-          } else if (this.hud.compact && !coach && (omens || heat)) {
+          } else if (this.hud.compact && coach === undefined && (omens || heat)) {
             // Phones: the fight tip and floor line first, then the Omens and Heat on a banner of their own,
             // so neither is cut off (a tip, a floor line, the Heat and four Omens don't fit even 4 lines at 320 wide).
             // The Omens banner names them only (details in pause); a Heat on its own has room for its line.
@@ -1963,7 +1977,7 @@ export class GameScene extends Phaser.Scene {
               ? { title: w.omens.length === 1 ? 'Omen' : 'Omens', sub: `${w.omens.map((o) => OMENS[o].name).join(', ')}. Details in pause.${heatDef ? ` The Court's Mood: ${heatDef.name}.` : ''}` }
               : { title: "Today's Heat", sub: `${heatDef!.name}: ${heatDef!.text}` };
             this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, namedNext ?? next);
-          } else if (this.hud.compact && !coach && (shaped || w.stir)) {
+          } else if (this.hud.compact && coach === undefined && (shaped || w.stir)) {
             // Phones: a long fight tip, a floor line and the wave line overflow even 4 lines at 320 wide (the Ashbuck
             // in the Dark: 198 characters), and the wave line is the part cut off. Each gets its own banner right after,
             // the stir first (Y10), then the wave, then a named foe's (if one stepped out).
@@ -2241,7 +2255,7 @@ export class GameScene extends Phaser.Scene {
       }
       // Spawn: rise out of the ground with a little overshoot. Hit: squash.
       const age = w.time - e.spawnedAt;
-      let k = 1;
+      let k = e.def.size ?? 1;
       if (age < 0.3) {
         const t = age / 0.3;
         k = 0.3 + 0.7 * t + Math.sin(t * Math.PI) * 0.25;
