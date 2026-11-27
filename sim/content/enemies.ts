@@ -13,6 +13,8 @@ export interface EnemyDef {
   stationary?: boolean;
   /** Shown under the name on nameplates and the target frame. */
   title?: string;
+  /** Drawn this much bigger than its art (the opening's big, slow hounds, FIRST_DELVE.hound). */
+  size?: number;
 }
 
 export type EnemyKind =

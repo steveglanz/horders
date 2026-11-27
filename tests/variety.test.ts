@@ -38,7 +38,7 @@ describe('V1 variety: the Kiln\'s new foes', () => {
       expect(new Set(ENCOUNTERS[id].spawns.map((s) => s.kind)).size, id).toBe(2);
       for (const o of Object.values(DUNGEONS)) if (o.id !== 'kiln') expect(o.openers, `${o.id} ${id}`).not.toContain(id);
     }
-    expect(FIRST_DELVE.route).toEqual(['pack', 'brute', 'acolytes', 'kilnMother']);
+    expect(FIRST_DELVE.route).toEqual(['pack', 'wardens', 'brute', 'kilnMother']);
   });
 
   it('an Ember Spitter backs off when you close in, and lobs a fire circle where you stand', () => {

@@ -1782,7 +1782,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         if (!m) { f.mesh.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; } if (f.horn) f.horn.g.visible = false; if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; } hideExtra(f); continue; }
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
-        wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
+        // The opening's big hounds (EnemyDef.size) are drawn bigger than their art.
+        const big = e.def.size ?? 1;
+        wd = d.w * A.texScale * S * big; ht = d.h * A.texScale * S * big;
         m.emissiveIntensity = e.flash > 0 ? Math.max(0.7, FOE_GLOW[e.kind] ?? 0) : FOE_GLOW[e.kind] ?? foeGlow; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
         if (hfx && hfx.flash > 0) { const fm = foeFlashMat(key, fr, hfx.flash); if (fm) f.mesh.material = fm; }
       }

@@ -457,6 +457,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'namedKill': return { id: c.namedAffix === 'Brood' ? 'namedKillBrood' : 'namedKill' };
     // Boil-over is the boss's clock everyone hears; a boss's own enrage on top of it (the Kiln Mother's at 150 s) is quiet.
     case 'boilOver': return { id: 'enrage' };
+    case 'bossSay': return null; // CP3 Kiln Mother taunts: text only, the stage cues already sound
     case 'bossEnrage': return null;
     case 'phase': return { id: (c.boss === 'worldShadow' && c.worldBoss && SHADOW_STING[c.worldBoss]) || phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
     case 'explode':
@@ -521,6 +522,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (ev.id === 'churn') return { id: 'churn', jitter: 0.06 };
       return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : ev.id === 'ebb' && c.whirl ? 'whirlWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
+    // The opening's stagger rides on the interrupt's own sound.
+    case 'staggered': return null;
     // The Hoard: Swallow is the fight's main alarm for everyone (break the Craw); getting out or digesting is news for all.
     case 'swallowed': return { id: 'swallowed' };
     case 'spatOut': return mine(ev.hero) ? { id: 'spatOut' } : { id: 'spatOut', vol: 0.7 };

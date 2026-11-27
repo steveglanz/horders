@@ -9,7 +9,7 @@
    "wins": 6,
    "median": {
     "trash": 13,
-    "named": 33,
+    "named": 30,
     "boss": 23
    },
    "n": {
@@ -17,7 +17,7 @@
     "named": 9,
     "boss": 6
    },
-   "delve": 128
+   "delve": 127
   },
   {
    "place": "kiln",
@@ -96,18 +96,18 @@
    "tier": 4,
    "cls": "emberwright",
    "seeds": 6,
-   "wins": 5,
+   "wins": 6,
    "median": {
     "trash": 24,
     "named": 32,
-    "boss": 53
+    "boss": 41
    },
    "n": {
     "trash": 8,
     "named": 16,
-    "boss": 5
+    "boss": 6
    },
-   "delve": 221
+   "delve": 193
   },
   {
    "place": "foundry",
@@ -189,15 +189,15 @@
    "wins": 6,
    "median": {
     "trash": 19,
-    "named": 32,
-    "boss": 25
+    "named": 31,
+    "boss": 23
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 168
+   "delve": 164
   },
   {
    "place": "hammerdeep",
@@ -207,15 +207,15 @@
    "wins": 6,
    "median": {
     "trash": 19,
-    "named": 33,
-    "boss": 24
+    "named": 31,
+    "boss": 23
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 167
+   "delve": 166
   },
   {
    "place": "hammerdeep",
@@ -225,15 +225,15 @@
    "wins": 6,
    "median": {
     "trash": 21,
-    "named": 32,
-    "boss": 23
+    "named": 31,
+    "boss": 22
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 167
+   "delve": 164
   },
   {
    "place": "hammerdeep",
@@ -243,15 +243,15 @@
    "wins": 6,
    "median": {
     "trash": 20,
-    "named": 32,
-    "boss": 24
+    "named": 31,
+    "boss": 22
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 168
+   "delve": 164
   },
   {
    "place": "hammerdeep",
@@ -262,32 +262,32 @@
    "median": {
     "trash": 18,
     "named": 26,
-    "boss": 18
+    "boss": 17
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 142
+   "delve": 137
   },
   {
    "place": "glarewell",
    "tier": 7,
    "cls": "emberwright",
    "seeds": 6,
-   "wins": 0,
+   "wins": 2,
    "median": {
     "trash": 41,
     "named": 52,
-    "boss": null
+    "boss": 79
    },
    "n": {
     "trash": 8,
     "named": 7,
-    "boss": 0
+    "boss": 2
    },
-   "delve": null
+   "delve": 317
   },
   {
    "place": "glarewell",
@@ -366,18 +366,18 @@
    "tier": 10,
    "cls": "emberwright",
    "seeds": 6,
-   "wins": 2,
+   "wins": 3,
    "median": {
     "trash": 38,
-    "named": 43,
-    "boss": 116
+    "named": 38,
+    "boss": 91
    },
    "n": {
     "trash": 8,
     "named": 13,
-    "boss": 2
+    "boss": 3
    },
-   "delve": 342
+   "delve": 302
   },
   {
    "place": "coldmarrow",
@@ -456,18 +456,18 @@
    "tier": 13,
    "cls": "emberwright",
    "seeds": 6,
-   "wins": 3,
+   "wins": 6,
    "median": {
     "trash": 40,
-    "named": 65,
-    "boss": 134
+    "named": 63,
+    "boss": 93
    },
    "n": {
     "trash": 8,
     "named": 16,
-    "boss": 3
+    "boss": 6
    },
-   "delve": 436
+   "delve": 345
   },
   {
    "place": "wrackline",

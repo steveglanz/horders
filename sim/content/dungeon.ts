@@ -114,7 +114,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   hessa: { id: 'hessa', name: 'Aunt Ebb', tip: 'She holds the drain. Hit her between pulls, and keep a raft afloat.', spawns: [{ kind: 'hessa', n: 1 }] },
   nhevra: { id: 'nhevra', name: 'The Banked Queen', tip: 'Quench her Snuff, kill the Snuffers, and keep your coal bright for the Long Night.', spawns: [{ kind: 'nhevra', n: 1 }] },
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', tip: 'Heal the Ladle burn off the tank, dodge the molten lanes, then fill the vents and spread for the Cinder Marks.', spawns: [{ kind: 'grandmotherSlag', n: 1 }] },
-  kilnMother: { id: 'kilnMother', name: 'The Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
+  kilnMother: { id: 'kilnMother', name: 'The Kiln Mother', tip: 'Stand at her side, out of her Swipe, and stamp her eggs.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 /** V8: Nhevra's intro when this run's version brings the Emberdrift from phase 2. */
 export const CREEPING_RIME_TIP = 'Quench her Snuff and kill the Snuffers. Later a patch of rime creeps after you and smothers your coal: keep moving and lead it away.';
@@ -156,10 +156,10 @@ export const PLATE_SHIFT_TIP = 'His front is plated: the tank holds it, everyone
 export const TITHE_TIP = 'Its Decree burns whoever holds it: walk it to an ally to pass it on before it bursts. Later, when he demands a Tithe, at least two of you stand in the gold circle to share it, or everyone pays.';
 export const COURT_TIP = 'Its Decree burns whoever holds it: walk it to an ally to pass it on before it bursts. Later, when he calls a Summons, step out of the ash and come close to him before it lands.';
 /** V3: the Kiln Mother's intro when this run's version breathes in (Kiln Draw) from phase 2. */
-export const KILN_DRAW_TIP = 'Quench her Cataclysm at first. Later she breathes in and pulls you to her fire: walk away from her.';
+export const KILN_DRAW_TIP = 'Stand at her side and stamp her eggs. Later she breathes fire out the front: get behind her.';
 /** Phase 15 Y3: the Kiln Mother's intro when this run's version pours Turning Fire from phase 2. */
 export const SEALED_VENTS_TIP = 'Kite her over the steam vents to boil off her Temper. Later only one vent steams: drag her to it, and watch for the steam to move.';
-export const TURNING_FIRE_TIP = 'Quench her Cataclysm at first. Later she pours fire round herself, cone after cone: step back against the turn.';
+export const TURNING_FIRE_TIP = 'Stand at her side and stamp her eggs. Later she pours fire round herself, cone after cone: follow it round.';
 
 
 export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible' | 'wrackline' | 'pressworks' | 'hoard' | 'smeltery' | 'flue';
