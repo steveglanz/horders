@@ -64,14 +64,14 @@
    "median": {
     "trash": 15,
     "named": 40,
-    "boss": 80
+    "boss": 51
    },
    "n": {
     "trash": 15,
     "named": 9,
     "boss": 6
    },
-   "delve": 193
+   "delve": 164
   },
   {
    "place": "kiln",
@@ -82,14 +82,14 @@
    "median": {
     "trash": 6,
     "named": 10,
-    "boss": 39
+    "boss": 52
    },
    "n": {
     "trash": 15,
     "named": 9,
     "boss": 6
    },
-   "delve": 99
+   "delve": 113
   },
   {
    "place": "foundry",
@@ -154,14 +154,14 @@
    "median": {
     "trash": 18,
     "named": 40,
-    "boss": 87
+    "boss": 52
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 243
+   "delve": 208
   },
   {
    "place": "foundry",
@@ -172,14 +172,14 @@
    "median": {
     "trash": 7,
     "named": 11,
-    "boss": 29
+    "boss": 56
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 105
+   "delve": 132
   },
   {
    "place": "hammerdeep",
@@ -334,14 +334,14 @@
    "median": {
     "trash": 38,
     "named": 71,
-    "boss": 168
+    "boss": 95
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 443
+   "delve": 363
   },
   {
    "place": "glarewell",
@@ -352,14 +352,14 @@
    "median": {
     "trash": 11,
     "named": 19,
-    "boss": 47
+    "boss": 82
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 143
+   "delve": 177
   },
   {
    "place": "coldmarrow",
@@ -420,18 +420,18 @@
    "tier": 10,
    "cls": "lumen",
    "seeds": 6,
-   "wins": 5,
+   "wins": 6,
    "median": {
     "trash": 26,
     "named": 52,
-    "boss": 120
+    "boss": 68
    },
    "n": {
     "trash": 8,
     "named": 16,
-    "boss": 5
+    "boss": 6
    },
-   "delve": 318
+   "delve": 257
   },
   {
    "place": "coldmarrow",
@@ -442,14 +442,14 @@
    "median": {
     "trash": 11,
     "named": 19,
-    "boss": 30
+    "boss": 50
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 130
+   "delve": 152
   },
   {
    "place": "wrackline",
@@ -514,14 +514,14 @@
    "median": {
     "trash": 36,
     "named": 76,
-    "boss": 115
+    "boss": 63
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 414
+   "delve": 365
   },
   {
    "place": "wrackline",
@@ -532,14 +532,14 @@
    "median": {
     "trash": 15,
     "named": 25,
-    "boss": 30
+    "boss": 51
    },
    "n": {
     "trash": 8,
     "named": 16,
     "boss": 6
    },
-   "delve": 152
+   "delve": 173
   }
  ]
 }
