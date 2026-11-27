@@ -88,6 +88,3 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   /** BOSSV2 (design, 25 Nov): the Kiln Mother's stage 2 bellows. They don't attack; break all 3 and she falls out stunned. */
   kilnBellows: { id: 'kilnBellows', name: 'Kiln Bellows', hp: 200, speed: 0, damage: 0, radius: 24, xp: 0, rank: 'normal', stationary: true },
 };
-
-// DELIBERATELY SLOW TEST COMMIT (fight-budget gate proof, reverted in the next commit): every foe 1.5x health.
-for (const e of Object.values(ENEMIES)) e.hp *= 1.5;
