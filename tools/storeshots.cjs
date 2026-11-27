@@ -1,4 +1,4 @@
-// Store page assets (roadmap L5): app icons from docs/store/icon.svg, store screenshots
+// Store page assets (roadmap L5): app icons from assets/icon.svg (the app's hoard beast), store screenshots
 // at the sizes the stores ask for, and an optional 30 s trailer capture.
 //
 //   npm run build && node tools/storeshots.cjs <outDir> [icons] [phone] [landscape] [desktop] [trailer]
@@ -39,7 +39,7 @@ function serve() {
 }
 
 async function icons(browser) {
-  const svg = fs.readFileSync(path.resolve('docs/store/icon.svg'), 'utf8');
+  const svg = fs.readFileSync(path.resolve('assets/icon.svg'), 'utf8');
   // Rounded-corner preview of how a launcher masks it, plus the full-bleed sizes stores take.
   const sizes = [1024, 512, 192, 180, 48, 32];
   for (const s of sizes) {
