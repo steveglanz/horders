@@ -1,0 +1,545 @@
+{
+ "seeds": "1-6",
+ "cells": [
+  {
+   "place": "kiln",
+   "tier": 1,
+   "cls": "emberwright",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 13,
+    "named": 33,
+    "boss": 23
+   },
+   "n": {
+    "trash": 15,
+    "named": 9,
+    "boss": 6
+   },
+   "delve": 128
+  },
+  {
+   "place": "kiln",
+   "tier": 1,
+   "cls": "duskblade",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 6,
+    "named": 20,
+    "boss": 33
+   },
+   "n": {
+    "trash": 15,
+    "named": 9,
+    "boss": 6
+   },
+   "delve": 106
+  },
+  {
+   "place": "kiln",
+   "tier": 1,
+   "cls": "bulwark",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 6,
+    "named": 23,
+    "boss": 48
+   },
+   "n": {
+    "trash": 15,
+    "named": 9,
+    "boss": 6
+   },
+   "delve": 126
+  },
+  {
+   "place": "kiln",
+   "tier": 1,
+   "cls": "lumen",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 13,
+    "named": 41,
+    "boss": 35
+   },
+   "n": {
+    "trash": 15,
+    "named": 9,
+    "boss": 6
+   },
+   "delve": 143
+  },
+  {
+   "place": "kiln",
+   "tier": 1,
+   "cls": "slagbinder",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 4,
+    "named": 10,
+    "boss": 44
+   },
+   "n": {
+    "trash": 15,
+    "named": 9,
+    "boss": 6
+   },
+   "delve": 99
+  },
+  {
+   "place": "foundry",
+   "tier": 4,
+   "cls": "emberwright",
+   "seeds": 6,
+   "wins": 5,
+   "median": {
+    "trash": 24,
+    "named": 32,
+    "boss": 53
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 5
+   },
+   "delve": 221
+  },
+  {
+   "place": "foundry",
+   "tier": 4,
+   "cls": "duskblade",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 9,
+    "named": 25,
+    "boss": 77
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 192
+  },
+  {
+   "place": "foundry",
+   "tier": 4,
+   "cls": "bulwark",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 9,
+    "named": 26,
+    "boss": 88
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 225
+  },
+  {
+   "place": "foundry",
+   "tier": 4,
+   "cls": "lumen",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 14,
+    "named": 39,
+    "boss": 87
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 236
+  },
+  {
+   "place": "foundry",
+   "tier": 4,
+   "cls": "slagbinder",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 7,
+    "named": 11,
+    "boss": 31
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 103
+  },
+  {
+   "place": "hammerdeep",
+   "tier": 4,
+   "cls": "emberwright",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 19,
+    "named": 32,
+    "boss": 25
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 168
+  },
+  {
+   "place": "hammerdeep",
+   "tier": 4,
+   "cls": "duskblade",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 19,
+    "named": 33,
+    "boss": 24
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 167
+  },
+  {
+   "place": "hammerdeep",
+   "tier": 4,
+   "cls": "bulwark",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 21,
+    "named": 32,
+    "boss": 23
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 167
+  },
+  {
+   "place": "hammerdeep",
+   "tier": 4,
+   "cls": "lumen",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 20,
+    "named": 32,
+    "boss": 24
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 168
+  },
+  {
+   "place": "hammerdeep",
+   "tier": 4,
+   "cls": "slagbinder",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 18,
+    "named": 26,
+    "boss": 18
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 142
+  },
+  {
+   "place": "glarewell",
+   "tier": 7,
+   "cls": "emberwright",
+   "seeds": 6,
+   "wins": 0,
+   "median": {
+    "trash": 41,
+    "named": 52,
+    "boss": null
+   },
+   "n": {
+    "trash": 8,
+    "named": 7,
+    "boss": 0
+   },
+   "delve": null
+  },
+  {
+   "place": "glarewell",
+   "tier": 7,
+   "cls": "duskblade",
+   "seeds": 6,
+   "wins": 4,
+   "median": {
+    "trash": 14,
+    "named": 43,
+    "boss": 145
+   },
+   "n": {
+    "trash": 8,
+    "named": 15,
+    "boss": 4
+   },
+   "delve": 308
+  },
+  {
+   "place": "glarewell",
+   "tier": 7,
+   "cls": "bulwark",
+   "seeds": 6,
+   "wins": 2,
+   "median": {
+    "trash": 14,
+    "named": 35,
+    "boss": 150
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 2
+   },
+   "delve": 323
+  },
+  {
+   "place": "glarewell",
+   "tier": 7,
+   "cls": "lumen",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 38,
+    "named": 71,
+    "boss": 168
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 443
+  },
+  {
+   "place": "glarewell",
+   "tier": 7,
+   "cls": "slagbinder",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 11,
+    "named": 19,
+    "boss": 47
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 143
+  },
+  {
+   "place": "coldmarrow",
+   "tier": 10,
+   "cls": "emberwright",
+   "seeds": 6,
+   "wins": 2,
+   "median": {
+    "trash": 38,
+    "named": 43,
+    "boss": 116
+   },
+   "n": {
+    "trash": 8,
+    "named": 13,
+    "boss": 2
+   },
+   "delve": 342
+  },
+  {
+   "place": "coldmarrow",
+   "tier": 10,
+   "cls": "duskblade",
+   "seeds": 6,
+   "wins": 5,
+   "median": {
+    "trash": 15,
+    "named": 31,
+    "boss": 94
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 5
+   },
+   "delve": 228
+  },
+  {
+   "place": "coldmarrow",
+   "tier": 10,
+   "cls": "bulwark",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 13,
+    "named": 28,
+    "boss": 86
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 203
+  },
+  {
+   "place": "coldmarrow",
+   "tier": 10,
+   "cls": "lumen",
+   "seeds": 6,
+   "wins": 5,
+   "median": {
+    "trash": 26,
+    "named": 52,
+    "boss": 120
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 5
+   },
+   "delve": 318
+  },
+  {
+   "place": "coldmarrow",
+   "tier": 10,
+   "cls": "slagbinder",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 11,
+    "named": 19,
+    "boss": 30
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 130
+  },
+  {
+   "place": "wrackline",
+   "tier": 13,
+   "cls": "emberwright",
+   "seeds": 6,
+   "wins": 3,
+   "median": {
+    "trash": 40,
+    "named": 65,
+    "boss": 134
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 3
+   },
+   "delve": 436
+  },
+  {
+   "place": "wrackline",
+   "tier": 13,
+   "cls": "duskblade",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 16,
+    "named": 40,
+    "boss": 134
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 298
+  },
+  {
+   "place": "wrackline",
+   "tier": 13,
+   "cls": "bulwark",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 21,
+    "named": 50,
+    "boss": 209
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 407
+  },
+  {
+   "place": "wrackline",
+   "tier": 13,
+   "cls": "lumen",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 36,
+    "named": 76,
+    "boss": 115
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 414
+  },
+  {
+   "place": "wrackline",
+   "tier": 13,
+   "cls": "slagbinder",
+   "seeds": 6,
+   "wins": 6,
+   "median": {
+    "trash": 15,
+    "named": 25,
+    "boss": 30
+   },
+   "n": {
+    "trash": 8,
+    "named": 16,
+    "boss": 6
+   },
+   "delve": 152
+  }
+ ]
+}

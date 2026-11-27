@@ -139,8 +139,10 @@ describe('the opening coach', () => {
     expect(c.finished).toBe(true);
   });
 
-  it('without F yet, it ends after the roll', () => {
+  it('without F, it ends after the roll', () => {
+    // F opens at level 1 for every class now (#898); a hero without it is kept as a fallback.
     const w = opening();
+    (w as unknown as { unlocked: (s: number) => boolean }).unlocked = () => false;
     const c = new OpeningCoach(true);
     c.step = 'quench';
     expect(c.tick(w, [button(), button(), button(), button()], button())).toBeNull();

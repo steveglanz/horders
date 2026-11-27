@@ -49,6 +49,12 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
   if (!w0.first || w0.cls !== 'emberwright' || w0.route.join() !== 'pack,wardens,brute,kilnMother' || w0.worldBoss || w0.omens.length) fail('not the opening route');
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${out}/1-move.png` });
+  // Every coach line, however briefly it shows (the bot Quenches within a fraction of a second, between polls).
+  await page.evaluate(() => {
+    window.__coachSeen = [];
+    new MutationObserver(() => { const c = document.querySelector('#coach'); if (c && !c.hidden && c.textContent && !window.__coachSeen.includes(c.textContent.trim())) window.__coachSeen.push(c.textContent.trim()); })
+      .observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
+  });
   await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = false; s.warp = 3; });
   const said = [];
   const shot = new Set();
@@ -70,6 +76,7 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
     await page.waitForTimeout(150);
   }
   await page.waitForTimeout(800);
+  for (const v of await page.evaluate(() => window.__coachSeen)) if (!said.some((x) => x.k === 'coach' && x.v === v)) { said.push({ k: 'coach', v, t: -1 }); console.log(`  (between polls) coach: ${v}`); }
   const end = await page.evaluate(() => { const s = window.__ember.scene().world.summary(); return { victory: s.victory, time: Math.round(s.time), floorSaves: s.floorSaves, firstDelve: s.firstDelve }; });
   await page.screenshot({ path: `${out}/3-end.png` });
   console.log('end:', JSON.stringify(end));
@@ -83,6 +90,12 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
   const r5 = said.find((x) => x.v.startsWith('Cinder Brute'));
   if (roll && r3 && r5 && !(roll.t >= r3.t && roll.t <= r5.t)) fail('the roll line did not come in the slammer room');
   if (said.some((x) => /door guard|Pick your fights|hulking/.test(x.v))) fail('an old tip showed in the opening');
+  // F opens at level 1 (#898): room 5 opens on its name, then the Quench line comes on the caster's first cast.
+  const quench = said.find((x) => x.v === 'A blue bar is a cast. Tap Quench, the blue button, to stop it.');
+  if (!quench) fail('no Quench line');
+  else if (r5 && quench.t >= 0 && quench.t < r5.t) fail('the Quench line came before the caster room');
+  if (said.some((x) => /step out of the ring/.test(x.v))) fail('the no-interrupt caster line showed');
+  console.log('first Quench banner:', said.some((x) => x.v.startsWith('It fears water. Of course it does.')));
   await ctx.close();
 
   // 2. Quitting mid-opening: back to the wake screen, and no run counted.

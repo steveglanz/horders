@@ -35,9 +35,9 @@ export const FIRST_DELVE = {
 
 /**
  * The opening's banner line for each room, in place of the fight's usual tip (opening.md coach lines). `q` is the
- * hero's first button (Flame Wave for the Emberwright). `quench` is the interrupt (action slot 4, the blue button):
- * Quench, Kick or Shield Toss. Until the F button opens at level 1 (opening PR 5, SLOT_UNLOCK) a new character has no
- * interrupt yet, so `quench` is left out and the caster's line teaches stepping out instead.
+ * hero's first button (Flame Wave for the Emberwright). `quench` is the interrupt or stun (action slot 4, the blue
+ * button): Quench, Kick, Shield Toss, Hush or Clinker. F opens at character level 1 (SLOT_UNLOCK, #898); with `quench`
+ * left out the caster's line teaches stepping out of the cast instead.
  * R3's red and R5's blue lines show at the moment they're needed (client/coach.ts), so their rooms open on an empty line.
  */
 export function coachLine(encounter: EncounterId, quench?: string, q = 'Flame Wave'): string | undefined {

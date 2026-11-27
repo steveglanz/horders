@@ -64,8 +64,8 @@ describe('1.0 CP2 mastery card: what the sim counts', () => {
     expect(missed('emberwright', 10, true)).toBe(1);
     expect(missed('emberwright', 10, false)).toBe(0);
     expect(missed('lumen', 10, true)).toBe(0);
-    // F is closed until level 4: nothing to count yet.
-    expect(missed('emberwright', 1, true)).toBe(0);
+    // F opens at level 1 (SLOT_UNLOCK), so a brand-new kick-class hero already counts a missed Kick.
+    expect(missed('emberwright', 1, true)).toBe(1);
   });
 });
 
