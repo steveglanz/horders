@@ -222,6 +222,8 @@ export const ABILITY_GLYPH: Record<ClassId, string[]> = {
 
 /** Slot 3 (F) is every class's interrupt. */
 export const INTERRUPT_SLOT = 3;
+/** The dodge roll's button (1.0 CP2 grey box): a body tucked into a curl, with the way it goes. */
+export const ROLL_GLYPH = 'M7 16a5 5 0 1 1 7.5 2.3 M14.5 18.3 12 21 M14.5 18.3 17.6 19.4 M15 6h6 M18 3l3 3-3 3';
 
 /**
  * Season glows whose colours sit close to another glow's get a mark of their own, so they part by shape

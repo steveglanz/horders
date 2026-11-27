@@ -1,7 +1,7 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
 import { coachLine } from '../sim/content/firstdelve';
-import { World, BOSS_PHASES, BRIM, SUMMONS, TITHE } from '../sim/world';
+import { World, BOSS_PHASES, BRIM, ROLL, ROLL_SLOT, SUMMONS, TITHE } from '../sim/world';
 import { runShape, type ShapeKind } from '../sim/runshape';
 import { HEATS, type HeatId } from '../sim/content/heat';
 import { AFFIXES } from '../sim/content/named';
@@ -11,9 +11,10 @@ import { ENCOUNTERS, worldBossLabel } from '../sim/content/dungeon';
 import { trailLabel } from '../sim/content/season';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
-import { ABILITY_GLYPH, ALT_GLYPH, BOT_GLYPH, botName, CLASS_ICON, isBotAlly, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, HEAT_ICON, heatTile, omenTile } from './icons';
+import { ABILITY_GLYPH, ALT_GLYPH, BOT_GLYPH, botName, CLASS_ICON, isBotAlly, medalTile, talentTile, INTERRUPT_SLOT, ROLL_GLYPH, SET_COLOR, SET_ICON, glyph, HEAT_ICON, heatTile, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
+import { display } from './settings';
 import { roleOf } from './net/lobby';
 import { Coach } from './coach';
 import { HELP } from '../sim/content/help';
@@ -93,6 +94,9 @@ function fmt(t: number): string {
 /** A banner to show after the current one times out; it can carry one of its own (a fight, then its wave, then a named foe). */
 export type BannerNext = { title: string; sub: string; next?: BannerNext };
 
+/** The flick roll (Dodge setting "Flick the stick"): the stick goes from under `from` of its reach to the edge within `ms`. */
+const FLICK = { from: 0.35, ms: 110 };
+
 export class Hud {
   private handlers?: RunHandlers;
   private lastTick = 0;
@@ -147,12 +151,30 @@ export class Hud {
       bar.appendChild(b);
       this.abButtons.push(b);
     });
+    // 1.0 CP2: the dodge roll every class has, after the four ability buttons (Space or Shift on a keyboard). With the
+    // Dodge setting on "Flick the stick" the button goes and a fast flick rolls instead (see the stick below).
+    const rb = document.createElement('button');
+    rb.className = 'ab roll';
+    rb.setAttribute('aria-label', 'Roll (Space)');
+    rb.dataset.tipTouch = 'off';
+    rb.title = `Roll (Space): tumble out of the way. Nothing that strikes can touch you for a moment. ${ROLL.cd}s to recharge.`;
+    rb.innerHTML = `${glyph(ROLL_GLYPH, 26)}<span class="k">␣</span><span class="n">Roll</span><span class="cd"></span>`;
+    rb.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.handlers?.onCast(ROLL_SLOT);
+    });
+    rb.hidden = matchMedia('(pointer: coarse)').matches && display.dodge === 'flick';
+    bar.appendChild(rb);
+    this.rollButton = rb;
     // The pause menu lists the same abilities, where a hold can explain them without casting.
     const pabs = $('pauseAbilities');
     pabs.style.setProperty('--ac', CLASS_ICON[cls].color);
     const next = [0, 1, 2, 3].filter((i) => !w.unlocked(i)).sort((x, y) => SLOT_UNLOCK[x] - SLOT_UNLOCK[y])[0] ?? -1;
     pabs.innerHTML = def.abilities.map((a, i) => `<div class="pab" role="button" tabindex="0"${w.unlocked(i) ? '' : ' hidden'}>${glyph(icons[i], 24)}<b>${a.name}</b></div>`).join('')
       + (next >= 0 ? `<div class="pabs-hint" style="grid-column:1/-1">${def.abilities[next].name} (${def.abilities[next].key}) unlocks at character level ${SLOT_UNLOCK[next]}.</div>` : '')
+      + (def.verb ? `<div class="pabs-hint" style="grid-column:1/-1"><b>${def.verb.name}</b>: ${def.verb.text}</div>` : '')
+      + `<div class="pabs-hint" style="grid-column:1/-1"><b>Roll</b> (${matchMedia('(pointer: coarse)').matches ? (display.dodge === 'flick' ? 'flick the stick' : 'the Roll button') : 'Space'}): nothing that strikes can touch you for a moment.</div>`
       + `<div class="pabs-hint" style="grid-column:1/-1">${matchMedia('(pointer: coarse)').matches ? 'Hold' : 'Hover'} an ability for what it does.</div>`;
     pabs.querySelectorAll('.pab').forEach((el, i) => {
       const a = def.abilities[i];
@@ -161,6 +183,7 @@ export class Hud {
   }
 
   private abButtons: HTMLButtonElement[] = [];
+  private rollButton: HTMLButtonElement | null = null;
   private coach = new Coach();
   private hpHtml = '';
   private wasDown = false;
@@ -271,6 +294,8 @@ export class Hud {
 
     // Heat and action bar.
     $('heatFill').style.width = `${(100 * p.heat) / MAX_HEAT}%`;
+    // Overheat (Emberwright): the bar runs white-hot while the fire does double damage.
+    $('heat').classList.toggle('over', w.overheated);
     setHtml($('heatText'), `<span>${w.classDef.resource}</span><b>${Math.floor(p.heat)}</b>`);
     const kick = w.interruptTarget() >= 0;
     this.abButtons.forEach((b, i) => {
@@ -285,6 +310,13 @@ export class Hud {
       b.classList.toggle('nores', p.heat < w.abilityCost(i));
       b.classList.toggle('hot', i === 3 && kick && cd <= 0);
     });
+    if (this.rollButton) {
+      const rc = Math.max(p.rollCd ?? 0, p.rollT ?? 0);
+      const cdEl = this.rollButton.querySelector('.cd') as HTMLElement;
+      cdEl.style.setProperty('--p', String(Math.min(1, rc / ROLL.cd)));
+      setText(cdEl, rc > 0.05 ? rc.toFixed(1) : '');
+      this.rollButton.hidden = matchMedia('(pointer: coarse)').matches && display.dodge === 'flick';
+    }
     if (!$('pause').hidden || !$('draft').hidden) this.coach.hide();
     else this.coach.tick(w, this.abButtons);
 
@@ -1010,6 +1042,8 @@ export class Hud {
     const base = $('stickBase');
     const knob = $('stickKnob');
     let id: number | null = null;
+    /** When the stick was last near its middle (ms), for the flick roll. */
+    let flickAt = 0;
     let ox = 0;
     let oy = 0;
     const R = 56;
@@ -1034,6 +1068,7 @@ export class Hud {
       if (id !== null && id !== e.pointerId) release();
       if (id !== null) return;
       id = e.pointerId;
+      flickAt = performance.now();
       ox = e.clientX;
       oy = e.clientY;
       base.style.left = `${ox}px`;
@@ -1054,6 +1089,14 @@ export class Hud {
       knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       // Past 30% deflection the hero runs at full speed; below it, walks.
       const mag = Math.min(1, d / R);
+      // 1.0 CP2 Dodge "Flick the stick": from near the middle to the edge within FLICK.ms rolls that way.
+      const now = performance.now();
+      if (mag < FLICK.from) flickAt = now;
+      else if (display.dodge === 'flick' && mag >= 1 && flickAt > 0 && now - flickAt <= FLICK.ms) {
+        flickAt = 0;
+        this.handlers?.onStick(dx / R, dy / R);
+        this.handlers?.onCast(ROLL_SLOT);
+      }
       if (d < 4) this.handlers?.onStick(0, 0);
       else {
         const k = mag > 0.3 ? 1 / R / mag : 1 / R;

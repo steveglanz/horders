@@ -32,6 +32,9 @@ export const BOT_PRIORITY: TalentId[] = [
   'smallHeal', 'stoke',
 ];
 
+/** The Emberwright bot spends Heat from here, before Overheat's scorch at full Heat. */
+export const OVERHEAT_SPEND = 92;
+
 /** Duskblade action choices: kick casts, execute big foes, dash in, sidestep danger. */
 function bladeCast(w: World, skill: number): number | undefined {
   const p = w.player;
@@ -395,6 +398,11 @@ function classCast(w: World, skill: number): number | undefined {
       if (d2 < 200 * 200) near++;
       if (d2 < 60 * 60) touching++;
     }
+  }
+  // Overheat: never run into full Heat (it scorches); spend before it, on whatever is in reach.
+  if (p.heat >= OVERHEAT_SPEND && w.phase === 'fight') {
+    if (can(w, 2) && (bigInReach || near >= 1)) return 2;
+    if (can(w, 0) && (near >= 1 || bigNear)) return 0;
   }
   if (can(w, 2) && (bigInReach || near >= 14)) return 2;
   if (can(w, 0) && (near >= 5 || bigNear)) return 0;
@@ -889,7 +897,27 @@ function kmStep(w: World): { dx: number; dy: number } | null {
 /** BOSSV2: how far from the middle a bot waits in the kiln stage. */
 const KM_WAIT_R = 110;
 
+/**
+ * 1.0 CP2 "roll on red": with a red mark about to land on it and the roll ready, the bot rolls, the way it was already
+ * stepping (else straight out from the mark's middle). Only while attentive, like its kicks, so a lower skill misses
+ * some. NOROLL=1 turns it off for measuring.
+ */
+export const BOT_ROLL = { lead: 0.2 };
+const NOROLL = typeof process !== 'undefined' && process.env?.NOROLL === '1';
+
 export function botInput(w: World, skill = 1): Input {
+  const inp = botMove(w, skill);
+  if (NOROLL || !w.rollReady || w.player.hp <= 0 || (w.tick % 20) / 20 >= skill) return inp;
+  const t = w.redLanding(BOT_ROLL.lead);
+  if (!t) return inp;
+  const p = w.player;
+  if (Math.hypot(inp.x, inp.y) > 0.01) return { ...inp, roll: true };
+  const dx = p.x - t.x, dy = p.y - t.y, d = Math.hypot(dx, dy);
+  // Standing on a cone's tip or a circle's exact middle: roll the way the hero faces.
+  return d > 1 ? { ...inp, x: dx / d, y: dy / d, roll: true } : { ...inp, x: Math.cos(p.facing), y: Math.sin(p.facing), roll: true };
+}
+
+function botMove(w: World, skill = 1): Input {
   const p = w.player;
   if (w.phase === 'choose' && w.gates.length) {
     const g = w.gates[botGate(w)];

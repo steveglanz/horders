@@ -161,7 +161,7 @@ describe('BOSSV2 stage 2: into the kiln', () => {
       // Stand in the safe quarter through the warning and the burn.
       const a = (w.kmHeat.safe * Math.PI) / 2;
       const hp = w.player.hp;
-      for (let n = 0; n < 30 * 5.5; n++) { w.player.x = Math.cos(a) * 250; w.player.y = Math.sin(a) * 250; for (const t of w.telegraphs) t.alive = false; one(w); }
+      for (let n = 0; n < 30 * 5.5; n++) { w.player.x = Math.cos(a) * 250; w.player.y = Math.sin(a) * 250; w.player.heat = 0; for (const t of w.telegraphs) t.alive = false; one(w); } // heat 0: no Overheat scorch (1.0 CP2)
       expect(w.player.hp).toBeGreaterThanOrEqual(hp);
     }
     for (let k = 1; k < safes.length; k++) expect(safes[k]).toBe((safes[k - 1] + 1) % 4);
