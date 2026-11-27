@@ -4,6 +4,8 @@
  * and on the main menu, and every copy of the controls stays in sync.
  */
 
+import { webglAvailable } from './hd2d/api';
+
 export type ShakeSetting = 'full' | 'reduced' | 'off';
 export type PaletteSetting = 'standard' | 'colorblind';
 /** Which side of the screen the ability buttons sit on (touch screens). */
@@ -122,8 +124,15 @@ export function mountDisplayOptions(box: HTMLElement): void {
   gfx.el.setAttribute('data-tip', 'Auto trims effects when the frame rate dips. Battery saver always does, caps at 30 fps and renders at 1x. Full never trims.');
   const text = segmented<TextSetting>('Text size', () => display.text, [['normal', 'Normal'], ['large', 'Large']], (v) => { display.text = v; });
   text.el.setAttribute('data-tip', 'Large grows nameplates, damage numbers, the fight HUD and the small print in menus.');
-  const look = segmented<LookSetting>('Look', () => display.look, [['3d', '3D'], ['2d', '2D (saves battery)']], (v) => { display.look = v; });
-  look.el.setAttribute('data-tip', 'The 3D look is the full game. The 2D look draws the same fights flat, which is lighter on the battery. Switching restarts the game screen from the main menu.');
+  // Without WebGL the 3D look can't run (client/hd2d/api.ts lookWanted), so the row shows 2D and 3D is greyed out.
+  const gl = webglAvailable();
+  const look = segmented<LookSetting>('Look', () => (gl ? display.look : '2d'), [['3d', '3D'], ['2d', '2D (saves battery)']], (v) => { if (gl) display.look = v; });
+  if (gl) look.el.setAttribute('data-tip', 'The 3D look is the full game. The 2D look draws the same fights flat, which is lighter on the battery. Switching restarts the game screen from the main menu.');
+  else {
+    look.el.setAttribute('data-tip', "This device can't draw the 3D look, so the game uses the 2D look.");
+    const b3 = look.el.querySelector<HTMLButtonElement>('button[data-v="3d"]');
+    if (b3) { b3.disabled = true; b3.setAttribute('aria-disabled', 'true'); }
+  }
   const rows = [shake, pal, text, gfx, look];
   // Only touch screens have on-screen ability buttons to move.
   if (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) {

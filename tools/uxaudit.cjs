@@ -2,6 +2,7 @@
 // (375x667 and 390x844, portrait and landscape) with a mid-game hero, against a fake backend.
 //
 //   npm run build && node tools/uxaudit.cjs <outDir> [se|13|se-land|13-land|p320|l568 ...]
+//   NOGL=1 node tools/uxaudit.cjs <outDir> p320 l568   (a browser with no WebGL: checks the automatic 2D fallback)
 //
 // Shots per viewport: hub (first screen and the whole scroll), hub with gear/talents open,
 // delve setup, co-op box, the Hero and Group tabs, settings, bags, in-run HUD, talent draft, pause, boss fight and end screen.
@@ -13,7 +14,8 @@ const http = require('http'); const fs = require('fs'); const path = require('pa
 const out = process.argv[2] || 'tools/shots/ux';
 const want = new Set(process.argv.slice(3));
 fs.mkdirSync(out, { recursive: true });
-const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+const NOGL = process.env.NOGL === '1';
+const GL = NOGL ? ['--disable-webgl', '--disable-webgl2', '--disable-3d-apis'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
 const VIEWS = {
   se: { width: 375, height: 667 },
   13: { width: 390, height: 844 },
@@ -134,6 +136,11 @@ async function run(browser, tag) {
   await page.evaluate(() => { window.__ember.scene().warp = 0; });
   await page.waitForTimeout(250);
   await shot('08-hud');
+  // Which look and renderer the run uses (Phaser renderer type 1 = Canvas, 2 = WebGL), and whether WebGL exists.
+  report.look = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    return { webgl: !!(c.getContext('webgl2') || c.getContext('webgl')), look3d: window.__ember.look3d(), renderer: window.__ember.scene().sys.game.renderer.type };
+  });
   report.hud = await metrics(page, 'hud');
   await page.evaluate(() => { window.__ember.scene().warp = 4; });
   await page.waitForFunction(() => !document.getElementById('draft').hidden, null, { timeout: 120000 }).catch(() => errs.push('no draft'));

@@ -1,0 +1,49 @@
+{
+ "viewport": {
+  "width": 320,
+  "height": 568
+ },
+ "hub": {
+  "screens": 1.45,
+  "scrollHeight": 826,
+  "small": []
+ },
+ "tab-hero": {
+  "screens": 2.17,
+  "scrollHeight": 1230,
+  "small": []
+ },
+ "tab-group": {
+  "screens": 1.15,
+  "scrollHeight": 652,
+  "small": []
+ },
+ "bags": {
+  "screens": 1,
+  "scrollHeight": 568,
+  "small": []
+ },
+ "look": {
+  "webgl": false,
+  "look3d": false,
+  "renderer": 1
+ },
+ "hud": {
+  "screens": 1,
+  "scrollHeight": 568,
+  "small": []
+ },
+ "draft": {
+  "screens": 1,
+  "scrollHeight": 568,
+  "small": [
+   "#hallsMapBtn \"Map\" 54x34"
+  ]
+ },
+ "end": {
+  "screens": 1.02,
+  "scrollHeight": 578,
+  "small": []
+ },
+ "errors": []
+}
