@@ -102,6 +102,19 @@ describe('signature verbs (1.0 CP2 grey box)', () => {
     expect(p.heat).toBe(OVERHEAT.vent);
     expect(hp - p.hp).toBeCloseTo(p.maxHp * OVERHEAT.scorch, 3);
     expect(w.events.some((e) => e.type === 'overheat')).toBe(true);
+    // While hot, orb hits feed no Heat (60% floor, 27 Nov): only the slow drift reaches 100, so spending in time avoids the scorch.
+    const gain = (from: number) => {
+      const h = room('emberwright');
+      (h as unknown as Verbs).spawn('twinLamp', h.player.x + 150, h.player.y);
+      h.phase = 'fight';
+      h.player.heat = from;
+      const steps = Math.round(3 / TICK);
+      for (let k = 0; k < steps; k++) h.step({ x: 0, y: 0 });
+      return { gain: h.player.heat - from, drift: 2 * steps * TICK };
+    };
+    const cold = gain(10), hot = gain(OVERHEAT.from);
+    expect(cold.gain).toBeGreaterThan(cold.drift + 8);
+    expect(hot.gain).toBeCloseTo(hot.drift, 0);
     // Other classes have no Overheat.
     const b = room('bulwark');
     b.player.heat = 95;
