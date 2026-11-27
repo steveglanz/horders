@@ -6691,7 +6691,8 @@ export class World {
       if (e.def.rank !== 'normal' && e.lungeW <= 0 && e.lungeD <= 0) this.runAbilities(i, dt); // no Snap mid-lunge
 
       // CP3 remake: the remade Kiln Mother (kmStage > 0) never hurts by touch; every blow of hers is a red mark first.
-      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !((this.kmStage > 0 || this.kmOpen > 0) && e.kind === 'kilnMother')) {
+      // CP4 (melee answers): nor do Maelra and the Glass Heir. Their touch only ever landed on melee, whose job is to stand there.
+      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !((this.kmStage > 0 || this.kmOpen > 0) && e.kind === 'kilnMother') && !NO_TOUCH.has(e.kind)) {
         e.touchCd = 0.6;
         const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1)
           * (e.kind === 'ysmeret' && this.ysStage === 2 ? YSMERETV2.melee : 1);
@@ -6854,7 +6855,9 @@ export class World {
     }
     e.castId = '';
     e.castName = '';
-    for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1; // let it land
+    // Let it land. CP4 (melee answers): the Glass Heir's Lens Sweep cast ends as its cone lands, so the cone stays hers
+    // (a Bulwark can parry it, and a loss names her); unowned, about half of them were "red marks on the floor".
+    if (id !== 'lensSweep') for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1;
     if (id === 'cataclysm') {
       const p = this.player;
       // The opening: un-Quenched, it lands as one light ring (FIRST_DELVE.boss.rippleDamage).
@@ -10324,7 +10327,8 @@ export class World {
       this.addTelegraph('circle', p.x, p.y, 110, 0, 0, 1.3, MAELRA_HITS.circle * mult);
     } else {
       const ang = Math.atan2(p.y - e.y, p.x - e.x);
-      this.addTelegraph('cone', e.x, e.y, 300, ang, (65 * Math.PI) / 180, 1.1, MAELRA_HITS.cone * mult);
+      // CP4: the cone is hers (owner i), as the Kiln Mother's Swipe is: a Bulwark can parry it, and a loss names her.
+      this.addTelegraph('cone', e.x, e.y, 300, ang, (65 * Math.PI) / 180, 1.1, MAELRA_HITS.cone * mult, 'hit', i);
     }
   }
 
@@ -10942,6 +10946,9 @@ export function firstClearRarity(tier: number): Rarity {
  * an Epic; `extra` adds that many more Rare-or-better items each.
  */
 export const RAID_LOOT = { epic: 1, extra: 1 };
+
+/** CP4 (melee answers, docs/design/melee-answers.md): bosses that never hurt by touch; every blow of theirs is a red mark first. */
+export const NO_TOUCH: ReadonlySet<string> = new Set(['maelra', 'lensmother']);
 
 /** The Glarewell's tuning, kept together so balance changes are data changes. */
 export const GLARE = {
