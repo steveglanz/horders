@@ -1009,7 +1009,8 @@
   .pabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
   .pab { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 64px; padding: 8px 2px 6px; border-radius: 12px; border: 1px solid var(--card-line); background: rgba(0,0,0,0.25); font-size: 11px; color: var(--muted); }
   .pab svg { color: var(--ac, var(--ember)); }
-  .pab b { font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  /* A two-word name wraps to a second line ("Flame Wave", "Combustion" cut to "Flame ..." at 320px), like the action bar. */
+  .pab b { font-weight: 600; color: var(--ink); max-width: 100%; text-align: center; line-height: 1.1; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .pabs-hint { margin-top: 6px; font-size: 11px; color: var(--muted); }
   .psettings { margin-top: 12px; text-align: left; }
   .psettings > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--card-line); background: rgba(0,0,0,0.25); font-weight: 600; cursor: pointer; }
@@ -1419,6 +1420,23 @@
     /* Too narrow for the banner and the quest chip side by side: the chip steps aside while a banner shows. */
     #quests { transition: opacity 0.35s; }
     #hud:has(~ #banner.show) #quests { opacity: 0; }
+  }
+  /* Landscape phones: your hero stands in the middle of a short screen (y 160 of 320 at 568x320), so a centred intro
+     card under the top row sat right on top of them. The card (not the one-line warning) moves to the top-right
+     corner, above the action bar, which leaves the middle and the party frames on the left clear. */
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 561px) {
+    #banner:not(.warn), #hud:not([hidden]):has(#party:not([hidden])) ~ #banner:not(.warn) { left: auto; right: max(14px, env(safe-area-inset-right)); margin: 0; max-width: min(36vw, 300px); }
+  }
+  /* Short portrait phones with party frames (320x568): the card anchored above the action bar sat right on your hero
+     (y 298 to 378, hero at 310). It goes under the top row instead, over the boss frame and the chips, which only
+     repeat its name for those few seconds; the party frames below stay clear. Warnings keep their slim line. */
+  @media (max-width: 560px) and (orientation: portrait) and (max-height: 620px) {
+    #hud:not([hidden]):has(#party:not([hidden])) ~ #banner:not(.warn) { top: calc(max(8px, env(safe-area-inset-top)) + 58px); bottom: auto; background: rgba(14,8,7,0.9); }
+    #hud:not([hidden]):has(#party:not([hidden])):has(~ #banner.show:not(.warn)) #quests { opacity: 0; }
+  }
+  /* 320 px wide portrait: a long boss name at 22px took two lines and pushed the intro card down over your hero. */
+  @media (max-width: 340px) and (orientation: portrait) {
+    #bannerTitle { font-size: 18px; }
   }
   /* Motion polish (phones first): every tap target gives under the finger, a new hub tab eases in, the bag
      slides up, and a piece you equip settles into its slot. Uses the scale property, so it never fights an

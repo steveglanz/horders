@@ -1362,7 +1362,10 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Anvilfall') this.hud.warn('Anvilfall!', this.hud.compact ? 'Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them' : 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
           else if (ev.name === 'Choir of Iron') this.hud.warn('Choir of Iron!', 'The whole party is hit. Healers: get ready');
           else if (ev.name === 'Twin Vents') this.hud.warn('Twin Vents!', 'Split up: someone in each gold vent');
-          else if (ev.name === 'Downstroke') this.hud.warn('Downstroke!', (w.player.pressedT ?? 0) > 0 ? "You're Pressed: stay out of this one" : 'One hero who is not Pressed stands under the plate. Take turns');
+          // Phones: the chip under the top row already says it for as long as the plate is down ("Downstroke: one
+          // un-Pressed hero under it!", or "you are Pressed, stay out!"), so the warning line, which sits above the action
+          // bar when party frames are up, only repeated it mid-screen over the floor (QA, 25 Nov).
+          else if (ev.name === 'Downstroke') { if (!this.hud.compact) this.hud.warn('Downstroke!', (w.player.pressedT ?? 0) > 0 ? "You're Pressed: stay out of this one" : 'One hero who is not Pressed stands under the plate. Take turns'); }
           else if (ev.name === 'Stamp') this.hud.warn('Stamp!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now');
           else if (ev.name === 'Scatter Embers') this.hud.warn('Scatter Embers!', 'Spread out: keep your ring off everyone else');
           else if (ev.name === 'Snuff') this.hud.warn('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
