@@ -25,14 +25,19 @@ function kiln(): { w: World; inner: Inner } {
 const step = (w: World, n: number) => { for (let k = 0; k < n; k++) w.step({ mx: 0, my: 0 } as never); };
 
 describe('V1 variety: the Kiln\'s new foes', () => {
-  it('the Kiln draws from 7 openers and 4 named fights, and the first delve keeps its fixed route', () => {
+  it('the Kiln draws from 5 openers and 4 named fights, and the first delve keeps its fixed route', () => {
     const d = DUNGEONS.kiln;
-    expect(d.openers).toHaveLength(7);
+    expect(d.openers).toHaveLength(5);
     expect(d.named).toHaveLength(4);
     for (const id of [...d.openers, ...d.named]) expect(ENCOUNTERS[id]).toBeDefined();
     const seen = new Set<string>();
     for (let s = 0; s < 40; s++) { let n = s; seen.add(rollRoute((k) => (n = (n * 7 + 3) % 97) % k, 'kiln').join(',')); }
     expect(seen.size).toBeGreaterThan(20);
+    // 1.0 CP3 (docs/design/kiln-foes.md): the Kiln's trash packs are its own, and each mixes two foes.
+    for (const id of d.openers) {
+      expect(new Set(ENCOUNTERS[id].spawns.map((s) => s.kind)).size, id).toBe(2);
+      for (const o of Object.values(DUNGEONS)) if (o.id !== 'kiln') expect(o.openers, `${o.id} ${id}`).not.toContain(id);
+    }
     expect(FIRST_DELVE.route).toEqual(['pack', 'brute', 'acolytes', 'kilnMother']);
   });
 

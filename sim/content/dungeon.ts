@@ -20,7 +20,8 @@ export type EncounterId =
   | 'shadeSpitters' | 'shadeCharge' | 'lensCharge'
   | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers'
   | 'quaySpitters' | 'quayCharge' | 'shoalRift' | 'haulerSpitters'
-  | 'ashwall' | 'ballast' | 'lampeye' | 'dimhorn' | 'conch';
+  | 'ashwall' | 'ballast' | 'lampeye' | 'dimhorn' | 'conch'
+  | 'houndSpout' | 'urnHounds' | 'urnSpouts' | 'crackHounds' | 'crackUrn' | 'crockHounds';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -31,24 +32,24 @@ export interface EncounterDef {
 }
 
 export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
-  pack: { id: 'pack', name: 'The Cinder Pack', tip: 'Four hounds that hunt together. Step aside when they snap.', spawns: [{ kind: 'cinderhound', n: 4 }] },
-  wardens: { id: 'wardens', name: 'Hollow Wardens', tip: 'Two hulking guards. Get clear of their slams.', spawns: [{ kind: 'husk', n: 2 }] },
+  pack: { id: 'pack', name: 'The Hound Pack', tip: 'Four hounds that hunt together. Step aside when they snap.', spawns: [{ kind: 'cinderhound', n: 4 }] },
+  wardens: { id: 'wardens', name: 'Urn Wardens', tip: 'Two hulking guards. Get clear of their slams.', spawns: [{ kind: 'husk', n: 2 }] },
   warpack: { id: 'warpack', name: 'Warden and Hounds', tip: 'A warden with its hounds. Thin the hounds first.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'cinderhound', n: 2 }] },
-  brute: { id: 'brute', name: 'Cinder Brute', tip: 'Quench its Ground Pound.', spawns: [{ kind: 'cinderBrute', n: 1 }] },
+  brute: { id: 'brute', name: 'The Crock', tip: 'A blue bar is a cast: Quench its Ground Pound.', spawns: [{ kind: 'cinderBrute', n: 1 }] },
   ashmaw: { id: 'ashmaw', name: 'The Taster', tip: 'Quench its Gorge, or it heals.', spawns: [{ kind: 'ashmaw', n: 1 }] },
-  acolytes: { id: 'acolytes', name: 'The Brute and its Acolytes', tip: 'Two acolytes heal the Brute. Kill the healers first.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'acolyte', n: 2 }] },
+  acolytes: { id: 'acolytes', name: 'The Crock and its Censers', tip: 'Two Censers mend the Crock. Break the Censers first.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'acolyte', n: 2 }] },
   // V1 (variety): Kiln fights that move and hit differently: range, a swarm source, and a charge down a lane.
-  spitters: { id: 'spitters', name: 'Ember Spitters', tip: 'They keep their distance and lob fire where you stand. Keep moving and run them down.', spawns: [{ kind: 'emberSpitter', n: 2 }, { kind: 'cinderhound', n: 2 }] },
-  riftfall: { id: 'riftfall', name: 'The Hollow Rift', tip: 'The Rift spits Ashlings until it breaks. Break the Rift first.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'cinderhound', n: 2 }] },
-  // Phase 16 U2: the Kiln's new elite. The answer is where you stand, not how fast you kill.
-  ashwall: { id: 'ashwall', name: 'The Ashwall', tip: 'It shields the foes behind it, and its own front. Walk round it, or draw them out from behind it.', spawns: [{ kind: 'ashwall', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
+  spitters: { id: 'spitters', name: 'Spouts and Hounds', tip: 'They keep their distance and lob fire where you stand. Keep moving and run them down.', spawns: [{ kind: 'emberSpitter', n: 2 }, { kind: 'cinderhound', n: 2 }] },
+  riftfall: { id: 'riftfall', name: 'The Wall Crack', tip: 'The Crack spills Sherds until it breaks. Break the Crack first.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'cinderhound', n: 2 }] },
+  // Phase 16 U2: the shielder (the Kiln's until CP3, the Foundry's since). The answer is where you stand, not how fast you kill.
+  ashwall: { id: 'ashwall', name: 'The Ashwall', tip: 'It shields the foes behind it, and its own front. Walk round it, or draw them out from behind it.', spawns: [{ kind: 'ashwall', n: 1 }, { kind: 'emberSpitter', n: 2 }] }, // the Foundry's shielder since CP3 (was the Kiln's)
   ashbucks: { id: 'ashbucks', name: 'The Ashbucks', tip: 'An Ashbuck shows its lane, then charges down it. Step to the side, not back.', spawns: [{ kind: 'ashbuck', n: 2 }, { kind: 'cinderhound', n: 1 }] },
-  spitterBrute: { id: 'spitterBrute', name: 'Brute and Spitters', tip: 'Quench the Ground Pound, and keep moving through the lobs.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
+  spitterBrute: { id: 'spitterBrute', name: 'The Crock and its Spouts', tip: 'Quench the Ground Pound, and keep moving through the lobs.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   // V8: the Drowned Foundry's new fights mix the Kiln's new foes with its own.
-  glassSpitters: { id: 'glassSpitters', name: 'Warden and Spitters', tip: 'Quench Mirror Ward, then run the Spitters down through their lobs.', spawns: [{ kind: 'glassWarden', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
+  glassSpitters: { id: 'glassSpitters', name: 'Warden and Spouts', tip: 'Quench Mirror Ward, then run the Spouts down through their lobs.', spawns: [{ kind: 'glassWarden', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   crawlerCharge: { id: 'crawlerCharge', name: 'Crawler and Ashbuck', tip: 'Drag the blue ring away from the Ashbuck, and step aside from its lane.', spawns: [{ kind: 'sluiceCrawler', n: 1 }, { kind: 'ashbuck', n: 1 }, { kind: 'cinderhound', n: 1 }] },
   // V8: the Glarewell's new fights.
-  shadeSpitters: { id: 'shadeSpitters', name: 'Shades and Spitters', tip: 'Pull the Shades into the light, and keep moving through the lobs.', spawns: [{ kind: 'shade', n: 2 }, { kind: 'emberSpitter', n: 2 }] },
+  shadeSpitters: { id: 'shadeSpitters', name: 'Shades and Spouts', tip: 'Pull the Shades into the light, and keep moving through the lobs.', spawns: [{ kind: 'shade', n: 2 }, { kind: 'emberSpitter', n: 2 }] },
   shadeCharge: { id: 'shadeCharge', name: 'The Ashbuck in the Dark', tip: 'The Ashbuck charges out of the shadows. Step aside from its lane, then pull the Shades into the light.', spawns: [{ kind: 'ashbuck', n: 1 }, { kind: 'shade', n: 3 }] },
   lensCharge: { id: 'lensCharge', name: 'Lens and Ashbucks', tip: 'Hide from the Glare without stepping into an Ashbuck\'s lane.', spawns: [{ kind: 'lensbearer', n: 1 }, { kind: 'ashbuck', n: 2 }] },
   // V8: the Coldmarrow's new fights, from its own cold foes (the fire foes don't live down here).
@@ -57,20 +58,28 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   weaverSnuffers: { id: 'weaverSnuffers', name: 'Weaver and Snuffers', tip: 'Step out of the Lace, but don\'t let the Snuffers touch you while you do.', spawns: [{ kind: 'hoarfrostWeaver', n: 1 }, { kind: 'snuffer', n: 2 }] },
   twoWeavers: { id: 'twoWeavers', name: 'The Two Weavers', tip: 'Two Weavers take turns with Frost Lace. Save a Quench for each.', spawns: [{ kind: 'hoarfrostWeaver', n: 2 }, { kind: 'rimehound', n: 2 }] },
   // Phase 12 W1: the Wrackline's new fights mix the Kiln's new foes into the water.
-  quaySpitters: { id: 'quaySpitters', name: 'Spitters on the Quay', tip: 'They lob fire onto the rafts. Run them down between pulls, and keep moving.', spawns: [{ kind: 'emberSpitter', n: 2 }, { kind: 'shoalLurker', n: 2 }] },
+  quaySpitters: { id: 'quaySpitters', name: 'Spouts on the Quay', tip: 'They lob fire onto the rafts. Run them down between pulls, and keep moving.', spawns: [{ kind: 'emberSpitter', n: 2 }, { kind: 'shoalLurker', n: 2 }] },
   quayCharge: { id: 'quayCharge', name: 'Ashbucks on the Quay', tip: 'An Ashbuck charges down its lane: step aside, but not off your raft when the water pulls.', spawns: [{ kind: 'ashbuck', n: 2 }, { kind: 'shoalLurker', n: 1 }] },
-  shoalRift: { id: 'shoalRift', name: 'The Rift in the Wrack', tip: 'Break the Rift first. The water drags its Ashlings to the drain, so let the Ebb help.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
-  haulerSpitters: { id: 'haulerSpitters', name: 'Hauler and Spitters', tip: 'Quench the Haul, or it yanks you off your raft into the lobs.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
+  shoalRift: { id: 'shoalRift', name: 'The Crack in the Wrack', tip: 'Break the Crack first. The water drags its Sherds to the drain, so let the Ebb help.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
+  haulerSpitters: { id: 'haulerSpitters', name: 'Hauler and Spouts', tip: 'Quench the Haul, or it yanks you off your raft into the lobs.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   ashbuckWarden: { id: 'ashbuckWarden', name: 'Warden and Ashbucks', tip: 'Stay out of the Warden\'s slam without stepping into a lane.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'ashbuck', n: 2 }] },
+  // 1.0 CP3 (design, docs/design/kiln-foes.md): the Kiln's own packs, each two jobs (Hound charger, Spout spitter, Urn
+  // Warden brute, Crock caster, Censer mender) or a job and the Kiln's twist, the Wall Crack. No other place uses them.
+  houndSpout: { id: 'houndSpout', name: 'Hounds and a Spout', tip: 'A red line is a hound about to lunge: step to the side. Then run the Spout down.', spawns: [{ kind: 'cinderhound', n: 3 }, { kind: 'emberSpitter', n: 1 }] },
+  urnHounds: { id: 'urnHounds', name: 'The Urn Warden and its Hounds', tip: 'Thin the hounds first, and walk out of the Warden\'s red slam.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'cinderhound', n: 2 }] },
+  urnSpouts: { id: 'urnSpouts', name: 'Spouts behind the Urn', tip: 'The Spouts lob from the back while the Warden slams. Run the Spouts down, and keep out of the red.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
+  crackHounds: { id: 'crackHounds', name: 'The Wall Crack', tip: 'The Crack spills Sherds until it breaks. Break the Crack first.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'cinderhound', n: 2 }] },
+  crackUrn: { id: 'crackUrn', name: 'The Crack and the Urn', tip: 'Break the Crack between the Warden\'s slams, then the Warden.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'husk', n: 1 }] },
+  crockHounds: { id: 'crockHounds', name: 'The Crock and its Hounds', tip: 'Quench the Crock\'s blue cast, and step aside from the hounds\' red lines.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   shrine: { id: 'shrine', name: "Delver's Rest", tip: 'A quiet stash. You heal fully and gain a level, but find no loot.', spawns: [] },
   // Phase 16 U2: the Foundry's new elite. Its answer is to keep it walking after you, the same kiting Maelra asks for.
   ballast: { id: 'ballast', name: 'The Ballast', tip: 'When you stand in its reach it drops anchor and barely feels hits. Step back so it has to walk after you, and hit it while it walks.', spawns: [{ kind: 'ballast', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
   glass: { id: 'glass', name: 'Glass Warden and Hounds', tip: 'Quench Mirror Ward, or your damage comes back at you.', spawns: [{ kind: 'glassWarden', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   crawlers: { id: 'crawlers', name: 'Sluice Crawler and Hounds', tip: 'Drag the blue ring away from the hounds before it bursts.', spawns: [{ kind: 'sluiceCrawler', n: 1 }, { kind: 'cinderhound', n: 2 }] },
-  bellwarden: { id: 'bellwarden', name: 'Warden of the Bell', tip: 'A Glass Warden guards a Brute. Choose which cast to Quench.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'glassWarden', n: 1 }] },
+  bellwarden: { id: 'bellwarden', name: 'Warden of the Bell', tip: 'A Glass Warden guards a Crock. Choose which cast to Quench.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'glassWarden', n: 1 }] },
   tidepair: { id: 'tidepair', name: 'The Tide Pair', tip: 'Two Sluice Crawlers. Keep their rings apart from them.', spawns: [{ kind: 'sluiceCrawler', n: 2 }] },
-  twinsAcolyte: { id: 'twinsAcolyte', name: 'Twins and their Keeper', tip: 'Kill the Acolyte, then the twins together.', spawns: [{ kind: 'emberTwin', n: 2 }, { kind: 'acolyte', n: 1 }] },
+  twinsAcolyte: { id: 'twinsAcolyte', name: 'Twins and their Censer', tip: 'Break the Censer, then the twins together.', spawns: [{ kind: 'emberTwin', n: 2 }, { kind: 'acolyte', n: 1 }] },
   maelra: { id: 'maelra', name: 'Dowager Bellows', tip: 'Kite her over the steam vents to boil off her Temper.', spawns: [{ kind: 'maelra', n: 1 }] },
   // Phase 16 U2: the Glarewell's new elite. Its answer is to put a pillar between you and it, while its Shades want you in the light.
   conch: { id: 'conch', name: 'The Conchblower', tip: 'Each blast of its conch brings the next Ebb sooner. Quench the blast, and be near a raft when the water turns.', spawns: [{ kind: 'conchblower', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
@@ -84,7 +93,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   brandShades: { id: 'brandShades', name: 'Brand and Lens', tip: 'Brands crack pillars. Burst them in the open so you keep your cover.', spawns: [{ kind: 'brandkeeper', n: 1 }, { kind: 'lensbearer', n: 1 }] },
   lensmother: { id: 'lensmother', name: 'The Glass Heir', tip: 'Hide from her Glare, burst Brands in the open, and save your pillars.', spawns: [{ kind: 'lensmother', n: 1 }] },
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', tip: 'Bonus fight: 60 seconds to hurt it. Every hit counts triple toward the world boss.', spawns: [{ kind: 'worldShadow', n: 1 }] },
-  anvilguard: { id: 'anvilguard', name: 'The Anvil Guard', tip: 'Two Brutes at once: one hero holds both while the rest Quench.', spawns: [{ kind: 'cinderBrute', n: 2 }] },
+  anvilguard: { id: 'anvilguard', name: 'The Anvil Guard', tip: 'Two Crocks at once: one hero holds both while the rest Quench.', spawns: [{ kind: 'cinderBrute', n: 2 }] },
   ondrel: { id: 'ondrel', name: 'The Iron Uncle', tip: 'Tank holds Anvilfall, everyone else stays behind it, healer clears Slag Grip.', spawns: [{ kind: 'ondrel', n: 1 }] },
   ysmeret: { id: 'ysmeret', name: 'Cousin Fork', tip: 'Someone in each gold vent, spread out when Embers mark you, tank takes Bellow Slam.', spawns: [{ kind: 'ysmeret', n: 1 }] },
   rimepack: { id: 'rimepack', name: 'The Rime Pack', tip: 'Five hounds out of the dark. Every kill feeds your coal.', spawns: [{ kind: 'rimehound', n: 5 }] },
@@ -184,12 +193,14 @@ export interface DungeonDef {
 export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   kiln: {
     id: 'kiln', name: 'The Kiln Depths', boss: 'kilnMother', unlockTier: 1,
-    openers: ['pack', 'wardens', 'warpack', 'spitters', 'riftfall', 'ashbucks', 'ashwall'], named: ['brute', 'ashmaw', 'spitterBrute', 'ashbuckWarden'], hard: ['acolytes', 'ashmaw'],
+    // 1.0 CP3 (docs/design/kiln-foes.md): five jobs and one twist, in packs no other place uses. The Ashbuck (a second
+    // charger) and the Ashwall (the shielder, now the Foundry's) left the Kiln.
+    openers: ['houndSpout', 'urnHounds', 'urnSpouts', 'crackHounds', 'crackUrn'], named: ['brute', 'ashmaw', 'spitterBrute', 'crockHounds'], hard: ['acolytes', 'ashmaw'],
     blurb: 'Dodge, interrupt and soak your way to the Kiln Mother.', style: 'solo', minParty: 1,
   },
   foundry: {
     id: 'foundry', name: 'The Drowned Foundry', boss: 'maelra', unlockTier: 4,
-    openers: ['twins', 'glass', 'crawlers', 'riftfall', 'glassSpitters', 'crawlerCharge', 'ballast'], named: ['bellwarden', 'tidepair', 'spitterBrute'], hard: ['twinsAcolyte', 'tidepair'],
+    openers: ['twins', 'glass', 'crawlers', 'ashwall', 'glassSpitters', 'crawlerCharge', 'ballast'], named: ['bellwarden', 'tidepair', 'spitterBrute'], hard: ['twinsAcolyte', 'tidepair'],
     blurb: 'Mirrors, twins and rising water. Kite Dowager Bellows through the steam.', style: 'solo', minParty: 1,
   },
   glarewell: {

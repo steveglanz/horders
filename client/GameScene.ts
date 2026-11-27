@@ -1678,7 +1678,7 @@ export class GameScene extends Phaser.Scene {
           if (w.bossIndex >= 0 && w.enemies[w.bossIndex]?.kind === 'worldShadow') {
             // QA, 25 Nov: a world boss's Shadow fights as the Kiln Mother does (Acolytes, then faster casts) in every
             // dungeon, but took the dungeon boss's lines: after a staged Ondrel it read "Stage 2: Burning slag".
-            if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
+            if (ev.phase === 2) this.hud.banner('Phase 2: Censers', 'Break the Censers first, and stand in the gold circles');
             else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           } else if (w.dungeonId === 'pressworks' && w.osStage > 0) {
             // OSKELV2 (design, oskel-v2.md): one line per stage.
@@ -1746,17 +1746,17 @@ export class GameScene extends Phaser.Scene {
           if (!ev.ok) this.floatText(ev.x, ev.y, ev.owner === -5 ? 'Tithe unpaid!' : 'Brand missed!', '#ff8aa5', 16);
           break;
         case 'eliteSpawn':
-          this.hud.banner('A Cinder Brute approaches', 'Interrupt its Ground Pound. Its death grants a bonus Spark');
+          this.hud.banner('A Crock approaches', 'Quench its Ground Pound. Its death grants a bonus Spark');
           break;
         case 'rareSpawn':
           this.hud.banner('Rare: The Taster', 'Interrupt its Gorge or it heals. Drops rare loot');
           break;
         case 'riftOpen':
-          this.hud.banner('A Hollow Rift tears open', 'Close it before the Tide pours out');
+          this.hud.banner('A Wall Crack opens', 'Break it before the Sherds pour out');
           break;
         case 'riftClosed':
           this.blast(ev.x, ev.y, 60);
-          this.floatText(ev.x, ev.y - 30, 'Rift sealed', '#d6a8ff', 16);
+          this.floatText(ev.x, ev.y - 30, 'Crack broken', '#d6a8ff', 16);
           break;
         case 'gather':
           this.burst(ev.x, ev.y, 12);
