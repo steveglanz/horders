@@ -105,7 +105,7 @@ in 6 Cutwick runs every unowned mark came from the Omens (Volatile Ground r70, K
 red marks, so the Quickened owner bug from #912 can't happen here. Lumen's extra cost is the cold itself (Frozen 17%,
 Snuffers 18%), a coal question, not a melee one.
 
-## Aunt Ebb (Hessa, the Wrackline): this PR
+## Aunt Ebb (Hessa, the Wrackline): done (PR #915)
 
 She never moves and has no blows of her own: everything she does runs on the Wrackline's clock (`wrackClock`).
 
@@ -136,6 +136,38 @@ Still uneven: melee takes more of the Tide (Cutwick 13%, Bulwark 11% a run again
 Slagbinder), because its fights run 2-5x longer and it has to stand near the drain to hit her. That is the fight-length
 gap #911 and #913 found, not a missing answer.
 
+## The Iron Uncle (Ondrel, the Hammerdeep, group): this PR
+
+A party fight: his blows land on the hero he is beating (his target, the tank in a normal party), and the party stands
+round him. Melee damage dealers stand behind him, out of the Hammer Sweep.
+
+| Attack | Warning | Melee answer | Status |
+|---|---|---|---|
+| Touch (16 x tier, every 0.6 s against his target) | none | none | **removed** (it landed on whoever he was beating; under 1% max hp a run at tier 4) |
+| Slag Grip (every 2.5 s, his target within 30 px of his edge: 16 x tier and a burn stack, up to 5) | none | the tank's blow by design: the healer clears it (his tip: "healer clears Slag Grip") | unchanged: it only lands on his target, so melee behind him never takes it |
+| Hammer Sweep, cone 230 px, 70 deg, at his target, every 5 s | 1.1 s | stand behind him; a Bulwark can parry it | **now his through the hit**: the cast ended as the cone landed, so some cones lost their owner (with or without Quickened) (no parry, loss screen said "red marks on the floor") |
+| Anvilfall (every 12 s, 7 s late), 160 x tier on the target picked at wind-up, through dodges and shields | 2.5 s cast, not stoppable | the tank's job (a cooldown or a taunt swap when Sundered) | unchanged |
+| Choir of Iron / Ironload / Homeward Hammer (his version, every 10 s) | 1.5 s cast | Choir: the healer's job, where you stand doesn't matter. Ironload: stand with the marked hero. Homeward: step out of the circle and off its line home | unchanged; the Homeward line home now stays his when another cast ends before it lands |
+| Slag (stage 2, under the tank's Anvilfall spot, r80) and its bursts (stage 3, r110) | always visible; bursts 2.5 s | step off the patch; the bursts stay red marks for 2.5 s | the bursts **now stay his**: any cast ending in those 2.5 s used to disown them |
+
+Why every mark stays his: none of his casts can be stopped (all are started not interruptible), so the "let it land"
+disowning in finishCast only ever cost the owner, never saved a mark from an interrupt. Only his death clears them.
+
+Measured (scratch copy of tools/matrix.ts's party run with boss damage by cause and hero, Hammerdeep 4, tools/heroes/matrix
+hero-t4 n=0, average skill, Halls, client Omens, party = the class plus the standard fill, seeds 1-20, main vs this PR):
+
+| Class (with fill) | Wins main / PR | Boss median s | Unowned marks in his fight, % max hp a run summed over the party (main / PR) |
+|---|---|---|---|
+| Cutwick | 20 / 20 | 22 / 22 | 3 / 0 |
+| Bulwark | 20 / 20 | 18 / 18 | 4 / 0 |
+| Emberwright | 20 / 20 | 21 / 21 | 2 / 0 |
+| Lumen | 20 / 20 | 19 / 19 | 3 / 0 |
+| Slagbinder | 20 / 20 | 17 / 17 | 0 / 0 |
+
+Tier 4 is saturated (every class 40/40 in the baseline matrix), so this PR changes readability (his marks are named and
+parryable) rather than wins. Merge gate (CHECK=1 PLACES=hammerdeep): pass.
+
 ## Still to audit (one PR each)
 
-- The Iron Uncle (Ondrel, the Hammerdeep) and the other group and raid bosses after the launch places
+- Cousin Fork (Ysmeret, the Ashvents) and Cousin Stamp (Oskel, the Pressworks), then the four raid bosses (Grandmother
+  Slag, Uncle Glut, the Colossus, the Furnace Regent)
