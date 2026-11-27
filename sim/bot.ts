@@ -68,6 +68,9 @@ function bladeCast(w: World, skill: number): number | undefined {
 }
 
 /** Bulwark action choices: toss at casts, Anvil Skin when it hurts, slam crowds, charge big foes. */
+const THORN_SKIN = typeof process === 'undefined' || process.env?.NOSKIN !== '1';
+const WAKE_STOMP = typeof process === 'undefined' || process.env?.NOSTOMP !== '1';
+
 function shieldCast(w: World, skill: number): number | undefined {
   const p = w.player;
   const attentive = (w.tick % 20) / 20 < skill;
@@ -100,9 +103,13 @@ function shieldCast(w: World, skill: number): number | undefined {
     if (can(w, 3) && d < 420) return 3;
     if (can(w, 1) && w.chargeTarget() === w.bossIndex) return 1;
   }
+  // Thornwall: Anvil Skin is the hard-hitting window, so raise it whenever a big foe is in reach.
+  if (THORN_SKIN && !ondrel && can(w, 2) && bigClose && w.rank('thornwall') > 0) return 2;
   if (!ondrel && can(w, 2) && (p.hp < p.maxHp * 0.55 || (attentive && underTelegraph && p.hp < p.maxHp * 0.85))) return 2;
   if (can(w, 0) && (near >= 3 || bigClose)) return 0;
   const c = w.chargeTarget();
+  // Shield Wake: Charge is also a stomp, so use it up close on a big foe or a crowd.
+  if (WAKE_STOMP && c >= 0 && can(w, 1) && w.rank('shieldWake') > 0 && (bigClose || near >= 2)) return 1;
   if (c >= 0 && can(w, 1)) {
     const e = w.enemies[c];
     const d = Math.hypot(e.x - p.x, e.y - p.y) - e.def.radius;

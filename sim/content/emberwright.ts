@@ -225,7 +225,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   shieldEcho: { id: 'shieldEcho', ability: 0, cls: 'bulwark', name: 'Shield Echo', branch: 'retribution', maxRank: 2, text: 'Rim Smash strikes again 0.4s later for half damage. Rank 2: each slam also builds 10 Resolve.' },
   hardKnocks: { id: 'hardKnocks', ability: 0, cls: 'bulwark', name: 'Hard Knocks', branch: 'retribution', deep: true, maxRank: 3, text: 'Rim Smash deals 20% more damage.' },
   grimTally: { id: 'grimTally', cls: 'bulwark', name: 'Grim Tally', branch: 'retribution', deep: true, maxRank: 2, text: 'Hits you take build 25% more Resolve.' },
-  thornwall: { id: 'thornwall', cls: 'bulwark', name: 'Thornwall', branch: 'retribution', maxRank: 1, capstone: true, text: 'You always turn back 15% of each hit, and damage you turn back hits every enemy around you.' },
+  thornwall: { id: 'thornwall', cls: 'bulwark', name: 'Thornwall', branch: 'retribution', maxRank: 1, capstone: true, text: 'You always turn back 15% of each hit, and damage you turn back hits every enemy around you. While Anvil Skin is up, Shield Sweep hits three times as hard.', tip: 'Turns back 15% of each hit, before armour. While Anvil Skin (R) is up, Shield Sweep deals 3x damage, so raise it beside the boss, not only when hurt.' },
   grudge: { id: 'grudge', cls: 'bulwark', name: 'Grudge', branch: 'retribution', maxRank: 1, capstone: true, text: 'Every 4th hit you take, you lash out at everything around you with twice the damage those hits did.', tip: "Every 4th hit that lands on you, you strike every foe within 150 px for 30 plus twice the damage those 4 hits did to you, and stagger them for 0.5s." },
   // Vanguard: cleave and charge
   wideSweep: { id: 'wideSweep', cls: 'bulwark', name: 'Wide Sweep', branch: 'vanguard', maxRank: 2, text: 'Shield Sweep swings wider and farther. Rank 2: a full circle.', tip: "Shield Sweep reaches 15 farther per rank. Its arc grows from 150 degrees to 250 at rank 1, then a full circle at rank 2." },
@@ -234,7 +234,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   broadShoulders: { id: 'broadShoulders', cls: 'bulwark', name: 'Broad Shoulders', branch: 'vanguard', deep: true, maxRank: 3, text: 'Shield Sweep swings 8% more often.' },
   fullWeight: { id: 'fullWeight', ability: 1, cls: 'bulwark', name: 'Full Weight', branch: 'vanguard', deep: true, maxRank: 2, text: 'Charge hits 50% harder.' },
   warpath: { id: 'warpath', cls: 'bulwark', name: 'Warpath', branch: 'vanguard', maxRank: 1, capstone: true, text: 'Every 4th Shield Sweep sends out a shockwave for double damage.' },
-  shieldWake: { id: 'shieldWake', ability: 1, cls: 'bulwark', name: 'Shield Wake', branch: 'vanguard', maxRank: 1, capstone: true, text: 'Charge lands with a shockwave that hits and stuns everything close.', tip: "Where Charge lands, a shockwave hits every foe within 120 px for 50 damage and stuns it for 1s." },
+  shieldWake: { id: 'shieldWake', ability: 1, cls: 'bulwark', name: 'Shield Wake', branch: 'vanguard', maxRank: 1, capstone: true, text: 'Charge lands with a shockwave that hits and stuns everything close.', tip: "Where Charge lands, a shockwave hits every foe within 120 px for 80 damage (double on elites and bosses) and stuns it for 1s. It works up close too: Charge the boss you are already on." },
 
   // Lumen. Dawn: healing turned into damage
   kindledLight: { id: 'kindledLight', cls: 'lumen', name: 'Kindled Light', branch: 'dawn', maxRank: 3, text: 'Overhealing stores 30% more Brilliance.' },

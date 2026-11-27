@@ -186,7 +186,11 @@ export const CAPSTONES_2 = {
    */
   grudgeEvery: 4, grudgeRadius: 150, grudgeDamage: 30, grudgeShare: 2, grudgeStun: 0.5,
   /** Shield Wake: the shockwave where Charge lands (radius, damage, stun seconds). */
-  wakeRadius: 120, wakeDamage: 50, wakeStun: 1,
+  wakeRadius: 120, wakeDamage: 80, wakeStun: 1,
+  /** Shield Wake: the shockwave hits elites, rares and bosses this many times as hard. */
+  wakeBig: 2,
+  /** Thornwall: the share of each hit always turned back, and Shield Sweep's damage multiplier while Anvil Skin is up. */
+  thornReflect: 0.15, thornSkin: 3,
   /** Noonfire: Sunmote damage multiplier against elites, rares and bosses. */
   noonfireMult: 1.15,
   /** Haven: damage taken is cut by this share inside your own Sanctuary. */
@@ -5784,7 +5788,7 @@ export class World {
     }
     // Anvil Skin turns back a quarter of each hit (Payback adds to it); Thornwall turns back 15% even outside it, and
     // Bristle 10% while Resolve is at half or more.
-    const reflect = (p.bastionT > 0 ? 0.25 + TREE.paybackReflect * this.tree('payback') : 0) + (this.rank('thornwall') > 0 ? 0.15 : 0)
+    const reflect = (p.bastionT > 0 ? 0.25 + TREE.paybackReflect * this.tree('payback') : 0) + (this.rank('thornwall') > 0 ? CAPSTONES_2.thornReflect : 0)
       + (this.tree('bristle') > 0 && p.heat >= TREE.bristleResolve ? TREE.bristleReflect : 0);
     back += raw * reflect * this.dmgMult;
     // A hit that comes back while the Bulwark is turning one back (a Glass Warden's Mirror Ward)
@@ -5858,7 +5862,8 @@ export class World {
     p.swings++;
     const r = this.sweepReach;
     const half = this.sweepHalfArc;
-    const dmg = 30 * this.dmgMult;
+    // Thornwall: while Anvil Skin is up, the shield bites far harder.
+    const dmg = 30 * this.dmgMult * (this.rank('thornwall') > 0 && p.bastionT > 0 ? CAPSTONES_2.thornSkin : 1);
     let hits = 0;
     let big = false;
     this.forEachNear(p.x, p.y, r + 40, (i) => {
@@ -5994,7 +5999,7 @@ export class World {
       this.forEachNear(p.x, p.y, wr + 40, (i) => {
         const e = this.enemies[i];
         if (dist2(p.x, p.y, e.x, e.y) > (wr + e.def.radius) ** 2) return;
-        this.damageEnemy(i, CAPSTONES_2.wakeDamage * this.dmgMult, true);
+        this.damageEnemy(i, CAPSTONES_2.wakeDamage * (e.def.rank === 'normal' ? 1 : CAPSTONES_2.wakeBig) * this.dmgMult, true);
         if (e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, CAPSTONES_2.wakeStun);
       });
       this.events.push({ type: 'explode', x: p.x, y: p.y, r: wr });

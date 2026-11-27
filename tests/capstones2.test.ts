@@ -126,6 +126,7 @@ describe('capstone choices (C5)', () => {
 type Inner2 = Inner & {
   shieldSlam(): void;
   charge(): void;
+  shieldSweep(t: number): void;
   bastion(): void;
   sanctuary(): void;
   sunmote(t: number): void;
@@ -176,6 +177,36 @@ describe('capstone choices (C5, part 2: Bulwark and Lumen)', () => {
     inner.rebuildHash();
     inner.charge();
     expect(near.stunT).toBeGreaterThanOrEqual(CAPSTONES_2.wakeStun);
+  });
+
+  it('Thornwall: Shield Sweep hits three times as hard while Anvil Skin is up', () => {
+    const sweep = (skin: boolean) => {
+      const { w, inner } = w2('bulwark');
+      inner.talents.thornwall = 1;
+      const e = w.enemies[inner.spawn('cinderBrute', w.player.x + 40, w.player.y)];
+      e.hp = 1e6;
+      inner.rebuildHash();
+      w.player.bastionT = skin ? 5 : 0;
+      const before = e.hp;
+      inner.shieldSweep(w.enemies.indexOf(e));
+      return before - e.hp;
+    };
+    const off = sweep(false);
+    expect(off).toBeGreaterThan(0);
+    expect(sweep(true)).toBeCloseTo(off * CAPSTONES_2.thornSkin);
+  });
+
+  it('Shield Wake: the shockwave hits big foes twice as hard, even when Charge starts up close', () => {
+    const { w, inner } = w2('bulwark');
+    inner.talents.shieldWake = 1;
+    const p = w.player;
+    const big = w.enemies[inner.spawn('cinderBrute', p.x + 60, p.y)];
+    big.hp = 1e6;
+    inner.rebuildHash();
+    const before = big.hp;
+    inner.charge();
+    // Charge's own hit on its target (35) plus the wake's doubled shockwave.
+    expect(before - big.hp).toBeGreaterThanOrEqual(35 + CAPSTONES_2.wakeDamage * CAPSTONES_2.wakeBig - 1);
   });
 
   it('Noonfire: Sunmotes hit big foes 15% harder', () => {
