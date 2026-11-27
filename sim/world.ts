@@ -132,6 +132,15 @@ export const ROLL = { dist: 120, time: 0.3, guard: 0.3, cd: 3 };
  */
 export const OVERHEAT = { from: 80, mult: 2, scorch: 0.04, vent: 55 };
 /**
+ * Emberwright volley Sparks (classes, 27 Nov 2026): Quickcast and Twin Cinders (id extraOrb) are worth about the same
+ * per rank. Each Quickcast rank divides the volley cooldown by `quickHaste`; each extra orb from Twin Cinders hits for
+ * `extraOrbDmg` of a full orb. Before this a first Twin Cinders doubled volley damage and a Quickcast added 16%, so the
+ * opening's Kiln Mother ran ~55 s with two Twin Cinders and ~125 s with two Quickcasts. Searing Burn's burn is `burnDps`
+ * per rank (was 6: two Searing Burns ran ~110 s). Measured with tools/kmfight.ts FIRST=1 ULVL=1, seeds 1-20: every pick
+ * now lands the fight in 63-86 s.
+ */
+export const EMBER_SPARKS = { quickHaste: 1.5, extraOrbDmg: 0.65, burnDps: 10 };
+/**
  * 1.0 CP2 signature verb, Cutwick (duskblade) Snip (id backstab; "Backstab" is a WoW Rogue ability, rename-map section 4): its direct hits on a foe from behind (outside `front` radians of
  * the way the foe faces) always crit, and a killing blow from behind readies Rending Dash at once. Foes face the way
  * they move, else their target, turning at `turn` rad/s (`bossTurn` for bosses), so a dash through a pack lands behind it.
@@ -1823,7 +1832,7 @@ export class World {
     return hot * party * guard * (1 + UNLOCK_AID.dmg * this.aidSteps) * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
-    return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult / (1 + TREE.briskHaste * this.tree('brisk'));
+    return (0.9 / Math.pow(EMBER_SPARKS.quickHaste, this.rank('quickcast'))) / this.loadout.hasteMult / (1 + TREE.briskHaste * this.tree('brisk'));
   }
   get orbCount(): number {
     return 1 + this.rank('extraOrb');
@@ -6353,7 +6362,7 @@ export class World {
       orb.vy = Math.sin(ang) * 330;
       orb.life = 1.6;
       orb.target = t;
-      orb.dmg = 12 * this.dmgMult;
+      orb.dmg = 12 * this.dmgMult * (k > 0 ? EMBER_SPARKS.extraOrbDmg : 1);
       orb.owner = this.acting;
       orb.pierce = this.hasWeaponFx('piercingCinders') ? 1 : 0;
       orb.lastHit = -1;
@@ -6431,7 +6440,7 @@ export class World {
       // Overheat: an orb that hits while the fire runs hot feeds no Heat, so only holding it (the slow drift) scorches.
       if (this.player.heat < OVERHEAT.from) this.addHeat(4 * (1 + 0.35 * this.rank('heatSink')));
       if (burn > 0 && e.alive) {
-        e.burnDps = Math.max(e.burnDps, 6 * burn * (1 + 0.15 * this.rank('deepSmoulder')) * this.dmgMult);
+        e.burnDps = Math.max(e.burnDps, EMBER_SPARKS.burnDps * burn * (1 + 0.15 * this.rank('deepSmoulder')) * this.dmgMult);
         e.burnT = 3;
         e.burnBy = this.acting;
       }
