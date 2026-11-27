@@ -6,6 +6,8 @@ Companion files:
 - [roadmap.md](roadmap.md): what we build next, in order, and who owns it.
 - [balance.md](balance.md): targets, how we measure them, and the latest numbers.
 - [decisions.md](decisions.md): the calls Steve has made, so nobody re-asks them.
+- [world.md](world.md): the world bible and voice guide (1.0, Checkpoint 1). Every name and line follows it.
+- [rename-map.md](rename-map.md): proposed renames for places, bosses, classes and systems, with the searches behind them.
 
 ## The game in one paragraph
 
