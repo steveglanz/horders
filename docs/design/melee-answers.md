@@ -136,7 +136,7 @@ Still uneven: melee takes more of the Tide (Cutwick 13%, Bulwark 11% a run again
 Slagbinder), because its fights run 2-5x longer and it has to stand near the drain to hit her. That is the fight-length
 gap #911 and #913 found, not a missing answer.
 
-## The Iron Uncle (Ondrel, the Hammerdeep, group): this PR
+## The Iron Uncle (Ondrel, the Hammerdeep, group): done (PR #917)
 
 A party fight: his blows land on the hero he is beating (his target, the tank in a normal party), and the party stands
 round him. Melee damage dealers stand behind him, out of the Hammer Sweep.
@@ -167,7 +167,39 @@ hero-t4 n=0, average skill, Halls, client Omens, party = the class plus the stan
 Tier 4 is saturated (every class 40/40 in the baseline matrix), so this PR changes readability (his marks are named and
 parryable) rather than wins. Merge gate (CHECK=1 PLACES=hammerdeep): pass.
 
+## Cousin Fork (Ysmeret, the Ashvents, group): this PR
+
+A party fight: the tank holds her in front, melee stands at her back edge, and the party spreads for Scatter Embers.
+At half health she splits into two leashed flames 420 px apart that share one health.
+
+| Attack | Warning | Melee answer | Status |
+|---|---|---|---|
+| Touch (15 x tier, every 0.6 s, whoever is in reach; stage 2: each flame) | none | none | **removed** (both stages; it landed on the tank and on melee at her edge: Bulwark 5-15%, Cutwick 5-10% max hp a run) |
+| Bellow Slam (every 9 s, waits while vents are open; stage 2 every 12 s from the flame on the tank), 90 x tier on the hero picked at wind-up, through dodges and shields | 1.5 s cast | the tank's blow by design (the healer heals it) | unchanged: it only lands on her target |
+| Scatter Embers (every 14 s, each flame on its own timer in stage 2): a burst r80 under every hero, 12% max hp to that hero and 35% to each other hero inside it | 2.5 s cast | spread: the tank in front and melee at her back edge are already over 80 px apart (her radius 42 x 2 plus the heroes'); melee that crowds the tank steps out for the cast | unchanged (owned by her, named on a loss) |
+| Twin / Rolling / Wandering Vents: gold soak circles 220 px out (r55); an empty one blasts every hero for 70 x tier | 4 s fuse (Rolling 3.4 s each) | anyone soaks; a melee hero leaves her for 4 s or the ranged soak | unchanged (owner -2 on purpose: no interrupt removes them, and a loss says "an empty gold circle") |
+| A lone flame (stage 2: no hero within 150 px for 3 s), 70 x tier to every hero | the flame's spot is fixed | stand at a flame: melee's natural spot | unchanged |
+
+Her marks never go through finishCast's disowning: the vents are owner -2, and Scatter and Bellow Slam hit at the cast
+end with her as the source. The "red marks on the floor" in her fight are Omens (Volatile Ground r70, traced to the
+dungeon's Omen code on 4 seeds), not hers.
+
+Measured (scratch copy of tools/matrix.ts's party run with boss damage by cause and hero, tools/heroes/matrix heroes,
+average skill, Halls, client Omens, party = the class plus the standard fill, seeds 1-20, main vs this PR):
+
+| Class (with fill) | Ashvents 7 (hero-t6) wins / boss median s, main / PR | Ashvents 10 (hero-t10) wins / boss median s, main / PR | Touch, % max hp a run on main (now 0) |
+|---|---|---|---|
+| Cutwick | 20 / 20, 57 / 58 | 20 / 20, 71 / 71 | Bulwark 10-11 |
+| Bulwark | 20 / 20, 58 / 59 | 20 / 20, 68 / 66 | Bulwark 14-15, Cutwick 5-7 |
+| Emberwright | 20 / 20, 62 / 61 | 20 / 20, 71 / 72 | Bulwark 8-10, Cutwick 6-10, Emberwright 1-2 |
+| Lumen | 20 / 20, 58 / 58 | 20 / 20, 65 / 66 | Bulwark 10-11, Cutwick 5-7, Lumen 1 |
+| Slagbinder | 20 / 20, 49 / 49 | 20 / 20, 58 / 58 | Bulwark 5-6 |
+
+Both tiers are saturated, so this PR changes what melee and the tank take (no unwarned damage left in her fight), not
+wins. The Ashvents are not in the bot matrix, so the merge gate does not cover this place. YSMERETV2.melee (the flames'
+touch multiplier) is gone with the touch.
+
 ## Still to audit (one PR each)
 
-- Cousin Fork (Ysmeret, the Ashvents) and Cousin Stamp (Oskel, the Pressworks), then the four raid bosses (Grandmother
+- Cousin Stamp (Oskel, the Pressworks), then the four raid bosses (Grandmother
   Slag, Uncle Glut, the Colossus, the Furnace Regent)
