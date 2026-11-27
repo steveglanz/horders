@@ -26,6 +26,7 @@ import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS, type WeeklyQuest } from '../sim/content/weekly';
 import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/keys';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
+import { homeHub } from './opening';
 import { setTip } from './tips';
 import { drawWorldBossPortrait } from './textures';
 import { HELP } from '../sim/content/help';
@@ -192,7 +193,18 @@ export class Hub {
 
   private renderTabs(): void {
     const h = this.hero();
-    $('title').querySelector<HTMLElement>('.hub')!.dataset.tab = this.tab;
+    // CP3 opening, PR 4: after the opening, until the second delve, the hub is Delve and the Forge only (homeHub).
+    const home = homeHub(h);
+    if (home && this.tab !== 'delve') this.tab = 'delve';
+    const hubEl = $('title').querySelector<HTMLElement>('.hub')!;
+    hubEl.classList.toggle('home1', home);
+    $('tabbar').classList.toggle('home1', home);
+    // The Forge (Upgrade and Temper) lives in the bags, so that's the door it opens by.
+    const bagWord = $('bagBtn').firstChild;
+    if (bagWord?.nodeType === Node.TEXT_NODE) bagWord.textContent = home ? 'Forge ' : 'Bags ';
+    const tabWord = $('tabbar').querySelector('[data-tab="bags"] span');
+    if (tabWord) tabWord.textContent = home ? 'Forge' : 'Bags';
+    hubEl.dataset.tab = this.tab;
     const pts = pointsAvailable(h);
     $('heroBadge').hidden = pts === 0;
     $('heroBadge').title = pts ? `${pts} talent ${pts === 1 ? 'point' : 'points'} to spend` : '';

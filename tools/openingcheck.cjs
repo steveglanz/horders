@@ -1,7 +1,8 @@
 // CP3 opening PR 2 check (docs/design/opening.md): the opening run in the real build, 390x844 phone, fake backend.
 // A fresh save taps through the wake screen; the game bot plays the opening (warp 3) while this records the route, the
 // coach and banner lines as they show, the first draft line, the short Kiln Mother's lines and moves (PR 3), and the end; then a second fresh save quits mid-opening and
-// must land back on the wake screen with no run counted. node tools/openingcheck.cjs [outDir]   (after npm run build)
+// must land back on the wake screen with no run counted. PR 4 (Home): checks the end card, the hub after it (Delve and the Forge
+// only) and that Delve again starts a normal Kiln tier 1 run. node tools/openingcheck.cjs [outDir]   (after npm run build)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const out = path.resolve(process.argv[2] || 'docs/art/opening-cp3/run');
@@ -102,6 +103,48 @@ const fail = (m) => { console.log('FAIL', m); process.exitCode = 1; };
   }
   if (said.some((x) => /Stage 2|Phase 2|boils over/.test(x.v))) fail('a stage title or Boil-over showed in the short Kiln Mother');
   console.log('first Quench banner:', said.some((x) => x.v.startsWith('It fears water. Of course it does.')));
+
+  // PR 4 Home: the end card, then the hub after it (Delve and the Forge only), then Delve again is Kiln tier 1.
+  await page.waitForFunction(() => !document.querySelector('#end').hidden, null, { timeout: 20000 });
+  await page.waitForTimeout(1500);
+  const shown = (sel) => { const e = document.querySelector(sel); return !!e && e.offsetParent !== null && getComputedStyle(e).display !== 'none'; };
+  const home = await page.evaluate((shownSrc) => {
+    const shown = eval(shownSrc);
+    const q = (s) => document.querySelector(s)?.textContent?.trim() ?? '';
+    return {
+      home: document.querySelector('#end').classList.contains('home'), title: q('#endTitle'), sub: q('#endSub'), embers: q('#endMastery .m-home'),
+      tiles: q('#endMastery .m-tiles'), keeper: q('#endMastery .m-keeper'), items: document.querySelectorAll('#rewards .item').length,
+      buttons: ['#menuBtn', '#lowerBtn', '#againBtn', '.eqUp'].filter(shown), hidden: ['#endXp', '#stats', '#endShape', '#endTalents', '#endBoss'].filter((s) => !shown(s)).length,
+      purse: window.__ember.hero().embers,
+    };
+  }, `(${shown})`);
+  await page.screenshot({ path: `${out}/5-home.png` });
+  console.log('home card:', JSON.stringify(home));
+  if (!home.home || home.title !== 'Back in Wick') fail('the opening did not end on the Home card');
+  if (!/^You carried home \d+ embers?\.$/.test(home.embers) || home.embers !== `You carried home ${home.purse} ${home.purse === 1 ? 'ember' : 'embers'}.`) fail('the embers line is wrong');
+  if (!/Rolled \d+/.test(home.tiles) || !/Quenched \d+/.test(home.tiles)) fail('Rolled / Quenched missing');
+  if (home.keeper !== 'Bring more.') fail('no "Bring more."');
+  if (home.items !== 1) fail(`the opening gave ${home.items} items, not 1`);
+  if (home.buttons.join() !== '#againBtn') fail(`buttons shown: ${home.buttons.join()}`);
+  if (home.hidden !== 5) fail('the full end screen still shows');
+  await page.reload();
+  await page.waitForTimeout(1500);
+  const hub = await page.evaluate((shownSrc) => {
+    const shown = eval(shownSrc);
+    return { home1: document.querySelector('.hub').classList.contains('home1'), wake: !document.querySelector('#wake').hidden, bag: document.querySelector('#bagBtn').textContent.trim(),
+      shown: ['#startBtn', '#bagBtn', '#classes', '#tiers', '#worldBoss', '#coop', '#heroStrip', '#heroCard'].filter(shown),
+      tabs: [...document.querySelectorAll('#tabbar [data-tab]')].filter((b) => getComputedStyle(b).display !== 'none').map((b) => b.querySelector('span').textContent.trim()) };
+  }, `(${shown})`);
+  await page.screenshot({ path: `${out}/6-hub.png` });
+  console.log('hub after:', JSON.stringify(hub));
+  // Phones show the Forge as a tab (the tab bar replaces the Bags button); wider screens keep the button.
+  const forge = hub.shown.includes('#bagBtn') ? hub.bag.startsWith('Forge') : hub.tabs.join() === 'Delve,Forge';
+  if (!hub.home1 || hub.wake || !forge || hub.shown.filter((s) => s !== '#bagBtn').join() !== '#startBtn') fail('the hub after the opening is not Delve and the Forge only');
+  await page.click('#startBtn');
+  await page.waitForTimeout(1500);
+  const d2 = await page.evaluate(() => { const w = window.__ember.scene().world; return { first: w.firstDelve, tier: w.tier, dungeon: w.dungeonId, relics: w.relicsOn }; });
+  console.log('delve 2:', JSON.stringify(d2));
+  if (d2.first || d2.tier !== 1 || d2.dungeon !== 'kiln') fail('Delve again did not start a normal Kiln tier 1 run');
   await ctx.close();
 
   // 2. Quitting mid-opening: back to the wake screen, and no run counted.

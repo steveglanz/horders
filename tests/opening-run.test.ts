@@ -188,3 +188,55 @@ describe('the opening coach', () => {
     expect(c.finished).toBe(true);
   });
 });
+
+// CP3 opening, PR 4 (docs/design/opening.md "What engineering builds" 4): Home.
+describe('the opening ends at home', () => {
+  it('a won opening gives one item (hers), the embers it carried home, and counts the rolls and Quenches', async () => {
+    const { applyRun, newHero, savedRuns } = await import('../sim/hero');
+    const { homeHub, isHome, HOME_LINES } = await import('../client/opening');
+    const h = newHero();
+    expect(homeHub(h)).toBe(false);
+    const w = opening({ seed: 1, firstClear: true, heroLevel: 1, nextItemId: h.nextItemId });
+    while (w.state !== 'ended' && w.time < 400) {
+      if (w.state === 'draft') { w.choose(botChoose(w)); continue; }
+      w.step(botInput(w));
+    }
+    expect(isHome(w)).toBe(true);
+    const before = h.embers;
+    const r = applyRun(h, 1, w.summary(), w.eliteKilled, w.runDrops, w.runEquipped);
+    expect(r.items).toHaveLength(1);
+    expect(r.items[0].rarity).toBe('rare');
+    expect(r.embersGained).toBe(h.embers - before);
+    expect(r.embersGained).toBeGreaterThan(0);
+    expect(HOME_LINES.embers(r.embersGained!)).toBe(`You carried home ${r.embersGained} embers.`);
+    // The hub after it is Delve and the Forge only, until the second delve.
+    expect(savedRuns(h)).toBe(1);
+    expect(homeHub(h)).toBe(true);
+    h.runs++;
+    expect(homeHub(h)).toBe(false);
+  });
+
+  it('counts every roll the hero starts (the card says Rolled N)', () => {
+    const w = opening();
+    expect(w.player.rolls ?? 0).toBe(0);
+    w.step({ x: 1, y: 0, roll: true } as never);
+    expect(w.player.rolls).toBe(1);
+  });
+
+  it("any other won Kiln tier 1 run keeps its end chest and isn't the Home card", async () => {
+    const { applyRun, newHero } = await import('../sim/hero');
+    const { isHome } = await import('../client/opening');
+    const h = newHero();
+    h.runs = 1;
+    h.wins = 1;
+    const w = new World({ seed: 1, dungeon: 'kiln', tier: 1, cls: 'emberwright', halls: true, unlockLevel: 1, nextItemId: h.nextItemId });
+    while (w.state !== 'ended' && w.time < 900) {
+      if (w.state === 'draft') { w.choose(botChoose(w)); continue; }
+      w.step(botInput(w));
+    }
+    expect(isHome(w)).toBe(false);
+    expect(w.summary().victory).toBe(true);
+    const r = applyRun(h, 1, w.summary(), w.eliteKilled, w.runDrops, w.runEquipped);
+    expect(r.items.length).toBe(w.runDrops.length + 1);
+  });
+});

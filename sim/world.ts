@@ -674,6 +674,8 @@ export interface Player {
   rollCd?: number;
   rollAng?: number;
   rolled?: number;
+  /** Rolls started this run (the opening's end card: "Rolled N"). */
+  rolls?: number;
   /** 1.0 CP2 hold verbs (HOLD): the slot held (-1 or unset: none) and for how long. */
   holdSlot?: number;
   holdT?: number;
@@ -4127,6 +4129,7 @@ export class World {
     p.rollAng = ang;
     p.facing = ang;
     p.rollT = ROLL.time;
+    p.rolls = (p.rolls ?? 0) + 1;
     p.rollCd = ROLL.cd * (p.relic === 'slipGlaze' ? RELIC.glazeCd : 1);
     p.shieldT = Math.max(p.shieldT, ROLL.guard + TICK);
     // Slip Glaze (a Relic): each roll costs a little health (never the last of it).
