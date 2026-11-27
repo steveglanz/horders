@@ -44,3 +44,52 @@ Steve (25 Nov 16:21Z): standard packs die fast, drop less, come denser; elites a
 ## How to read a miss
 
 A miss on 6 seeds is a flag, not a verdict (40 seeds swing about plus or minus 5 wins; design brief, "How to measure"). Before acting on a cell, rerun it with 20-40 seeds. Check the door state too (level, talent ranks, hp on reaching the boss), because past gaps came from chests and ranks at the door, not the fight.
+
+
+## Running the gate (engineering)
+
+- **Per PR** (ci.yml job `fight-budget`, one job per place, about 1-3 min each): `CHECK=1 PLACES=kiln npx tsx tools/matrix.ts` plays seeds 1-6 for all five classes and compares with `tools/matrix-baseline.json`. A fail lists each broken rule in the job summary and the CI run goes red, so `automerge` holds the PR.
+- **A deliberate retune** that moves a cell: run `UPDATE=1 npx tsx tools/matrix.ts` (all places, about 10 min on 4 cores; or one place at a time and merge), commit the new baseline and say in the PR why the cell moved. The baseline diff is the review.
+- **Nightly** (.github/workflows/matrix-nightly.yml, 03:17 UTC and on demand): 40 seeds, one job per cell, the merged table in the run summary and the `matrix-report` artifact. Report only; it never blocks a merge.
+- **Any slice:** `PLACES=foundry CLASSES=lumen SEEDS=1-20 npx tsx tools/matrix.ts`. `SLOW=1.5` gives every foe 1.5x health (the gate's own test: on the Kiln it fails `kiln/lumen named: median 60 s is over the 45 s budget (was 41 s)`).
+- The sim is deterministic per seed, so the same code gives the same numbers; any change on seeds 1-6 comes from the PR.
+- Rules are unit-tested in tests/matrix-gate.test.ts.
+
+## Gate baseline (seeds 1-6, main 3830fe1, 27 Nov 2026)
+
+A flag, not a verdict (6 seeds): the published 40-seed baseline is the classes and QA matrix. Median seconds; ▲ over the ceiling, ▽ under the floor of the budget; Floor = wins as a share of the best class in that place.
+
+| Place (tier) | Class | Wins | Floor | Trash | Named | Boss | Delve |
+|---|---|---|---|---|---|---|---|
+| kiln (t1) | emberwright | 6/6 | 100% | 13 ▽ | 33 | 23 ▽ | 2:08 |
+| kiln (t1) | duskblade | 6/6 | 100% | 6 ▽ | 20 ▽ | 33 ▽ | 1:46 |
+| kiln (t1) | bulwark | 6/6 | 100% | 6 ▽ | 23 ▽ | 48 ▽ | 2:06 |
+| kiln (t1) | lumen | 6/6 | 100% | 13 ▽ | 41 | 35 ▽ | 2:23 |
+| kiln (t1) | slagbinder | 6/6 | 100% | 4 ▽ | 10 ▽ | 44 ▽ | 1:39 |
+| foundry (t4) | emberwright | 5/6 | 83% | 24 | 32 | 53 ▽ | 3:41 |
+| foundry (t4) | duskblade | 6/6 | 100% | 9 ▽ | 25 ▽ | 77 | 3:12 |
+| foundry (t4) | bulwark | 6/6 | 100% | 9 ▽ | 26 ▽ | 88 | 3:45 |
+| foundry (t4) | lumen | 6/6 | 100% | 14 ▽ | 39 | 87 | 3:56 |
+| foundry (t4) | slagbinder | 6/6 | 100% | 7 ▽ | 11 ▽ | 31 ▽ | 1:43 |
+| hammerdeep (t4) | emberwright | 6/6 | 100% | 19 | 32 | 25 ▽ | 2:48 |
+| hammerdeep (t4) | duskblade | 6/6 | 100% | 19 | 33 | 24 ▽ | 2:47 |
+| hammerdeep (t4) | bulwark | 6/6 | 100% | 21 | 32 | 23 ▽ | 2:47 |
+| hammerdeep (t4) | lumen | 6/6 | 100% | 20 | 32 | 24 ▽ | 2:48 |
+| hammerdeep (t4) | slagbinder | 6/6 | 100% | 18 | 26 ▽ | 18 ▽ | 2:22 |
+| glarewell (t7) | emberwright | 0/6 | **0%** ✗ | **41** ▲ | **52** ▲ | - | - |
+| glarewell (t7) | duskblade | 4/6 | 67% | 14 ▽ | 43 | **145** ▲ | 5:08 |
+| glarewell (t7) | bulwark | 2/6 | **33%** ✗ | 14 ▽ | 35 | **150** ▲ | 5:23 |
+| glarewell (t7) | lumen | 6/6 | 100% | **38** ▲ | **71** ▲ | **168** ▲ | 7:23 |
+| glarewell (t7) | slagbinder | 6/6 | 100% | 11 ▽ | 19 ▽ | 47 ▽ | 2:23 |
+| coldmarrow (t10) | emberwright | 2/6 | **33%** ✗ | **38** ▲ | 43 | **116** ▲ | 5:42 |
+| coldmarrow (t10) | duskblade | 5/6 | 83% | 15 | 31 | **94** ▲ | 3:48 |
+| coldmarrow (t10) | bulwark | 6/6 | 100% | 13 ▽ | 28 ▽ | 86 | 3:23 |
+| coldmarrow (t10) | lumen | 5/6 | 83% | 26 | **52** ▲ | **120** ▲ | 5:18 |
+| coldmarrow (t10) | slagbinder | 6/6 | 100% | 11 ▽ | 19 ▽ | 30 ▽ | 2:10 |
+| wrackline (t13) | emberwright | 3/6 | **50%** ✗ | **40** ▲ | **65** ▲ | **134** ▲ | 7:16 |
+| wrackline (t13) | duskblade | 6/6 | 100% | 16 | 40 | **134** ▲ | 4:58 |
+| wrackline (t13) | bulwark | 6/6 | 100% | 21 | **50** ▲ | **209** ▲ | 6:47 |
+| wrackline (t13) | lumen | 6/6 | 100% | **36** ▲ | **76** ▲ | **115** ▲ | 6:54 |
+| wrackline (t13) | slagbinder | 6/6 | 100% | 15 | 25 ▽ | 30 ▽ | 2:32 |
+
+Over budget or under the 60% floor on 6 seeds: the Glarewell, Coldmarrow and Wrackline bosses for most classes (94-209 s), Emberwright and Lumen trash and named fights there (36-76 s), and the floor for Emberwright (Glarewell 0/6, Coldmarrow 2/6, Wrackline 3/6) and Bulwark (Glarewell 2/6). The Kiln, the Foundry and the Hammerdeep are inside every ceiling. Many fights are under the budget floors (fast trash, short bosses at the Kiln, Hammerdeep and for the Slagbinder everywhere); floors are not gated.

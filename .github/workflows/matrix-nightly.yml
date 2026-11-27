@@ -1,0 +1,63 @@
+# Vision v2 Checkpoint 1: the full class-by-place bot matrix at average skill (40 seeds per cell), every night
+# and on demand. Report only: the merge gate is the fast subset in ci.yml. The table lands in the run summary
+# and as the matrix-report artifact. Rules: docs/design/fight-budgets.md.
+name: Matrix nightly
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        place: [kiln, foundry, hammerdeep, glarewell, coldmarrow, wrackline]
+        cls: [emberwright, duskblade, bulwark, lumen, slagbinder]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx --yes tsx@4.20.6 tools/matrix.ts
+        env:
+          MATRIX: full
+          PLACES: ${{ matrix.place }}
+          CLASSES: ${{ matrix.cls }}
+          OUT: cell-${{ matrix.place }}-${{ matrix.cls }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cell-${{ matrix.place }}-${{ matrix.cls }}
+          path: cell-${{ matrix.place }}-${{ matrix.cls }}.json
+  report:
+    needs: cell
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cell-*
+          path: cells
+          merge-multiple: true
+      - run: npx --yes tsx@4.20.6 tools/matrix.ts | tee matrix-report.md
+        env:
+          REPORT: cells
+          SUMMARY: ${{ runner.temp }}/summary.md
+      - run: cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: matrix-report
+          path: |
+            matrix-report.md
+            cells/
