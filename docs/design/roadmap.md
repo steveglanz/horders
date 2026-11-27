@@ -19,7 +19,106 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | ✅ built | design | ✅ Visuals: potion icons (#35) and the brewing look (#163) |
 | R12 | Group dungeons: the Hammerdeep needs a tank and a healer; the others are labelled solo friendly | 🔨 built #51 ([group-dungeons.md](group-dungeons.md)); retune after the bot fixes | design | ✅ built #51 ([group-dungeons.md](group-dungeons.md)); retuned with bot revives in #173. The Hammerdeep drops the Deepguard set (verb "stay close"), the Ashvents the Ventwalker set ("split up") |
 
-## 1.0: the road to launch (plan of record, rebuilt 27 Nov 2026)
+## 1.0: the road to launch (plan of record, vision v2, 27 Nov 2026)
+
+Steve (27 Nov 2026, 08:42-08:48Z): "very far from having a polished game, with engaging and balanced gameplay, fully flushed out classes and maps and dungeons and art"; "People will not pay for something that looks like it was thrown together, has no cohesive feel and concepts ... negative bias towards AI slop"; "Nothing is off the table ... look at what makes high rating/scoring long lasting games stick around. What's the replay value. What is the hook."
+
+How this plan was made: our audit of main 75a7550 (screens, content, playtest data), two research reports (what keeps long-lasting games alive; the mobile market and how players react to AI-made content), five role proposals (creative director, systems and retention, combat and feel, art director, mobile product), a debate round, a director's synthesis and an outside red-team review. All of it, with sources, is in [docs/design/vision/](vision/). This section is the result, with the red team's fixes applied and checked against Steve's earlier calls.
+
+**Honest size:** about **6 to 7 months of agent work** to a worldwide launch (judgment, from the checkpoint estimates below). Every checkpoint ends in something playable and measured, so we stop and change course early if the fun isn't there.
+
+### The vision in one page
+- **Pitch:** *A dungeon party in your pocket: steal fire from a furnace full of greedy kings, in boss fights you read and beat a few minutes at a time.* We lead with what only we have (tank, healer and damage roles, cast bars, interrupts, bots that fill your party), not "portrait boss fights", which Archero already owns.
+- **World:** the surface has gone cold. The **Furnace Court**, a family of fire-kings, pulled every flame down into one mountain-sized furnace, **the Hoard**, and sealed themselves in. Above, the last town huddles round one dying hearth. You are a delver from that town; you go down, steal fire from the Court and carry it home as **embers**. Each dungeon is a layer of the Hoard; each boss is a member of the Court; each class is one of the town's fire trades. Embers, Heat, Quench and the Coldmarrow's coal all gain a meaning with no new code. The name "Horders" fits (the Court are the hoarders) but gets a store check (decision 3).
+- **Material rule:** everything the Court made is **fired clay** that glows through cracks and shatters; everything the town made is **iron, cloth and brass**. One rule sets shapes, colours and sounds.
+- **Tone:** cosy above, hungry below; dark and a little funny, never grim. Told in short lines only: boss taunts that react to the run, and a Hearthkeeper who reacts to your progress. No cutscenes, no voice.
+- **The hook (first 5 minutes):** one tap to play, a cold town, two lines, drop into the Kiln, big foes that shatter, first Spark pick, dodge a red slam, Quench a blue cast, beat a short Kiln Mother you can't lose, carry her ember home and watch the town hearth roar. Then one button: Delve again.
+- **Why people keep playing (replay value):** Sparks that change how you play (with Fusions), one Relic per run, five classes with a signature verb each, Blueprints from bosses that widen the pool, a chase for about 40 named Heirlooms, a ladder of tiers that add rules (not just health), the week's Omens, a daily seeded Quick Delve with a leaderboard, a mastery card on every end screen, a fork room each run, co-op with roles, and a free update every 6 to 8 weeks. Research basis in [vision/research-retention.md](vision/research-retention.md).
+
+### Design pillars (every PR names one and passes its test)
+| # | Pillar | The PR test |
+|---|---|---|
+| 1 | **A dungeon night in your pocket.** Pull, trash, named fight, boss, loot, ding, roles; you press abilities and choose when | Names the beat or role it strengthens; adds no auto-firing ability |
+| 2 | **Read it, answer it.** Every threat has one tell in a reserved colour **and** shape (red jagged = move, gold ring with chevrons = stand, cracked blue ring = interrupt) and an answer for every class | Tell from `style.ts`, at least 0.8 s warning, a melee-range answer or can be rolled through |
+| 3 | **Short, fair, and it always pays.** Trash 15-30 s, named 30-45 s, boss 60-90 s, delve 6-8 min; never lose to a clock; every run sends you home with something | Bot matrix inside the fight budgets; at average skill no class below 60% of the best class's wins in any launch place; the loss screen is never empty |
+| 4 | **Big in the hand.** Portrait 390x844, hero 70-80 px tall, trash 40 px+, every hit flashes and sounds within 50 ms, 60 fps | 390x844 shots or a clip; measured sizes; frame rate held |
+| 5 | **One world, one voice, honestly made.** Every name, line, colour and sound follows the world bible, the voice guide and `style.ts`. **No AI image, music or voice generators in new assets.** Text and code are written by Claude agents and every player-facing name and line is approved by Steve | Names in the rename map; no colour outside `style.ts` (unit test); no generated audio or images added |
+
+**On "AI slop", honestly.** Every line of this game is written by Claude. So we never claim text is "hand-written". What we can truthfully say, once it's true: *"No AI art or music. Every model and sound is built in code."* A ready answer for "was this made with AI?" is written in Checkpoint 1. What makes a game read as slop is generic, inconsistent, unconsidered content; the cure is one world, one look, one voice, and Steve's sign-off on every name and line.
+
+### What changes (decided)
+**Combat and classes**
+- Keep: room-to-room delves, the stick, four ability buttons unlocked at levels 1-4, the automatic basic attack, telegraphed bosses, threat and roles.
+- Camera in close: hero 70-80 px, trash 40 px+, a boss at least a third of the screen; edge arrows; the intro banner shrinks to one line.
+- A hit-feel kit in one table (`feel.ts`): hit flash, knockback, hit-stop on big hits, clay shatter that stays on the floor, shake with an off switch, haptics.
+- A **dodge roll for every class**, on a **dodge button by default**, with flick-the-stick as an option. Bots learn "roll on red".
+- **Fight budgets become a merge gate** (pillar 3). A visible **enrage at 90 s** replaces losing to Burnout.
+- Every boss attack gets a melee answer; the **60% floor** fixes the melee walls (today Duskblade and Bulwark win 0/40 in the Coldmarrow at tier 10).
+- **One signature verb per class:** Emberwright Overheat, Duskblade Backstab, Bulwark Parry, Lumen light motes, Slagbinder charged shot.
+- **Interrupts stay on some classes** (Steve's call, 25 Nov; #841). The plan's proposal to give every class one was overruled; instead the stun-vs-interrupt difference must be readable on the button and in the fight.
+- **Foes built from 8 jobs** (charger, spitter, shielder, caster, mender, bomber, swarmling, brute), each with one tell; each place re-glazes 4-5 jobs and adds one twist foe. **No two places share a trash list** (today 7 of 12 do, sim/content/dungeon.ts:211-249).
+- Delves of **5 rooms with one fork**, 6-8 minutes.
+- Every made-up name goes through the rename map, existing ones too (Maelra, Nhevra, Ysmeret and the rest).
+
+**Systems: keep, merge, cut**
+| Today | Ruling |
+|---|---|
+| In-run draft ("Choose a talent") | Rename **Sparks**; "talent" now means only the permanent tree. Start with **8 per class (3 that change behaviour)**; grow from pick and win rates. Fusions later |
+| Potions, in-run quests | Cut; **one Relic per run** (pick 1 of 2 after the door guard), start with 4, grow to about 12 |
+| Mythics, weapon effects, verb sets | Merge into about 40 named **Heirlooms**, each tied to a place; duplicates temper |
+| Gear name generator (items.ts:107-132) | Deleted; plain gear named per place, approved by Steve |
+| Collection, Achievements, Seen | Merge into one **Journal** (from hour 2) |
+| Daily bounty (open arena), weekly quests, season marks | **Quick Delve** (daily seed, about 4 min, Halls map, leaderboard checked by replaying the run on the server) and one **Weekly Cache** filled by wins only |
+| Tiers 1-15 (Steve's cap, #863) | **Kept at 15** (Steve picked it yesterday); from tier 3 each tier adds a rule, and number growth per tier is halved; Delver's Keys stay the endless ladder |
+| Seasons, world boss | Seasons **off at launch**; Season 1 about 6 weeks after; the world boss returns as each season's finale weekend |
+| Blueprints (new) | Bosses and named elites drop them; each adds a Spark, Relic or Fusion to your pool. The first kill of each boss always drops one |
+| Hub | A town at night (one fixed diorama) behind one **Play** button; buildings light as systems unlock; a new player sees Play plus at most 2 buildings |
+| Saves | **One save wipe before launch** with a thank-you title for early players, instead of a converter |
+
+**Art and sound**
+- **One look: kiln-lit dioramas.** Chunky, flat-shaded low-poly 3D built in code, a 3-step toon ramp and dark outline, rooms floating in black lit only by fire, clay foes that shatter, iron figurine heroes with one clear silhouette feature each. One 24-colour palette in `style.ts` with a unit test; each place adds two accents, never a full-screen wash. Only gameplay signals glow flat.
+- **Animation is specified up front:** every body gets idle, move, wind-up, attack, hit and die, built from rigid parts with code tweens (anticipation, squash, recoil). A reference board of 6-8 shipped low-poly games is the quality target.
+- **It's tested before it scales:** an animated 15-second clip of one hero against one foe in one Kiln room, judged blind by fresh players against today's look and a pixel-art version. If low-poly loses, the fallback is bigger hand-drawn pixel art with the same palette and signal rules.
+- The 2D sprite set retires once the new look ships, replaced by a low-power 3D mode for weak phones, **but a flat debug renderer stays** for automated QA (3D runs about 10x slower than real time in our test machines).
+- **Sound: five materials** (clay, iron, fire, water and steam, glass and bells) and one four-note **ember motif** through every place's music and every sting.
+- **Music: Steve's call** (decision 2). We won't re-run the code-music test he already answered on 25 Nov.
+
+**Launch scope:** the five solo dungeons and the Hammerdeep, each made distinct, plus **the Hoard raid with bots** if Checkpoint 5 is on time (else it leads Season 1). The Ashvents, Pressworks and the other three raids stay in the code and return one per season once each has its own foes. Nothing is deleted.
+
+**Money (recommended, decided at Checkpoint 7):** free download, one **$5.99 unlock** ($3.99 launch week), no ads, never sell power. Free: the opening, the Kiln tiers 1-3, Emberwright and Duskblade, Quick Delve, joining co-op and **hosting one co-op run a day**. Fixes and Omens are free forever; new places and raids after launch may be small paid packs, so seasons aren't an unfunded promise.
+
+### Checkpoints (each playable, measured, then the next scales)
+Fresh testers ("cold testers": people who have never seen the game, recording their screen) judge every checkpoint from 2 on; Steve plays each one but can't be a blind judge. The AI playtester driver (tools/playdriver.cjs, #872) gives a cheap first read before humans see it. Durations are judgment.
+
+| # | Checkpoint | Goal | Done when |
+|---|---|---|---|
+| 1 | **Direction locked** (about 1 week) | Everyone builds the same game | World bible, voice guide and rename map merged; `style.ts` with the palette test; fight-budget and 60%-floor gate fails a deliberately slow test PR; baseline class-by-dungeon matrix at average skill published; event log spec; the "made with AI?" answer written; Steve answers decisions 1 and 2 |
+| 2 | **Fun test in grey box** (about 3 weeks), with the **look test** alongside | Prove the new loop is fun before final art | On today's renderer with the camera in and big placeholder shapes: `feel.ts`, dodge, all five verbs, 8 Sparks per class, 4 Relics, the 5-room run with a fork, the enrage and the mastery card, on the public web build with the event log. **Passes when** 3 of 5 cold testers finish a delve and start another unprompted, and 30%+ of web players start a second run. **Look test passes when** cold testers pick the animated clip over today's look and the pixel version |
+| 3 | **Vertical slice: the Kiln and the first 15 minutes at final quality** (3-4 weeks) | One whole dungeon and the front door as they will ship | 4 of 5 cold testers finish the opening unaided and 3 of 5 ask for another run; each can say who they are and why they went down; none call it cheap or AI-made; the Kiln Mother falls in 60-90 s for both free classes at average skill; the hub shows Play plus 2 buildings or fewer; Steve says "I'd pay for this" |
+| 4 | **Five classes worth mastering** (3-4 weeks) | Every class distinct, fair and fun on the Kiln and Foundry | Every class kills the Kiln Mother in 60-90 s at average skill; the 60% floor holds in both places; no Spark in more than 40% of winning builds; 3 of 5 cold testers name their class's verb unprompted |
+| 5 | **Every launch place feels like a place** (6-8 weeks, alongside 6) | Foundry, Glarewell, Coldmarrow, Wrackline, Hammerdeep (and the Hoard raid if on time) at Kiln quality | No two places share a trash list; floor and budgets hold in every place and tier band; art checks green; a cold tester names each place from one screenshot |
+| 6 | **The whole game loop** (about 4 weeks, alongside 5) | Hours 1-20 hand the player from one system to the next | A fresh save reaches hour 5 with never more than Play plus 2 new things shown; Journal, Weekly Cache, Heirlooms, Quick Delve (replay-checked leaderboard) live; the loss screen is never empty |
+| 7 | **Closed test with the real purchase** (3 weeks build + 14 days test) | Strangers play the free hour and the unlock on real phones | 90%+ finish the tutorial, 40%+ reach the free part's end; 40%+ return day 1 and 15%+ day 7; 99.5%+ crash-free; purchase and restore pass on both stores; offline solo play ready |
+| 8 | **Soft launch** (4-6 weeks) | Do strangers rate it, stay and pay? | At least 300 installs before any gate counts; rating 4.5+; 30%+ day 1, 10%+ day 7; 5%+ of tutorial finishers buy; top three complaints fixed |
+| 9 | **Worldwide launch**, then Season 1 about 6 weeks later | Live on both stores | Live; rating 4.5+ after 30 days; Season 1 on time and nothing in it is a nerf |
+
+Each checkpoint's tasks by team are in [vision/vision.md](vision/vision.md) section 9; the changes above (the new grey-box Checkpoint 2, smaller first content, interrupts kept, tiers kept at 15, the Hoard raid, the save wipe, the replay-checked leaderboard, the debug renderer, honest AI wording) override it where they differ. Team briefs carry the current queue.
+
+**Getting players (from Checkpoint 2):** the public web build and an itch.io page, a short boss or interrupt clip each week (TikTok, YouTube Shorts, Reddit), a Discord for testers, and a Steam page weighed as a second store. Before the name is final, three 15-second clips test three pitch lines. A small paid ad test only with Steve's yes at soft launch.
+
+**Store risks budgeted:** one Apple review round-trip under guideline 4.2 (a web-shell app must be more than a website: offline play, haptics and the purchase ready before the first submission); iPad support decided at Checkpoint 7 (on with a working layout and screenshots, or off).
+
+### Decisions for Steve (when each is needed)
+1. **Now: approve the look test, and retiring 2D if the new look wins.** This reverses the 23 Nov "3D with a 2D fallback" call (a low-power 3D mode covers weak phones). Recommendation: yes; nothing beyond one room is converted until fresh players pick it.
+2. **Now: the music.** Keep your Suno songs and disclose AI music where stores ask, or replace them before we charge (human-made CC0 music for tests, then a composer for 8-10 short loops; quotes first, nothing paid until launch). Recommendation: replace before charging, because music is among the most disliked uses of AI in games (vision/research-market.md), but it's your music and your call.
+3. **End of Checkpoint 2: the name.** Keep "Horders" or rename (the team suggests *Emberthief*, backup *Kilnward*, both to be store- and trademark-checked). Decided after fresh players repeat back the fantasy, before any store asset.
+4. **Checkpoint 7: price and free part,** as recommended above.
+
+**What only Steve can supply, with timing:** fresh testers (about 5 per checkpoint from Checkpoint 2, from friends, r/playmygame or Discord; we write the script and the screen-recording how-to); a mid-range Android test phone or a friend's (about $150-250 if bought, needed by Checkpoint 2 for the 60 fps gate; not bought until Steve says so); a yes on every player-facing name and line batch; then later the composer budget (if decision 2 is "replace"), the store accounts ($99 a year Apple, $25 once Google) at Checkpoint 7, and any ad test at Checkpoint 8.
+
+**Running now:** the store-listing work pauses until the final look and name exist. The QA bug pass and the Android installable build keep going; their fixes carry over.
+
+## 1.0 first-cut checklist (27 Nov 2026, superseded by vision v2 above)
 
 Steve (27 Nov 2026, 08:42Z): "There should be more than that on the 1.0 checklist. I feel like we are very far from having a polished game, with engaging and balanced gameplay, fully flushed out classes and maps and dungeons and art. We have a great start, but we're not anywhere near where I would try to charge for our game." And at 08:45Z: "People will not pay for something that looks like it was thrown together, has no cohesive feel and concepts. And people also have a negative bias towards what they call 'AI slop'. So we can't throw anything on there without it being thought through."
 
