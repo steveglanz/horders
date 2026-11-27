@@ -8,6 +8,10 @@ Companion files:
 - [decisions.md](decisions.md): the calls Steve has made, so nobody re-asks them.
 - [world.md](world.md): the world bible and voice guide (1.0, Checkpoint 1). Every name and line follows it.
 - [rename-map.md](rename-map.md): proposed renames for places, bosses, classes and systems, with the searches behind them.
+- [unlock-curve.md](unlock-curve.md): when each system lights up, and the trigger the code checks (1.0, Checkpoint 1).
+- [fight-budgets.md](fight-budgets.md): the fight-budget table and the 60% floor behind the merge gate (1.0, Checkpoint 1).
+- [checkpoint-2-grey-box.md](checkpoint-2-grey-box.md): the one definition of the Checkpoint 2 grey-box fun test.
+- [made-with-ai.md](made-with-ai.md): our honest answer to "was this made with AI?", and store disclosures.
 
 ## The game in one paragraph
 
