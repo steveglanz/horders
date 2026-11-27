@@ -2,7 +2,7 @@ import { weekOf } from '../sim/content/omens';
 import { keyOmens, keyTier } from '../sim/content/keys';
 import { bountyFor, dayOf } from '../sim/content/bounty';
 import { heatFor } from '../sim/content/heat';
-import { topTier } from '../sim/content/scaling';
+import { startTier, topTier } from '../sim/content/scaling';
 import Phaser from 'phaser';
 import { GameScene } from './GameScene';
 import { Hud } from './ui';
@@ -52,7 +52,7 @@ hud.onGearChange = save;
 hud.tipSeen = (id) => !!hero.tipsSeen?.includes(id);
 hud.markTip = (id) => { if (hero.tipsSeen?.includes(id)) return; (hero.tipsSeen ??= []).push(id); save(); };
 const hub = new Hub(() => hero, save);
-hub.tier = topTier(hero.maxTier);
+hub.tier = startTier(hero);
 hub.render();
 
 // Pull the cloud save (if any) and keep whichever copy has made more progress. It runs at start,
@@ -69,7 +69,7 @@ function mergeCloud(loaded: HeroProfile | null): Kept {
       // After a reset on another device, take that copy alone: spreading this one under it would bring back its classes.
       hero = (remote.resets ?? 0) > (hero.resets ?? 0) ? { ...newHero(), ...remote } : { ...hero, ...remote };
       saveHero(hero);
-      hub.tier = topTier(hero.maxTier);
+      hub.tier = startTier(hero);
       kept = 'cloud';
     } else if (best !== remote) {
       void cloud.saveHero(hero);
@@ -205,6 +205,8 @@ function finishRun(w: World) {
   // A win that opens the next tier moves the delve up to it, when you were on your top tier (a playtester's new player
   // replayed tier 1 five times: the tier was only picked at page load). A lower tier you chose to replay stays picked.
   if (topTier(hero.maxTier) > topTier(topBefore) && hub.tier === topTier(topBefore)) hub.tier = topTier(hero.maxTier);
+  // The hub opens on this tier next time (startTier), so a reload doesn't put you on the tier you haven't beaten yet.
+  if (!lastBounty) hero.lastTier = hub.tier;
   // Phase 15 Y4: what this delve met goes in the Seen log; the end screen marks the first meetings.
   rewards.seenNew = recordSeen(hero, metIn(w));
   save();
@@ -335,9 +337,22 @@ function startRun(bounty = false, key = false): void {
     onEnd: (w: World) => {
       const rewards = finishRun(w);
       hud.showEnd(w, rewards, hero);
+      offerLowerTier(w);
       audio.rewards(rewards);
     },
   });
+}
+
+/**
+ * CP2 Kiln panel (27 Nov): after a loss, players either quit or replayed the same tier out of spite. A loss above tier 1
+ * now offers the tier below beside "Delve again" (plain delves only: keys and bounties have their own ladders).
+ */
+function offerLowerTier(w: World): void {
+  const b = el('lowerBtn') as HTMLButtonElement;
+  const t = w.summary().tier ?? hub.tier;
+  b.hidden = w.summary().victory || t <= 1 || lastBounty || lastKey || coop?.role === 'guest';
+  b.textContent = `Try tier ${t - 1}`;
+  b.dataset.t = String(t - 1);
 }
 
 game.events.once(Phaser.Core.Events.READY, () => {
@@ -455,6 +470,11 @@ el('deleteAcctBtn').addEventListener('click', async () => {
   location.reload();
 });
 el('againBtn').addEventListener('click', () => startRun(lastBounty, lastKey));
+el('lowerBtn').addEventListener('click', (e) => {
+  hub.tier = Math.max(1, Number((e.currentTarget as HTMLElement).dataset.t) || 1);
+  hub.render();
+  startRun();
+});
 // A claimed world boss reward is an Epic: the hub's biggest chime (it respects mute like every sound).
 hub.onClaimed = () => audio.play('bossClaim');
 hub.onBounty = () => {
@@ -729,6 +749,7 @@ const coopEvents = {
       onEnd: (w: World) => {
         const rewards = finishRun(w);
         hud.showEnd(w, rewards, hero);
+        offerLowerTier(w);
         audio.rewards(rewards);
       },
     });

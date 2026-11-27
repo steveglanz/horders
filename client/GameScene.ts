@@ -2,6 +2,7 @@
  * Draws the shared simulation. This scene owns no game rules: it feeds input
  * into `World.step` at a fixed rate and renders interpolated state.
  */
+import { corridorEnds } from '../sim/halls';
 import { OMENS } from '../sim/content/omens';
 import { coachLine } from '../sim/content/firstdelve';
 import { RELICS } from '../sim/content/relics';
@@ -773,7 +774,34 @@ export class GameScene extends Phaser.Scene {
     this.hud.showRun(w);
     // Halls H1: no fight starts the run, so the map says what to do.
     // Every Halls dungeon's own name (phone pass 25 Nov: the Hammerdeep opened as "The Kiln Depths").
-    if (w.halls) this.hud.banner(w.dungeonDef.name, this.hud.compact ? 'Foes sleep until you step close. Pick your fights; the door guard must fall.' : 'Foes sleep until you step into their red ring, so pick your fights. The door guard must fall before the boss door opens.');
+    // CP2 Kiln panel (27 Nov): in the Kiln run a room's foes all wake as you walk in (roomWake), so the old "sleep until
+    // you step close" line had players walk in expecting to pick their pull.
+    if (w.halls?.packs.some((p) => p.roomWake)) this.hud.banner(w.dungeonDef.name, this.hud.compact ? 'A room wakes when you walk in. The door guard must fall.' : 'Every foe in a room wakes as you walk in, so take each room as one fight. The door guard must fall before the boss door opens.');
+    else if (w.halls) this.hud.banner(w.dungeonDef.name, this.hud.compact ? 'Foes sleep until you step close. Pick your fights; the door guard must fall.' : 'Foes sleep until you step into their red ring, so pick your fights. The door guard must fall before the boss door opens.');
+  }
+
+  /** The Kiln run's two fork doors, while both still wait: where each sign stands, its words and colour. */
+  private forkSigns(w: World): { x: number; y: number; label: string; col: number }[] {
+    const m = w.halls;
+    if (!m || m.done) return [];
+    const doors = m.packs.filter((p) => p.fork);
+    if (doors.length !== 2 || doors.some((p) => p.state !== 'asleep' || p.skipped)) return [];
+    // Not over a fight: the signs come up once the room before the fork is quiet.
+    if (m.packs.some((p) => p.state === 'awake')) return [];
+    const out: { x: number; y: number; label: string; col: number }[] = [];
+    for (const p of doors.sort((a, b) => (a.fork === 'hard' ? -1 : 1) - (b.fork === 'hard' ? -1 : 1))) {
+      // The corridor into the fork room from the room before it (not the one on to the door guard).
+      const c = m.corridors.find((q) => q.b === p.room && m.rooms[q.a] && m.rooms[q.a].main && q.a < p.room);
+      if (!c) continue;
+      const e = corridorEnds(m, c);
+      const hard = p.fork === 'hard';
+      out.push({
+        x: e.x1, y: e.y1 - 24,
+        label: hard ? `Hard door\n${ENCOUNTERS[p.enc].name} · extra rare loot` : 'Easy door\nLighter foes · an extra Spark',
+        col: hard ? 0xffc861 : 0xd8cfc4,
+      });
+    }
+    return out;
   }
 
   /**
@@ -981,7 +1009,7 @@ export class GameScene extends Phaser.Scene {
     if (this.world.state === 'ended') return;
     this.paused = force ?? !this.paused;
     if (this.paused) this.dropHold();
-    this.hud.setPaused(this.paused);
+    this.hud.setPaused(this.paused, this.world);
   }
 
   private readInput(): Input {
@@ -2630,7 +2658,20 @@ export class GameScene extends Phaser.Scene {
     }
     // Fork gates: gold for the named path, teal for a shrine, pale for the steady fight.
     const GATE_COL = { steady: 0xd8cfc4, named: 0xffc861, shrine: 0x5fe0c8 } as const;
+    // 1.0 CP2, the Kiln run's fork (panel 27 Nov: 3 of 4 testers couldn't tell it was a choice): a sign at each fork
+    // doorway, over the corridor's start in the room before it, until one door is taken.
+    const forkSigns = w.phase === 'choose' ? [] : this.forkSigns(w);
     this.gateTexts.forEach((txt, k) => {
+      const sign = forkSigns[k];
+      if (sign) {
+        // The Halls camera sits further out than the arena's, which left a 13 px label at about 7 px on a phone: scale the
+        // sign up to read at about 15 px on screen.
+        const z = this.cameras.main.zoom;
+        const up = Math.max(1, 15 / (13 * this.textK * z));
+        setColorIf(txt.setVisible(true).setText(sign.label), '#' + sign.col.toString(16).padStart(6, '0')).setPosition(sign.x, sign.y).setScale(up);
+        return;
+      }
+      if (txt.scale !== 1) txt.setScale(1);
       const gate = w.phase === 'choose' ? w.gates[k] : undefined;
       if (!gate) {
         if (txt.visible) { txt.setVisible(false); this.gateSprites[k]?.arch.setVisible(false); this.gateSprites[k]?.portal.setVisible(false); }

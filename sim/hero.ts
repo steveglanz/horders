@@ -63,6 +63,8 @@ export interface HeroProfile {
   nextItemId: number;
   /** Highest difficulty tier unlocked (win a tier to unlock the next). */
   maxTier: number;
+  /** The tier this character last delved (or was moved up to by a win). The hub opens on it (see startTier). */
+  lastTier?: number;
   /** Class picked on the title screen (older saves have none: Emberwright). */
   cls?: ClassId;
   /** Forge actions taken; seeds temper rolls so they can be re-checked. */
@@ -122,7 +124,7 @@ export function altsOn(cls: ClassId, h: Pick<HeroProfile, 'alt' | 'alts' | 'leve
 }
 
 /** P5: embers are not here. One purse is shared by every class (see shareEmbers and economy.md). */
-export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'keys', 'keyBest', 'stance', 'alt', 'alts'] as const;
+export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'lastTier', 'grit', 'keys', 'keyBest', 'stance', 'alt', 'alts'] as const;
 export type Character = Pick<HeroProfile, (typeof CHARACTER_KEYS)[number]>;
 
 function freshCharacter(): Character {

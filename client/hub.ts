@@ -15,7 +15,7 @@ import { SETS } from '../sim/content/sets';
 import { GLOWS, SEASON, SEASONS, TRAILS, trailLabel, seasonDef, seasonLevel, seasonNumber, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
 import { SEASON_ART } from './seasonArt';
 import { itemHtml, setsWorn } from './ui';
-import { GRIT, MAX_TIER, topTier } from '../sim/content/scaling';
+import { GRIT, MAX_TIER, startTier, topTier } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel, worldBossLabel } from '../sim/content/dungeon';
 import { BOT_FILL, botFillBlocker, fillClasses } from '../sim/content/botfill';
 import type { ClassId } from '../sim/content/emberwright';
@@ -371,7 +371,7 @@ export class Hub {
       b.addEventListener('click', () => {
         // Each class is its own hero, with its own level, talents, gear and bags.
         switchClass(h, b.dataset.cls as typeof cls);
-        this.tier = topTier(h.maxTier);
+        this.tier = startTier(h);
         this.save();
         this.render();
       }));
@@ -1225,7 +1225,7 @@ export class Hub {
       if (!cls) { this.onResetAll(); return; }
       const h = this.hero();
       resetCharacter(h, cls);
-      if ((h.cls ?? 'emberwright') === cls) this.tier = topTier(h.maxTier);
+      if ((h.cls ?? 'emberwright') === cls) this.tier = startTier(h);
       this.save();
       this.render();
     });

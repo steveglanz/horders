@@ -651,6 +651,10 @@
   .end-foot button { margin: 0; flex: 1; max-width: 260px; min-height: 52px; }
   .end-foot .primary { font: 700 18px var(--serif); }
   .end-foot .ghost { background: rgba(28,18,16,0.85); font-weight: 600; }
+  /* A loss above tier 1 adds "Try tier N" (CP2 Kiln panel, 27 Nov): three buttons stay one line each, down to 320 px. */
+  .end-foot:has(#lowerBtn:not([hidden])) { gap: 8px; }
+  .end-foot:has(#lowerBtn:not([hidden])) button { white-space: nowrap; padding: 0 8px; font-size: 14px; min-width: 0; }
+  .end-foot:has(#lowerBtn:not([hidden])) .primary { font-size: 16px; flex: 1.2; }
   .bag-foot { text-align: center; }
   .bag-foot .primary { margin: 0; min-width: 200px; }
 
@@ -868,7 +872,7 @@
     #pause .panel h2 { margin: 0; order: -2; }
     #pause #resumeBtn { order: -1; margin-top: 8px; }
     #pause .panel > button { align-self: center; min-width: 240px; }
-    #pause .pomens { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #pause .pomens:not(.prun) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #pause .po-h { grid-column: 1 / -1; }
     #quests { width: 180px; font-size: 11px; }
     #quests h3, #quests .q:not(.now), #quests .qp { display: none; }
@@ -1603,6 +1607,7 @@
   <div class="panel" style="text-align:center; max-width: 360px">
     <h2>Paused</h2>
     <div id="pauseAbilities" class="pabs" aria-label="Your abilities"></div>
+    <div id="pauseRun" class="pomens prun" hidden></div>
     <div id="pauseOmens" class="pomens" hidden></div>
     <details class="psettings"><summary>Settings</summary><div id="pauseSettings"><div class="opts" id="pauseOpts"></div></div></details>
     <button class="primary" id="resumeBtn">Resume</button>
@@ -1625,7 +1630,7 @@
       </div>
       <div id="rewards" class="box loot"></div>
     </div>
-    <div class="end-foot"><button class="ghost" id="menuBtn">Main menu</button><button class="primary" id="againBtn">Delve again</button></div>
+    <div class="end-foot"><button class="ghost" id="menuBtn">Main menu</button><button class="ghost" id="lowerBtn" hidden>Try tier 1</button><button class="primary" id="againBtn">Delve again</button></div>
   </div>
 </div>
 
