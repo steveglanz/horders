@@ -120,6 +120,32 @@ export const OVERHEAT = { from: 80, mult: 2, scorch: 0.04, vent: 55 };
 export const BACKSTAB = { front: (110 * Math.PI) / 180, turn: 5, bossTurn: 2.5 };
 /** The dodge button's press id where a press travels as a slot number (the client's queue, a co-op guest's press). */
 export const ROLL_SLOT = 4;
+/**
+ * 1.0 CP2 hold verbs (Bulwark Parry on E, Slagbinder charged shot on Q): an ability button held down. The client sends
+ * Input.hold while the button is down; a release sooner than `tap` s is a plain press (the client casts the ability).
+ */
+export const HOLD = { tap: 0.22 };
+/**
+ * 1.0 CP2 signature verb, Bulwark Parry (vision.md section 6 item 7): hold E to raise the shield. While it is up the
+ * Bulwark moves at `slow` speed and blows land `block` lighter. A red tell (a telegraph landing, a lunge, or a blow from
+ * an elite, rare or boss) that lands within `window` s of raising it is parried: no damage, the attacker is staggered
+ * `stagger` s (`bossStagger` for a boss) and Resolve refills. Raising it again within `rest` s of the last raise gives
+ * no parry window, so tapping can't keep one open.
+ */
+export const PARRY = { window: 0.3, block: 0.4, slow: 0.5, stagger: 1.2, bossStagger: 0.5, rest: 0.8 };
+/**
+ * 1.0 CP2 signature verb, Lumen light motes: every `every`th Sunmote hit drops a mote of light by the foe it struck.
+ * A hurt hero (any class) who walks within `reach` takes it and heals `heal` of its max health. A mote lasts `life` s;
+ * at most `cap` lie on the floor (the oldest goes).
+ */
+export const LIGHT_MOTE = { every: 3, heal: 0.06, reach: 26, life: 8, cap: 5 };
+/**
+ * 1.0 CP2 signature verb, Slagbinder (gunner) charged shot: hold Q to charge the cannon (no shots while charging, `slow`
+ * move speed); release after `min` s fires one shot, charged over `time` s: up to `mult` damage, and its pierce grows
+ * from SLAG_KIT.cannonPierce to full. A fully charged shot shatters every Brittle foe it passes: `shatter` x its base
+ * cannon damage to that foe and every foe within `shatterR`, and the Brittle is spent.
+ */
+export const CHARGE = { min: 0.25, time: 1.0, mult: 2.5, slow: 0.6, shatter: 1.0, shatterR: 100, slag: 18 };
 /** Share of max health Sidestep heals. */
 const SIDESTEP_HEAL = 0.03;
 /** Share of max health Steady Breath restores, once per fight, to a melee hero below 30%. */
@@ -292,6 +318,8 @@ export interface Input {
   cast?: number;
   /** The dodge button (ROLL) was pressed this tick. */
   roll?: boolean;
+  /** 1.0 CP2: the ability button (0-3) held down this tick (HOLD; Parry, charged shot). */
+  hold?: number;
 }
 
 export interface Enemy {
@@ -617,6 +645,15 @@ export interface Player {
   rollCd?: number;
   rollAng?: number;
   rolled?: number;
+  /** 1.0 CP2 hold verbs (HOLD): the slot held (-1 or unset: none) and for how long. */
+  holdSlot?: number;
+  holdT?: number;
+  /** Parry (PARRY): when the shield was last raised, whether this raise has a parry window, and parries made. */
+  raiseAt?: number;
+  parryOpen?: boolean;
+  parries?: number;
+  /** Light motes (LIGHT_MOTE): Sunmote hits toward the next mote. */
+  moteHits?: number;
   /** Stored extra Blink charges (Hot Heels rank 2) and the timer refilling one. */
   blinkCharges: number;
   blinkChargeT: number;
@@ -752,6 +789,14 @@ export type SimEvent =
   | { type: 'overheat'; x: number; y: number; hero: number }
   /** 1.0 CP2: a hero started a dodge roll (ROLL) from (x, y) toward `angle`. */
   | { type: 'roll'; x: number; y: number; angle: number; hero: number }
+  /** 1.0 CP2 Parry: a Bulwark's raised shield turned a red tell aside at (x, y). */
+  | { type: 'shieldParry'; x: number; y: number; hero: number }
+  /** 1.0 CP2 light motes: a Lumen's hit dropped a mote at (x, y); a hero took one. */
+  | { type: 'lightMote'; x: number; y: number }
+  | { type: 'lightMoteTaken'; x: number; y: number; hero: number }
+  /** 1.0 CP2 charged shot: a Slagbinder released a shot charged `c` (0-1) along the line; a full one shattered a Brittle foe. */
+  | { type: 'chargedShot'; x1: number; y1: number; x2: number; y2: number; c: number; hero: number }
+  | { type: 'shatter'; x: number; y: number; hero: number }
   | { type: 'castDone'; x: number; y: number; id: string; name: string }
   | { type: 'heal'; x: number; y: number; amount: number }
   | { type: 'ward'; index: number; amount: number }
@@ -1041,6 +1086,10 @@ export class World {
    * hero standing in it until stage 3; then `glow` counts down to its burst (0 = still burning).
    */
   slagPatches: { x: number; y: number; tick: number; glow: number }[] = [];
+  /** Parry: while a telegraph lands, its owner (a red tell, so a raised shield can parry it); -1 otherwise. Not state. */
+  private tellFrom = -1;
+  /** 1.0 CP2 light motes (LIGHT_MOTE) lying on the floor: where, seconds left, and the Lumen that dropped it. */
+  lightMotes: { x: number; y: number; t: number; by: number }[] = [];
   /** Someone in the party has an interrupt (Bulwark, Duskblade, Emberwright) with F unlocked. Set at the start. */
   partyKick = false;
   /** Someone in the party has F unlocked (an interrupt or a stun). Set at the start. */
@@ -1763,7 +1812,9 @@ export class World {
     // Halls H2a: everything moves HALLS.moveScale faster on a Halls run (its boss fight too). One number, no travel run
     // (design, 25 Nov: Steve's "keep it simple").
     const halls = this.moveScale;
-    return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill * halls;
+    // Hold verbs: the raised shield (Parry) and a charging cannon slow the hero.
+    const held = (this.player.holdSlot ?? -1) < 0 ? 1 : this.cls === 'bulwark' ? PARRY.slow : this.cls === 'slagbinder' ? CHARGE.slow : 1;
+    return held * this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill * halls;
   }
   /** Halls H2a (Steve, 25 Nov: "monster and player movements are very slow"): the move speed scale, 1 off a Halls run. */
   /** Share of max health a Sluice Crawler's Bloom heals a foe caught in its burst (less on a Halls run). */
@@ -1914,6 +1965,7 @@ export class World {
       this.updateDrops();
       this.updateVeins(dt);
       this.updateGems(dt);
+      if (this.lightMotes.length) this.updateLightMotes(dt);
       if (this.hallsOn && this.ebbT > 0) this.raftsClear();
       this.noteEcho();
       this.checkEnd();
@@ -1938,10 +1990,31 @@ export class World {
     this.eachHero(() => this.updateDrops());
     this.updatePartyVeins(dt);
     this.updatePartyGems(dt);
+    if (this.lightMotes.length) this.updateLightMotes(dt);
     this.updateRevives(dt);
     if (this.hallsOn && this.ebbT > 0) this.raftsClear();
     this.noteEcho();
     this.checkEnd();
+  }
+
+  /** Light motes (LIGHT_MOTE): age them, and a hurt hero who walks over one takes it. */
+  private updateLightMotes(dt: number): void {
+    const back = this.acting;
+    const r2 = (LIGHT_MOTE.reach + PLAYER_RADIUS) ** 2;
+    this.lightMotes = this.lightMotes.filter((m) => {
+      m.t -= dt;
+      if (m.t <= 0) return false;
+      for (let h = 0; h < this.heroes.length; h++) {
+        const q = this.heroPlayer(h);
+        if (q.hp <= 0 || q.hp >= q.maxHp || dist2(q.x, q.y, m.x, m.y) > r2) continue;
+        this.use(h);
+        this.healPlayer(q.maxHp * LIGHT_MOTE.heal);
+        this.events.push({ type: 'lightMoteTaken', x: m.x, y: m.y, hero: h });
+        this.use(back);
+        return false;
+      }
+      return true;
+    });
   }
 
   /** Phase 16 U3: marks the echo met the first step it goes off. Reads this step's events only; no rng. */
@@ -3369,6 +3442,20 @@ export class World {
     return null;
   }
 
+  /** Bots' parry (PARRY): a hit or bloom mark the acting hero stands in that lands within `within` s. */
+  tellLanding(within: number): boolean {
+    const p = this.player;
+    for (const t of this.telegraphs) if (t.alive && t.kind !== 'soak' && t.dur - t.t <= within && this.insideFor(t, p)) return true;
+    return false;
+  }
+
+  /** Bots: whether point (x, y) lies inside any live hit or bloom mark. */
+  markedAt(x: number, y: number): boolean {
+    const q = { x, y } as Player;
+    for (const t of this.telegraphs) if (t.alive && t.kind !== 'soak' && this.insideFor(t, q)) return true;
+    return false;
+  }
+
   /** Back to Stone: the hero is within reach of a layout stone or a standing Glarewell pillar. */
   nearStone(p: Player = this.player): boolean {
     const r = SITE_CARDS.stoneRange + PLAYER_RADIUS;
@@ -3864,6 +3951,7 @@ export class World {
     const len = Math.hypot(input.x, input.y);
     if ((p.rollCd ?? 0) > 0) p.rollCd = Math.max(0, (p.rollCd ?? 0) - dt);
     if (input.roll && (p.rollCd ?? 0) <= 0 && (p.rollT ?? 0) <= 0 && p.hp > 0) this.startRoll(input);
+    this.updateHold(input, dt);
     if ((p.rollT ?? 0) > 0) {
       // Rolling: the roll carries the hero, whatever the stick says.
       const step = (ROLL.dist / ROLL.time) * Math.min(dt, p.rollT ?? 0);
@@ -3881,6 +3969,49 @@ export class World {
     p.hp = Math.min(p.maxHp, p.hp + this.regen * dt);
     if (p.hurtFlash > 0) p.hurtFlash -= dt;
     if (this.stress) p.hp = p.maxHp;
+  }
+
+  /** The slot whose hold is a verb for the acting hero (Bulwark E Parry, gunner Q charged shot), or -1. */
+  get holdVerbSlot(): number {
+    if (this.cls === 'bulwark') return this.unlocked(1) ? 1 : -1;
+    if (this.cls === 'slagbinder' && this.gunner) return 0;
+    return -1;
+  }
+
+  /** 1.0 CP2 hold verbs (HOLD): start, keep or release the held button. */
+  private updateHold(input: Input, dt: number): void {
+    const p = this.player;
+    const want = input.hold !== undefined && input.hold === this.holdVerbSlot && p.hp > 0 && this.state === 'running' ? input.hold : -1;
+    const had = p.holdSlot ?? -1;
+    if (want === had) {
+      if (want >= 0) p.holdT = (p.holdT ?? 0) + dt;
+      return;
+    }
+    if (had >= 0) this.releaseHold(had);
+    p.holdSlot = want;
+    p.holdT = 0;
+    if (want >= 0 && this.cls === 'bulwark') {
+      // Parry: a raise opens a parry window only if the last one was PARRY.rest ago.
+      p.parryOpen = this.time - (p.raiseAt ?? -99) >= PARRY.rest;
+      p.raiseAt = this.time;
+    }
+  }
+
+  private releaseHold(slot: number): void {
+    const p = this.player;
+    const held = p.holdT ?? 0;
+    if (this.cls === 'slagbinder' && slot === 0 && held >= CHARGE.min) this.chargedShot(Math.min(1, held / CHARGE.time + 1e-6));
+  }
+
+  /** Parry (PARRY): the acting Bulwark's shield is up. */
+  get shieldRaised(): boolean {
+    return this.cls === 'bulwark' && (this.player.holdSlot ?? -1) === 1;
+  }
+
+  /** Charged shot (CHARGE): how far the acting gunner's charge has built (0-1), or -1 when it isn't charging. */
+  get chargeLevel(): number {
+    const p = this.player;
+    return this.cls === 'slagbinder' && (p.holdSlot ?? -1) === 0 ? Math.min(1, (p.holdT ?? 0) / CHARGE.time + 1e-6) : -1;
   }
 
   /** The dodge roll (ROLL): the way the stick points (else the way the hero faces), a short guard against blows. */
@@ -3994,6 +4125,17 @@ export class World {
     // Swallowed: nothing outside can reach this hero (coalClock digests them).
     if ((this.player.swallowT ?? 0) > 0) return;
     const p = this.player;
+    // Parry (Bulwark, shield raised on E): a red tell timed just after the raise is turned aside; any other blow lands lighter.
+    if (!unblockable && amount > 0 && this.shieldRaised) {
+      const from = src >= 0 ? src : this.tellFrom;
+      const foe = src >= 0 ? this.enemies[src] : undefined;
+      const red = this.tellFrom !== -1 || (!!foe && (foe.def.rank !== 'normal' || foe.lungeD > 0));
+      if (red && p.parryOpen && (p.holdT ?? 0) <= PARRY.window) {
+        this.shieldParry(from);
+        return;
+      }
+      amount *= 1 - PARRY.block;
+    }
     // Interpose: a Slagbinder beside this hero takes most of each direct hit, at less damage.
     // Only hits from a foe that can be blocked: never soaks, percent ticks, Ladle Burn or Slag Grip.
     if (src >= 0 && !unblockable && (p.interposeUntil ?? -1) > this.time) {
@@ -4142,6 +4284,16 @@ export class World {
       const healed = this.healPlayer(p.maxHp * SECOND_WIND * this.noviceAid);
       if (healed > 0) this.events.push({ type: 'heal', x: p.x, y: p.y, amount: healed });
     }
+  }
+
+  /** Parry (PARRY): no damage, Resolve to full, and the attacker staggers (never mid-cast: a parry is not an interrupt). */
+  private shieldParry(from: number): void {
+    const p = this.player;
+    p.heat = MAX_HEAT;
+    p.parries = (p.parries ?? 0) + 1;
+    const e = from >= 0 ? this.enemies[from] : undefined;
+    if (e && e.alive && !e.def.stationary && !e.castId) e.stunT = Math.max(e.stunT, e.def.rank === 'boss' ? PARRY.bossStagger : PARRY.stagger);
+    this.events.push({ type: 'shieldParry', x: p.x, y: p.y, hero: this.acting });
   }
 
   // ---------------------------------------------------------------- action bar
@@ -5070,6 +5222,11 @@ export class World {
     const p = this.player;
     this.updatePlates();
     p.volleyT -= dt;
+    // Charged shot: the cannon holds its fire while it charges.
+    if (this.gunner && (p.holdSlot ?? -1) === 0) {
+      p.volleyT = Math.max(0, p.volleyT);
+      return;
+    }
     if (p.volleyT > 0) return;
     const range = this.gunner ? SLAG_KIT.cannonRange : SLAG_KIT.lobRange;
     let t = this.bladeTarget(range);
@@ -5116,18 +5273,20 @@ export class World {
    * Cannon (the gunner's basic attack): a slow heavy shot at `t` that carries on in a straight line to cannonRange,
    * hitting every foe it passes through for cannonPierce of its damage. Heavy Lob, Shatterpoint and Clinging Slag apply.
    */
-  private cannon(t: number): void {
+  private cannon(t: number, k = 1, pierce: number = SLAG_KIT.cannonPierce, shatter = false): void {
     const p = this.player;
     const e = this.enemies[t];
     const ang = Math.atan2(e.y - p.y, e.x - p.x);
     p.facing = ang;
+    const hits: number[] = [t];
     const ux = Math.cos(ang);
     const uy = Math.sin(ang);
     const L = SLAG_KIT.cannonRange;
     this.events.push({ type: 'cannon', x1: p.x, y1: p.y, x2: p.x + ux * L, y2: p.y + uy * L });
     const brittle = (e.brittleUntil ?? 0) > this.time;
     const mult = (1 + 0.3 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
-    const dmg = SLAG_KIT.cannonDamage * mult * (1 + TREE.boreCannon * this.tree('bore')) * this.dmgMult;
+    const base = SLAG_KIT.cannonDamage * (1 + TREE.boreCannon * this.tree('bore')) * this.dmgMult;
+    const dmg = base * mult * k;
     this.damageEnemy(t, dmg, true);
     this.addHeat(SLAG_KIT.cannonSlag + 3 * this.rank('denseGlob') + (brittle && this.hasWeaponFx('temperedLob') ? 3 : 0));
     if (e.alive && this.hasWeaponFx('clingingSlag')) {
@@ -5144,8 +5303,43 @@ export class World {
       const along = (o.x - p.x) * ux + (o.y - p.y) * uy;
       if (along < 0 || along > L) return;
       const off = Math.abs((o.x - p.x) * uy - (o.y - p.y) * ux);
-      if (off <= SLAG_KIT.cannonWidth + o.def.radius) this.damageEnemy(j, dmg * SLAG_KIT.cannonPierce, false, true);
+      if (off <= SLAG_KIT.cannonWidth + o.def.radius) {
+        hits.push(j);
+        this.damageEnemy(j, dmg * pierce, false, true);
+      }
     });
+    if (!shatter) return;
+    // A full charged shot shatters every Brittle foe it went through.
+    for (const j of hits) {
+      const o = this.enemies[j];
+      if ((o.brittleUntil ?? 0) <= this.time) continue;
+      o.brittleUntil = 0;
+      const sx = o.x, sy = o.y;
+      this.forEachNear(sx, sy, CHARGE.shatterR + 60, (m) => {
+        const q = this.enemies[m];
+        if (q.alive && dist2(sx, sy, q.x, q.y) <= (CHARGE.shatterR + q.def.radius) ** 2) this.damageEnemy(m, base * CHARGE.shatter, false, true);
+      });
+      this.events.push({ type: 'shatter', x: sx, y: sy, hero: this.acting });
+    }
+  }
+
+  /** Charged shot (CHARGE): the gunner releases Q, charged `c` (0-1), at its target (the boss first, as its cannon does). */
+  private chargedShot(c: number): void {
+    const p = this.player;
+    let t = this.bladeTarget(SLAG_KIT.cannonRange);
+    if (this.bossIndex >= 0) {
+      const boss = this.enemies[this.bossIndex];
+      if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < (SLAG_KIT.cannonRange + boss.def.radius) ** 2) t = this.bossIndex;
+    }
+    if (t < 0) return;
+    const e = this.enemies[t];
+    const ang = Math.atan2(e.y - p.y, e.x - p.x);
+    const L = SLAG_KIT.cannonRange;
+    this.events.push({ type: 'chargedShot', x1: p.x, y1: p.y, x2: p.x + Math.cos(ang) * L, y2: p.y + Math.sin(ang) * L, c, hero: this.acting });
+    this.cannon(t, 1 + (CHARGE.mult - 1) * c, SLAG_KIT.cannonPierce + (1 - SLAG_KIT.cannonPierce) * c, c >= 1);
+    this.addHeat(CHARGE.slag * c);
+    // The next plain shot comes a full reload later.
+    p.volleyT = Math.max(p.volleyT, SLAG_KIT.cannonEvery / this.loadout.hasteMult);
   }
 
   private lob(t: number): void {
@@ -5363,6 +5557,16 @@ export class World {
     const e0 = this.enemies[t];
     p.facing = Math.atan2(e0.y - p.y, e0.x - p.x);
     hit(t, 1);
+    // Light motes: every few Sunmote hits drop a mote of light at the Lumen's side of the foe.
+    p.moteHits = (p.moteHits ?? 0) + 1;
+    if (p.moteHits % LIGHT_MOTE.every === 0) {
+      const d = Math.max(1, Math.sqrt(dist2(p.x, p.y, e0.x, e0.y)));
+      const off = Math.min(d * 0.5, e0.def.radius + 16);
+      const x = e0.x + ((p.x - e0.x) / d) * off, y = e0.y + ((p.y - e0.y) / d) * off;
+      if (this.lightMotes.length >= LIGHT_MOTE.cap) this.lightMotes.shift();
+      this.lightMotes.push({ x, y, t: LIGHT_MOTE.life, by: this.acting });
+      this.events.push({ type: 'lightMote', x, y });
+    }
     // Chorus: every few Sunmotes, the target is struck a second time.
     if (this.rank('chorus') > 0) {
       p.motesFired = (p.motesFired ?? 0) + 1;
@@ -9912,7 +10116,9 @@ export class World {
       if (!inside && t.wasIn && t.kind === 'hit') this.dodged();
       if (inside && (p.rollT ?? 0) > 0 && p.shieldT > 0) p.rolled = (p.rolled ?? 0) + 1;
       // A smothered bloom lands on the shield: the Bulwark takes half.
+      this.tellFrom = t.owner;
       if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (smother ? 0.5 : 1), -1, false, this.telegraphCause(t));
+      this.tellFrom = -1;
     }
   }
 
@@ -9995,7 +10201,9 @@ export class World {
         if (!inside && t.kind === 'hit' && (mask >> h) & 1) this.dodged();
         if (inside && (this.player.rollT ?? 0) > 0 && this.player.shieldT > 0) this.player.rolled = (this.player.rolled ?? 0) + 1;
         // A smothered bloom lands on the shield: that Bulwark takes half.
+        this.tellFrom = t.owner;
         if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (h === smother ? 0.5 : 1), -1, false, this.telegraphCause(t));
+        this.tellFrom = -1;
       });
     }
   }

@@ -74,6 +74,8 @@ type Msg =
   | { t: 'start'; opts: WorldOptions; order: string[] }
   | { t: 'in'; x: number; y: number }
   | { t: 'cast'; slot: number }
+  /** 1.0 CP2 hold verbs: a guest's ability button went down (on) or came up. */
+  | { t: 'hold'; slot: number; on: boolean }
   | { t: 'pick'; i: number }
   | { t: 'snap'; s: Snapshot }
   | { t: 'menu' };
@@ -110,6 +112,8 @@ export class CoopSession {
   private inputs = new Map<string, Input>();
   /** Pending ability presses: held up to QUEUE_TICKS until they fire, like the solo spell queue. */
   private casts = new Map<string, { slot: number; ticks: number; cd: number }>();
+  /** 1.0 CP2 hold verbs: the ability button each guest is holding down. */
+  private holds = new Map<string, number>();
   private picks: { id: string; i: number }[] = [];
   private gone = new Set<string>();
   /** Host: each member's player id (kept after they leave, so a rejoin can be matched). */
@@ -197,6 +201,7 @@ export class CoopSession {
     const full: WorldOptions = { ...opts, heroName: this.mine.name, party, partySize: 1 + party.length, looks, fillBots: bots.length };
     this.inputs.clear();
     this.casts.clear();
+    this.holds.clear();
     this.picks = [];
     this.gone.clear();
     this.events = [];
@@ -213,14 +218,15 @@ export class CoopSession {
     return this.order.map((id, k) => {
       const i = this.inputs.get(id) ?? { x: 0, y: 0 };
       const c = this.casts.get(id);
-      if (!c) return { x: i.x, y: i.y };
+      const hold = this.holds.get(id);
+      if (!c) return hold === undefined ? { x: i.x, y: i.y } : { x: i.x, y: i.y, hold };
       const q = w.heroData(k + 1).player;
       if (c.slot === ROLL_SLOT) {
         c.cd = q.rollCd ?? 0;
         return { x: i.x, y: i.y, roll: true };
       }
       c.cd = q.cds[c.slot] ?? 0;
-      return { x: i.x, y: i.y, cast: c.slot };
+      return hold === undefined ? { x: i.x, y: i.y, cast: c.slot } : { x: i.x, y: i.y, cast: c.slot, hold };
     });
   }
 
@@ -266,6 +272,7 @@ export class CoopSession {
     this.gone.delete(old);
     this.inputs.delete(old);
     this.casts.delete(old);
+    this.holds.delete(old);
     this.party.send(id, 'rel', { t: 'start', opts: this.runOpts, order: this.order } satisfies Msg);
     // A snapshot right away, so the returning guest's mirror catches up at once.
     this.lastSnapTick = -1;
@@ -292,6 +299,10 @@ export class CoopSession {
 
   sendCast(slot: number): void {
     this.party.broadcast('rel', { t: 'cast', slot } satisfies Msg);
+  }
+
+  sendHold(slot: number, on: boolean): void {
+    this.party.broadcast('rel', { t: 'hold', slot, on } satisfies Msg);
   }
 
   sendPick(i: number): void {
@@ -321,6 +332,7 @@ export class CoopSession {
     }
     this.heroes.delete(id);
     this.gone.add(id);
+    this.holds.delete(id);
     this.inputs.delete(id);
     this.shareRoster();
     this.events_.onRoster?.();
@@ -366,6 +378,10 @@ export class CoopSession {
         break;
       case 'cast':
         if (Number.isInteger(m.slot) && m.slot >= 0 && m.slot <= ROLL_SLOT) this.casts.set(from, { slot: m.slot, ticks: QUEUE_TICKS, cd: 0 });
+        break;
+      case 'hold':
+        if (!m.on) this.holds.delete(from);
+        else if (Number.isInteger(m.slot) && m.slot >= 0 && m.slot < 4) this.holds.set(from, m.slot);
         break;
       case 'pick':
         if (Number.isInteger(m.i) && m.i >= 0 && m.i < 3) this.picks.push({ id: from, i: m.i });

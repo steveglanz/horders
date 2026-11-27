@@ -53,7 +53,8 @@ describe('dodge roll for every class (1.0 CP2 grey box)', () => {
   });
 
   it('bots roll on red: inside a mark about to land, with the roll ready', () => {
-    const w = room('bulwark');
+    // A Bulwark bot parries instead (tests/verbs.test.ts), so this is the Cutwick.
+    const w = room('duskblade');
     const p = w.player;
     (w as unknown as Inner).addTelegraph('circle', p.x, p.y, 80, 0, 0, 1.2, 30);
     // Early on, the bot walks out; it doesn't burn the roll.
