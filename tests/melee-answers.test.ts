@@ -106,3 +106,23 @@ describe('melee answers: the Glass Heir (the Glarewell)', () => {
     }
   });
 });
+
+describe('melee answers: the Banked Queen (the Coldmarrow)', () => {
+  it('never hurts by touch: a melee hero standing against her takes nothing between her casts', () => {
+    const w = new World({ seed: 3, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'duskblade' });
+    const q = w as unknown as Q;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('nhevra', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    const e = w.enemies[b];
+    const c = w as unknown as { snuffT: number; tideT: number; nightT: number };
+    const hp = w.player.hp;
+    for (let n = 0; n < 30 * 3; n++) {
+      e.touchCd = 0; e.x = 0; e.y = 0; c.snuffT = 99; c.tideT = 99; c.nightT = 99;
+      w.player.x = 50; w.player.y = 0;
+      for (const o of w.enemies) if (o.alive && o.kind !== 'nhevra') o.alive = false;
+      w.step({ x: 0, y: 0 });
+    }
+    expect(w.player.hp).toBeGreaterThanOrEqual(hp);
+  });
+});
