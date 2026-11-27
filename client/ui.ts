@@ -7,7 +7,7 @@ import { HEATS, type HeatId } from '../sim/content/heat';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES, SLOT_UNLOCK, slotOpen } from '../sim/content/classes';
-import { ENCOUNTERS } from '../sim/content/dungeon';
+import { ENCOUNTERS, worldBossLabel } from '../sim/content/dungeon';
 import { trailLabel } from '../sim/content/season';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
@@ -436,7 +436,7 @@ export class Hud {
     $('hud').classList.add('tgt');
     box.style.setProperty('--tcolor', RANK_COLOR[e.def.rank]);
     const shadow = e.kind === 'worldShadow';
-    $('tName').textContent = shadow && w.worldBoss ? `Shadow of ${w.worldBoss}` : e.named >= 0 ? w.namedName(i) : e.def.name;
+    $('tName').textContent = shadow && w.worldBoss ? `Shadow of ${worldBossLabel(w.worldBoss)}` : e.named >= 0 ? w.namedName(i) : e.def.name;
     $('tTitle').textContent = e.named >= 0 ? `Named · ${AFFIXES[e.affix]}` : e.def.title ?? (e.def.stationary ? 'Objective' : '');
     const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? (e.named >= 0 && AFFIXES[e.affix] === 'Warded' ? 'Shield up' : 'Warded') : '';
     // A Warded named elite already says "Warded" in its title, so the live state reads "Shield up".

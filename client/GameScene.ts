@@ -10,7 +10,7 @@ import Phaser from 'phaser';
 import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OSKELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
 import { inLoop, roomLoops } from './hallsshape';
-import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP, worldBossLabel } from '../sim/content/dungeon';
 import { BOSS_VERSION_NAME } from '../sim/runshape';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -1579,7 +1579,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.banner('A Cinder Brute approaches', 'Interrupt its Ground Pound. Its death grants a bonus talent');
           break;
         case 'rareSpawn':
-          this.hud.banner('Rare: Vorhulm the Glutton', 'Interrupt its Gorge or it heals. Drops rare loot');
+          this.hud.banner('Rare: The Taster', 'Interrupt its Gorge or it heals. Drops rare loot');
           break;
         case 'riftOpen':
           this.hud.banner('A Hollow Rift tears open', 'Close it before the Tide pours out');
@@ -1776,7 +1776,7 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'vorhulm' && w.bossVariant === 'inhale' ? INHALE_TIP : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP
             : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP : ev.id === 'colossus' && w.bossVariant === 'mill' ? MILLSTONE_TIP
             : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : ev.id === 'regent' && w.bossVariant === 'tithe' ? TITHE_TIP : def.tip;
-          const title = ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name;
+          const title = ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${worldBossLabel(w.worldBoss)}` : def.name;
           const named = events.find((e) => e.type === 'namedSpawn');
           const namedNext = named?.type === 'namedSpawn' ? { title: named.name, sub: namedLine(named.affix) } : undefined;
           if (w.hallsOn && !coach && !omens && !heat) {

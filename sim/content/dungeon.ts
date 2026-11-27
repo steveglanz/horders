@@ -35,7 +35,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   wardens: { id: 'wardens', name: 'Hollow Wardens', tip: 'Two hulking guards. Get clear of their slams.', spawns: [{ kind: 'husk', n: 2 }] },
   warpack: { id: 'warpack', name: 'Warden and Hounds', tip: 'A warden with its hounds. Thin the hounds first.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   brute: { id: 'brute', name: 'Cinder Brute', tip: 'Quench its Ground Pound.', spawns: [{ kind: 'cinderBrute', n: 1 }] },
-  ashmaw: { id: 'ashmaw', name: 'Vorhulm the Glutton', tip: 'Quench its Gorge, or it heals.', spawns: [{ kind: 'ashmaw', n: 1 }] },
+  ashmaw: { id: 'ashmaw', name: 'The Taster', tip: 'Quench its Gorge, or it heals.', spawns: [{ kind: 'ashmaw', n: 1 }] },
   acolytes: { id: 'acolytes', name: 'The Brute and its Acolytes', tip: 'Two acolytes heal the Brute. Kill the healers first.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'acolyte', n: 2 }] },
   // V1 (variety): Kiln fights that move and hit differently: range, a swarm source, and a charge down a lane.
   spitters: { id: 'spitters', name: 'Ember Spitters', tip: 'They keep their distance and lob fire where you stand. Keep moving and run them down.', spawns: [{ kind: 'emberSpitter', n: 2 }, { kind: 'cinderhound', n: 2 }] },
@@ -71,7 +71,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   bellwarden: { id: 'bellwarden', name: 'Warden of the Bell', tip: 'A Glass Warden guards a Brute. Choose which cast to Quench.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'glassWarden', n: 1 }] },
   tidepair: { id: 'tidepair', name: 'The Tide Pair', tip: 'Two Sluice Crawlers. Keep their rings apart from them.', spawns: [{ kind: 'sluiceCrawler', n: 2 }] },
   twinsAcolyte: { id: 'twinsAcolyte', name: 'Twins and their Keeper', tip: 'Kill the Acolyte, then the twins together.', spawns: [{ kind: 'emberTwin', n: 2 }, { kind: 'acolyte', n: 1 }] },
-  maelra: { id: 'maelra', name: 'Maelra, the Drowned Bellows', tip: 'Kite her over the steam vents to boil off her Temper.', spawns: [{ kind: 'maelra', n: 1 }] },
+  maelra: { id: 'maelra', name: 'Dowager Bellows', tip: 'Kite her over the steam vents to boil off her Temper.', spawns: [{ kind: 'maelra', n: 1 }] },
   // Phase 16 U2: the Glarewell's new elite. Its answer is to put a pillar between you and it, while its Shades want you in the light.
   conch: { id: 'conch', name: 'The Conchblower', tip: 'Each blast of its conch brings the next Ebb sooner. Quench the blast, and be near a raft when the water turns.', spawns: [{ kind: 'conchblower', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
   dimhorn: { id: 'dimhorn', name: 'The Dimhorn', tip: 'Out in the dark it winds its horn and calls the pack. Keep it inside your coal\'s light, where it can\'t sound it.', spawns: [{ kind: 'dimhorn', n: 1 }, { kind: 'snuffer', n: 2 }] },
@@ -82,11 +82,11 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   lamps: { id: 'lamps', name: 'The Twin Lamps', tip: 'Never stand in the light between the lamps. Kill one to break it.', spawns: [{ kind: 'twinLamp', n: 2 }] },
   lensShades: { id: 'lensShades', name: 'Lensbearer and the Dark', tip: 'Hide from the Glare, but the shadows are full of Shades.', spawns: [{ kind: 'lensbearer', n: 1 }, { kind: 'shade', n: 4 }] },
   brandShades: { id: 'brandShades', name: 'Brand and Lens', tip: 'Brands crack pillars. Burst them in the open so you keep your cover.', spawns: [{ kind: 'brandkeeper', n: 1 }, { kind: 'lensbearer', n: 1 }] },
-  lensmother: { id: 'lensmother', name: 'The Lensmother', tip: 'Hide from her Glare, burst Brands in the open, and save your pillars.', spawns: [{ kind: 'lensmother', n: 1 }] },
+  lensmother: { id: 'lensmother', name: 'The Glass Heir', tip: 'Hide from her Glare, burst Brands in the open, and save your pillars.', spawns: [{ kind: 'lensmother', n: 1 }] },
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', tip: 'Bonus fight: 60 seconds to hurt it. Every hit counts triple toward the world boss.', spawns: [{ kind: 'worldShadow', n: 1 }] },
   anvilguard: { id: 'anvilguard', name: 'The Anvil Guard', tip: 'Two Brutes at once: one hero holds both while the rest Quench.', spawns: [{ kind: 'cinderBrute', n: 2 }] },
-  ondrel: { id: 'ondrel', name: 'Ondrel of the Hammerdeep', tip: 'Tank holds Anvilfall, everyone else stays behind it, healer clears Slag Grip.', spawns: [{ kind: 'ondrel', n: 1 }] },
-  ysmeret: { id: 'ysmeret', name: 'Ysmeret, the Twofold Flame', tip: 'Someone in each gold vent, spread out when Embers mark you, tank takes Bellow Slam.', spawns: [{ kind: 'ysmeret', n: 1 }] },
+  ondrel: { id: 'ondrel', name: 'The Iron Uncle', tip: 'Tank holds Anvilfall, everyone else stays behind it, healer clears Slag Grip.', spawns: [{ kind: 'ondrel', n: 1 }] },
+  ysmeret: { id: 'ysmeret', name: 'Cousin Fork', tip: 'Someone in each gold vent, spread out when Embers mark you, tank takes Bellow Slam.', spawns: [{ kind: 'ysmeret', n: 1 }] },
   rimepack: { id: 'rimepack', name: 'The Rime Pack', tip: 'Five hounds out of the dark. Every kill feeds your coal.', spawns: [{ kind: 'rimehound', n: 5 }] },
   snuffers: { id: 'snuffers', name: 'Snuffers in the Dark', tip: 'Snuffers drink your light. Kill them before they touch you.', spawns: [{ kind: 'snuffer', n: 2 }, { kind: 'rimehound', n: 2 }] },
   frostwardens: { id: 'frostwardens', name: 'The Frost Wardens', tip: 'Ice shrugs off hits. Fight them inside your coal\'s light to crack them.', spawns: [{ kind: 'frostWarden', n: 2 }] },
@@ -99,13 +99,13 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   twoHaulers: { id: 'twoHaulers', name: 'Two Haulers', tip: 'They take turns to Haul. Save a Quench for each.', spawns: [{ kind: 'bargeHauler', n: 2 }] },
   haulerWarden: { id: 'haulerWarden', name: 'Hauler and Warden', tip: 'Quench the Haul, or it yanks you off your raft and into the Warden\'s reach.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'husk', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
   regent: { id: 'regent', name: 'The Furnace Regent', tip: 'Its Decree burns whoever holds it: walk it to an ally to pass it on before it bursts. You can\'t take it back for a while. It never lands on the tank, but the tank can take one.', spawns: [{ kind: 'regent', n: 1 }] },
-  colossus: { id: 'colossus', name: 'The Cinder Colossus', tip: 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When he Wheels, he turns on whoever hurt him most.', spawns: [{ kind: 'colossus', n: 1 }] },
-  vorhulm: { id: 'vorhulm', name: 'Old Vorhulm', tip: 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, grab the spilled embers before he does.', spawns: [{ kind: 'vorhulm', n: 1 }] },
-  oskel: { id: 'oskel', name: 'Oskel of the Pressworks', tip: 'Take turns under the Downstroke: a Pressed hero must stay out. Dodge the Rivets, tank takes the Stamp.', spawns: [{ kind: 'oskel', n: 1 }] },
-  hessa: { id: 'hessa', name: 'Hessa of the Ebb', tip: 'She holds the drain. Hit her between pulls, and keep a raft afloat.', spawns: [{ kind: 'hessa', n: 1 }] },
-  nhevra: { id: 'nhevra', name: 'Nhevra, the Cold Hearth', tip: 'Quench her Snuff, kill the Snuffers, and keep your coal bright for the Long Night.', spawns: [{ kind: 'nhevra', n: 1 }] },
+  colossus: { id: 'colossus', name: 'The Colossus', tip: 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When he Wheels, he turns on whoever hurt him most.', spawns: [{ kind: 'colossus', n: 1 }] },
+  vorhulm: { id: 'vorhulm', name: 'Uncle Glut', tip: 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, grab the spilled embers before he does.', spawns: [{ kind: 'vorhulm', n: 1 }] },
+  oskel: { id: 'oskel', name: 'Cousin Stamp', tip: 'Take turns under the Downstroke: a Pressed hero must stay out. Dodge the Rivets, tank takes the Stamp.', spawns: [{ kind: 'oskel', n: 1 }] },
+  hessa: { id: 'hessa', name: 'Aunt Ebb', tip: 'She holds the drain. Hit her between pulls, and keep a raft afloat.', spawns: [{ kind: 'hessa', n: 1 }] },
+  nhevra: { id: 'nhevra', name: 'The Banked Queen', tip: 'Quench her Snuff, kill the Snuffers, and keep your coal bright for the Long Night.', spawns: [{ kind: 'nhevra', n: 1 }] },
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', tip: 'Heal the Ladle burn off the tank, dodge the molten lanes, then fill the vents and spread for the Cinder Marks.', spawns: [{ kind: 'grandmotherSlag', n: 1 }] },
-  kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
+  kilnMother: { id: 'kilnMother', name: 'The Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 /** V8: Nhevra's intro when this run's version brings the Emberdrift from phase 2. */
 export const CREEPING_RIME_TIP = 'Quench her Snuff and kill the Snuffers. Later a patch of rime creeps after you and smothers your coal: keep moving and lead it away.';
@@ -190,7 +190,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   foundry: {
     id: 'foundry', name: 'The Drowned Foundry', boss: 'maelra', unlockTier: 4,
     openers: ['twins', 'glass', 'crawlers', 'riftfall', 'glassSpitters', 'crawlerCharge', 'ballast'], named: ['bellwarden', 'tidepair', 'spitterBrute'], hard: ['twinsAcolyte', 'tidepair'],
-    blurb: 'Mirrors, twins and rising water. Kite Maelra through the steam.', style: 'solo', minParty: 1,
+    blurb: 'Mirrors, twins and rising water. Kite Dowager Bellows through the steam.', style: 'solo', minParty: 1,
   },
   glarewell: {
     id: 'glarewell', name: 'The Glarewell', boss: 'lensmother', unlockTier: 7,
@@ -210,17 +210,17 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   hammerdeep: {
     id: 'hammerdeep', name: 'The Hammerdeep', boss: 'ondrel', unlockTier: 4,
     openers: ['warpack', 'wardens', 'glass', 'glassSpitters', 'riftfall', 'spitters'], named: ['anvilguard', 'bellwarden', 'spitterBrute'], hard: ['acolytes', 'anvilguard'],
-    blurb: 'A group dungeon. A tank holds Ondrel\'s Anvilfall, a healer keeps the party standing.', style: 'group', minParty: 2,
+    blurb: 'A group dungeon. A tank holds the Iron Uncle\'s Anvilfall, a healer keeps the party standing.', style: 'group', minParty: 2,
   },
   ashvents: {
     id: 'ashvents', name: 'The Ashvents', boss: 'ysmeret', unlockTier: 7,
     openers: ['glass', 'crawlers', 'warpack', 'riftfall', 'glassSpitters', 'spitters'], named: ['anvilguard', 'tidepair', 'spitterBrute'], hard: ['acolytes', 'bellwarden'],
-    blurb: 'A group dungeon. Split up to cover both of Ysmeret\'s vents, and never stand together when the Embers mark you.', style: 'group', minParty: 2,
+    blurb: 'A group dungeon. Split up to cover both of Cousin Fork\'s vents, and never stand together when the Embers mark you.', style: 'group', minParty: 2,
   },
   pressworks: {
     id: 'pressworks', name: 'The Pressworks', boss: 'oskel', unlockTier: 10,
     openers: ['warpack', 'glass', 'wardens', 'riftfall', 'glassSpitters', 'spitters'], named: ['anvilguard', 'bellwarden', 'spitterBrute'], hard: ['acolytes', 'anvilguard'],
-    blurb: 'A group dungeon. Oskel\'s Downstroke needs a hero under it every time, and nobody can take two in a row: take turns.', style: 'group', minParty: 2,
+    blurb: 'A group dungeon. Cousin Stamp\'s Downstroke needs a hero under it every time, and nobody can take two in a row: take turns.', style: 'group', minParty: 2,
   },
   crucible: {
     id: 'crucible', name: 'The Crucible', boss: 'grandmotherSlag', unlockTier: 8,
@@ -229,15 +229,15 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     worldBoss: 'Grandmother Slag',
   },
   hoard: {
-    id: 'hoard', name: 'The Hoard', boss: 'vorhulm', unlockTier: 9,
+    id: 'hoard', name: 'The Strongroom', boss: 'vorhulm', unlockTier: 9,
     openers: ['warpack', 'glass', 'crawlers', 'wardens', 'spitters'], named: ['anvilguard', 'bellwarden', 'spitterBrute'], hard: [],
-    blurb: 'The second raid. Four heroes face Old Vorhulm in his ember hoard. When he swallows one of you, the rest break the Craw to get them out. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
+    blurb: 'The second raid. Four heroes face Uncle Glut in his Strongroom. When he swallows one of you, the rest break the Craw to get them out. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
     worldBoss: 'Old Vorhulm',
   },
   smeltery: {
     id: 'smeltery', name: 'The Smeltery', boss: 'colossus', unlockTier: 10,
     openers: ['warpack', 'glass', 'crawlers', 'wardens'], named: ['anvilguard', 'bellwarden'], hard: [],
-    blurb: 'The third raid. Four heroes face the Cinder Colossus. His front is plated, so the tank holds it and the rest work his back. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
+    blurb: 'The third raid. Four heroes face the Colossus. His front is plated, so the tank holds it and the rest work his back. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
     worldBoss: 'The Cinder Colossus',
   },
   flue: {
@@ -337,4 +337,19 @@ export function rollRoute(pick: (n: number) => number, dungeon: DungeonId = 'kil
 export function raidCountsTriple(dungeon: DungeonId | undefined, liveBoss: string | undefined): boolean {
   const d = dungeon ? DUNGEONS[dungeon] : undefined;
   return !d?.raid || (!!d.worldBoss && d.worldBoss === liveBoss);
+}
+
+/**
+ * The player-facing name of a world boss. The server's boss name (supabase world_bosses.name, and each raid's
+ * `worldBoss`) is a key like an id and never changes; only what players read does (rename map, 27 Nov 2026).
+ * 'Old Ashmaw' is the name before migration 0007.
+ */
+export const WORLD_BOSS_LABEL: Record<string, string> = {
+  'Old Vorhulm': 'Uncle Glut',
+  'Old Ashmaw': 'Uncle Glut',
+  'The Cinder Colossus': 'The Colossus',
+};
+
+export function worldBossLabel(name: string): string {
+  return WORLD_BOSS_LABEL[name] ?? name;
 }
