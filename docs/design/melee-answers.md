@@ -76,7 +76,7 @@ scaling gap #911 found, not her attacks.
   it waits for design and visuals (and Steve's OK on the line). In the Carried Light version the light is at her, so
   that answer would not exist there.
 
-## The Banked Queen (Nhevra, the Coldmarrow): this PR
+## The Banked Queen (Nhevra, the Coldmarrow): done (PR #914)
 
 | Attack | Warning | Melee answer | Status |
 |---|---|---|---|
@@ -105,7 +105,37 @@ in 6 Cutwick runs every unowned mark came from the Omens (Volatile Ground r70, K
 red marks, so the Quickened owner bug from #912 can't happen here. Lumen's extra cost is the cold itself (Frozen 17%,
 Snuffers 18%), a coal question, not a melee one.
 
+## Aunt Ebb (Hessa, the Wrackline): this PR
+
+She never moves and has no blows of her own: everything she does runs on the Wrackline's clock (`wrackClock`).
+
+| Attack | Warning | Melee answer | Status |
+|---|---|---|---|
+| Touch (9 x tier, every 0.6 s against her) | none | none: it only ever hit melee (Bulwark 7%, Cutwick 4%, Lumen 6% max hp a run, Emberwright and Slagbinder 1%) | **removed** |
+| The Ebb (every 14 s, 7 s after 240 s): 4 s pull to the drain, 4% max hp/s off a raft, plus 10% max hp/s inside 90 of her | 3 s, banner and lit raft rims | ride the inner raft: its ring (125) passes over her edge, so melee keeps hitting her through it (docs/design/wrackline.md) | unchanged |
+| The Outsurge / the Whirl (phase 2 versions) | the same 3 s | the same: be on a raft | unchanged |
+| Sink (every 9 s), the afloat raft nearest you goes under for 12 s | 2.2 s blue cast and a circle on the raft, Quenchable | Kick (Bulwark, Cutwick, Emberwright), or pick another raft; no damage | unchanged. Its circle does no damage, so the Quickened owner bug from #912 can't hurt here |
+| Call the Shoal (every 28 s), 1 Shoal Lurker | always visible | kill it, or stand mid-raft (Lurkers can't board) | unchanged |
+
+Measured (scratch copy of tools/matrix.ts's run with damage by cause, Wrackline 13, tools/heroes/matrix hero-t13 n=0,
+average skill reactBot(0.3, 1, forget 0.2, stepErr 0.5), Halls, client Omens, seeds 1-20, main vs this PR):
+
+| Class | Wins main | Wins PR | Boss damage taken, % max hp per run (main / PR) |
+|---|---|---|---|
+| Cutwick | 18 | 18 | 34 / 30 (touch 4 / 0) |
+| Bulwark | 20 | 20 | 38 / 32 (touch 7 / 0) |
+| Emberwright | 20 | 20 | 15 / 15 (touch 1 / 0) |
+| Lumen | 20 | 20 | 42 / 32 (touch 6 / 0) |
+| Slagbinder | 20 | 20 | 5 / 4 (touch 1 / 0) |
+
+Boss-fight medians did not move (Cutwick 121 s, Bulwark 156 s, Emberwright 61 s, Lumen 114 s, Slagbinder 31 s). Merge
+gate (CHECK=1, Wrackline, seeds 1-6): pass. Cutwick's 2 losses are both before the boss. The "red marks on the floor"
+in her fight are all Omens (Volatile Ground r70, Kindled Dead r90; 6 Cutwick runs).
+
+Still uneven: melee takes more of the Tide (Cutwick 13%, Bulwark 11% a run against 3-5% for the Emberwright and
+Slagbinder), because its fights run 2-5x longer and it has to stand near the drain to hit her. That is the fight-length
+gap #911 and #913 found, not a missing answer.
+
 ## Still to audit (one PR each)
 
-- Aunt Ebb (Hessa, the Wrackline)
 - The Iron Uncle (Ondrel, the Hammerdeep) and the other group and raid bosses after the launch places
