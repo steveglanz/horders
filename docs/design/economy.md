@@ -101,3 +101,16 @@ Four sets were added on 21 Nov: Wrackrider, Deepguard, Ventwalker and Kinbound. 
 Embers are one purse for the whole account, not one per class. Every source keeps paying as before (delves, bounties, weekly quests, collections, achievements, the world boss), and all of it lands in the shared purse.
 - **Old saves:** on load, every class's purse is added to the shared one, so nobody loses embers (`shareEmbers` in sim/hero.ts, run on the local save and on the cloud save). It's safe to run again.
 - **Why sharing doesn't make a power spike:** the Forge cap still follows each class's own hero level and best tier, so embers earned on one class can't push another class's gear past what that class could reach on its own. Purses end a day with 2 to 60 embers (see above), so the one-time windfall is small.
+
+## Run embers: every fight carries embers home, kept on a loss (1.0 CP3, 27 Nov 2026)
+Vision v2 ("What a loss pays": keep your embers) says every run carries embers home, win or lose. Before this a delve itself paid no embers, only its loot (salvage), so there was nothing to keep. `runEmbers` in sim/hero.ts (`RUN_EMBERS`) now pays each cleared fight `round(1 + 0.25 × tier)` embers, and a won boss counts as 2 fights. A loss keeps all of it and only misses the fights it never reached. A run that cleared no fight carries nothing (like the end chest), so quitting at once is not a farm. The end screen says "Carried home +N embers" on a win and "You fell, but kept the N embers you carried" on a loss (`RunRewards.carriedEmbers`).
+
+At tier 1 a won Kiln delve (4 fights and the boss) carries 6; at tier 16 it carries 30. `tools/economy.ts`, forge policy, 10 days, seed offset 1 (one run each, so seed noise is in it):
+
+| | main c504511 | with run embers |
+|---|---|---|
+| Forge upgrades per delve | 3.37 | 3.87 |
+| Run embers per delve (total in minus salvage, bounty, weekly and achievements) | 0 | about 28 |
+| Left over after 10 days | 102 | 20 |
+
+A first try at `0.5 × tier` paid about 50 a delve and left 1,008 embers unspent (the Forge cap stops spending), so it was halved. Embers still don't pile up.
